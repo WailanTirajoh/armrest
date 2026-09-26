@@ -1,0 +1,177 @@
+import AgentCore
+import Foundation
+import Network
+import Security
+
+public enum ServerState: Equatable {
+    case starting
+    case listening(port: UInt16)
+    case failed(String)
+}
+
+/// Server WebSocket untuk HP. Semua callback berjalan di `queue` (di app: main queue).
+public final class AgentServer: SessionEnvironment {
+    public struct Configuration {
+        public var port: UInt16
+        public var hostId: String
+        public var hostName: String
+        /// nil = tanpa TLS (hanya untuk test).
+        public var tlsIdentity: SecIdentity?
+        public var advertise: Bool
+
+        public init(port: UInt16, hostId: String, hostName: String, tlsIdentity: SecIdentity?, advertise: Bool) {
+            self.port = port
+            self.hostId = hostId
+            self.hostName = hostName
+            self.tlsIdentity = tlsIdentity
+            self.advertise = advertise
+        }
+    }
+
+    public let configuration: Configuration
+    public let devices: TrustedDeviceStore
+    public let tokens: PairingTokens
+    public let queue: DispatchQueue
+
+    /// Minta keputusan user untuk perangkat baru; panggil closure dengan true (Izinkan) atau false.
+    public var onApprovalRequest: ((PendingDevice, @escaping (Bool) -> Void) -> Void)?
+    public var onInput: ((String, InputMessage) -> Void)?
+    public var onSettings: ((String, Double, Double) -> Void)?
+    public var onDevicesChanged: (() -> Void)?
+    public var onSessionsChanged: (([TrustedDevice]) -> Void)?
+    public var onSessionEnded: ((String) -> Void)?
+    public var onStateChange: ((ServerState) -> Void)?
+
+    public private(set) var state: ServerState = .starting
+    private var listener: NWListener?
+    private var connections: [UUID: AgentConnection] = [:]
+
+    public var hostId: String { configuration.hostId }
+    public var hostName: String { configuration.hostName }
+
+    public init(configuration: Configuration, devices: TrustedDeviceStore, tokens: PairingTokens, queue: DispatchQueue = .main) {
+        self.configuration = configuration
+        self.devices = devices
+        self.tokens = tokens
+        self.queue = queue
+    }
+
+    public func start() throws {
+        let tcp = NWProtocolTCP.Options()
+        tcp.noDelay = true
+        let parameters: NWParameters
+        if let identity = configuration.tlsIdentity, let secIdentity = sec_identity_create(identity) {
+            let tls = NWProtocolTLS.Options()
+            sec_protocol_options_set_local_identity(tls.securityProtocolOptions, secIdentity)
+            sec_protocol_options_set_min_tls_protocol_version(tls.securityProtocolOptions, .TLSv12)
+            parameters = NWParameters(tls: tls, tcp: tcp)
+        } else {
+            parameters = NWParameters(tls: nil, tcp: tcp)
+        }
+        let webSocket = NWProtocolWebSocket.Options()
+        webSocket.autoReplyPing = true
+        webSocket.maximumMessageSize = 64 * 1024
+        parameters.defaultProtocolStack.applicationProtocols.insert(webSocket, at: 0)
+        parameters.allowLocalEndpointReuse = true
+
+        let port = NWEndpoint.Port(rawValue: configuration.port) ?? .any
+        let listener = try NWListener(using: parameters, on: port)
+        if configuration.advertise {
+            let txt = NWTXTRecord(["hostId": configuration.hostId, "v": String(AgentConstants.protocolVersion)])
+            listener.service = NWListener.Service(
+                name: configuration.hostName, type: AgentConstants.bonjourServiceType, domain: nil, txtRecord: txt.data
+            )
+        }
+        listener.stateUpdateHandler = { [weak self] state in
+            guard let self else { return }
+            switch state {
+            case .ready:
+                self.update(.listening(port: listener.port?.rawValue ?? self.configuration.port))
+            case let .failed(error):
+                self.update(.failed(error.localizedDescription))
+            default:
+                break
+            }
+        }
+        listener.newConnectionHandler = { [weak self] connection in
+            self?.accept(connection)
+        }
+        self.listener = listener
+        listener.start(queue: queue)
+    }
+
+    public func stop() {
+        listener?.cancel()
+        listener = nil
+        connections.values.forEach { $0.close() }
+        connections.removeAll()
+    }
+
+    /// Perangkat yang sesinya sedang aktif (sudah terautentikasi).
+    public var activeDevices: [TrustedDevice] {
+        var seen = Set<String>()
+        return connections.values.compactMap(\.device).filter { seen.insert($0.id).inserted }
+    }
+
+    /// Putus sesi aktif perangkat tanpa menghapusnya dari daftar terpercaya.
+    public func disconnect(deviceId: String) {
+        connections.values.filter { $0.device?.id == deviceId }.forEach { $0.close() }
+    }
+
+    /// Revoke: hapus dari daftar terpercaya dan putus sesinya.
+    public func revoke(deviceId: String) {
+        try? devices.remove(id: deviceId)
+        disconnect(deviceId: deviceId)
+        onDevicesChanged?()
+    }
+
+    // MARK: SessionEnvironment
+
+    public func checkPairingToken(_ token: String) -> PairingTokenCheck {
+        tokens.check(token)
+    }
+
+    public func trustedDevice(id: String) -> TrustedDevice? {
+        devices.device(id: id)
+    }
+
+    public func makeNonce() -> Data {
+        Data((0..<32).map { _ in UInt8.random(in: .min ... .max) })
+    }
+
+    // MARK: Koneksi
+
+    private func accept(_ nwConnection: NWConnection) {
+        let connection = AgentConnection(connection: nwConnection, server: self)
+        connections[connection.id] = connection
+        connection.start()
+    }
+
+    func connectionEnded(_ connection: AgentConnection) {
+        guard connections.removeValue(forKey: connection.id) != nil else { return }
+        if let device = connection.device {
+            onSessionEnded?(device.id)
+            onSessionsChanged?(activeDevices)
+        }
+    }
+
+    func connectionAuthenticated(_ connection: AgentConnection, device: TrustedDevice) {
+        // Satu sesi aktif per perangkat: koneksi lama dari perangkat yang sama ditutup.
+        for other in connections.values where other.id != connection.id && other.device?.id == device.id {
+            other.close()
+        }
+        try? devices.touch(id: device.id, at: Date())
+        onDevicesChanged?()
+        onSessionsChanged?(activeDevices)
+    }
+
+    func trust(_ device: TrustedDevice) {
+        try? devices.upsert(device)
+        onDevicesChanged?()
+    }
+
+    private func update(_ newState: ServerState) {
+        state = newState
+        onStateChange?(newState)
+    }
+}

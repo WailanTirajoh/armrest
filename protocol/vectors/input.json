@@ -1,0 +1,13 @@
+{
+  "description": "Event input biner (little-endian). dx/dy/count dalam satuan protokol (0,1 dp); button 0 = kiri, 1 = kanan.",
+  "cases": [
+    { "message": "move", "dx": 10, "dy": -3, "hex": "010a00fdff" },
+    { "message": "move", "dx": -32768, "dy": 32767, "hex": "010080ff7f" },
+    { "message": "button", "button": 1, "down": true, "hex": "020101" },
+    { "message": "button", "button": 0, "down": false, "hex": "020000" },
+    { "message": "click", "button": 0, "count": 2, "hex": "030002" },
+    { "message": "click", "button": 1, "count": 1, "hex": "030101" },
+    { "message": "scroll", "dx": 0, "dy": -120, "hex": "04000088ff" }
+  ],
+  "invalid_hex": ["", "01", "010a00fd", "05000000", "0302", "03000300"]
+}

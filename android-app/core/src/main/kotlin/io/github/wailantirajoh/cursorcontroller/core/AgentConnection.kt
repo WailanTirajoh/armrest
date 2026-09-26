@@ -1,0 +1,232 @@
+package io.github.wailantirajoh.cursorcontroller.core
+
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import okhttp3.Response
+import okhttp3.WebSocket
+import okhttp3.WebSocketListener
+import okio.ByteString
+import okio.ByteString.Companion.toByteString
+import java.security.MessageDigest
+import java.security.cert.CertificateException
+import java.security.cert.X509Certificate
+import java.util.concurrent.Executors
+import java.util.concurrent.ScheduledExecutorService
+import java.util.concurrent.ScheduledFuture
+import java.util.concurrent.TimeUnit
+import javax.net.ssl.SSLContext
+import javax.net.ssl.X509TrustManager
+
+/** Identitas HP: deviceId + kunci ECDSA P-256 (Android Keystore di app, kunci biasa di test). */
+interface DeviceCredentials {
+    val deviceId: String
+    val deviceName: String
+    val publicKeyDer: ByteArray
+    fun sign(payload: ByteArray): ByteArray
+}
+
+sealed interface ConnectTarget {
+    val hostId: String
+    val address: String
+    val fingerprint: String
+
+    data class Pair(val uri: PairingUri) : ConnectTarget {
+        override val hostId get() = uri.hostId
+        override val address get() = uri.address
+        override val fingerprint get() = uri.fingerprint
+    }
+
+    data class Auth(override val hostId: String, override val address: String, override val fingerprint: String) : ConnectTarget
+}
+
+data class PairedHost(val hostId: String, val hostName: String, val fingerprint: String, val address: String)
+
+sealed interface ClientFailure {
+    data object FingerprintMismatch : ClientFailure
+    data class PairRejected(val code: String) : ClientFailure
+    data class AuthRejected(val code: String) : ClientFailure
+    data class Protocol(val code: String) : ClientFailure
+    data class Network(val message: String) : ClientFailure
+    data object HeartbeatTimeout : ClientFailure
+}
+
+/**
+ * Satu koneksi WebSocket TLS ke agent: handshake pair/auth, heartbeat, dan kirim input.
+ * Callback listener dipanggil dari thread OkHttp.
+ */
+class AgentConnection(
+    private val target: ConnectTarget,
+    private val credentials: DeviceCredentials,
+    private val listener: Listener,
+    baseClient: OkHttpClient = OkHttpClient(),
+    private val scheduler: ScheduledExecutorService = defaultScheduler,
+) {
+    interface Listener {
+        fun onPaired(host: PairedHost) {}
+        fun onAuthenticated() {}
+        /** Koneksi selesai. `failure` null kalau ditutup normal. */
+        fun onEnded(failure: ClientFailure?) {}
+    }
+
+    @Volatile
+    var isAuthenticated = false
+        private set
+
+    private val trustManager = PinnedTrustManager(target.fingerprint)
+    private val webSocket: WebSocket
+    // Callback onOpen bisa datang sebelum `webSocket` selesai di-assign di init, jadi simpan dari callback.
+    @Volatile private var socket: WebSocket? = null
+    @Volatile private var lastReceived = System.currentTimeMillis()
+    @Volatile private var failure: ClientFailure? = null
+    private var hostId = target.hostId
+    private var heartbeat: ScheduledFuture<*>? = null
+    private var ended = false
+
+    init {
+        val ssl = SSLContext.getInstance("TLS").apply { init(null, arrayOf(trustManager), null) }
+        val client = baseClient.newBuilder()
+            .sslSocketFactory(ssl.socketFactory, trustManager)
+            // Identitas Mac dijamin oleh pinning fingerprint, bukan nama host.
+            .hostnameVerifier { _, _ -> true }
+            .connectTimeout(5, TimeUnit.SECONDS)
+            .readTimeout(0, TimeUnit.SECONDS)
+            .pingInterval(0, TimeUnit.SECONDS)
+            .build()
+        webSocket = client.newWebSocket(Request.Builder().url("https://${target.address}").build(), SocketListener())
+    }
+
+    /** false kalau belum terautentikasi atau antrean kirim penuh. */
+    fun sendInput(message: InputMessage): Boolean =
+        isAuthenticated && webSocket.send(message.encode().toByteString())
+
+    fun sendSettings(sensitivity: Double, scrollSpeed: Double) {
+        if (isAuthenticated) send(ControlMessage.Settings(sensitivity, scrollSpeed))
+    }
+
+    /** Byte yang masih menunggu dikirim; dipakai untuk menggabung gerakan saat jaringan lambat. */
+    fun queueSize(): Long = webSocket.queueSize()
+
+    fun close() {
+        webSocket.close(1000, null)
+    }
+
+    private fun send(message: ControlMessage) {
+        (socket ?: webSocket).send(message.toJson())
+    }
+
+    private fun fail(reason: ClientFailure) {
+        if (failure == null) failure = reason
+        (socket ?: webSocket).cancel()
+    }
+
+    private fun handle(message: ControlMessage?) {
+        when (message) {
+            is ControlMessage.PairResult -> {
+                val pairTarget = target as? ConnectTarget.Pair ?: return fail(ClientFailure.Protocol("bad_message"))
+                if (!message.ok) return fail(ClientFailure.PairRejected(message.error ?: "unknown"))
+                hostId = message.hostId ?: hostId
+                listener.onPaired(PairedHost(hostId, message.hostName ?: pairTarget.uri.hostName, target.fingerprint, target.address))
+            }
+            is ControlMessage.Challenge -> {
+                val nonce = AuthCrypto.fromBase64(message.nonce) ?: return fail(ClientFailure.Protocol("bad_message"))
+                val signature = credentials.sign(AuthCrypto.payload(nonce, hostId, credentials.deviceId))
+                send(ControlMessage.Auth(AuthCrypto.base64(signature)))
+            }
+            is ControlMessage.AuthResult -> {
+                if (!message.ok) return fail(ClientFailure.AuthRejected(message.error ?: "unknown"))
+                isAuthenticated = true
+                listener.onAuthenticated()
+            }
+            is ControlMessage.Ping -> send(ControlMessage.Pong(message.ts))
+            is ControlMessage.Error -> fail(ClientFailure.Protocol(message.error))
+            else -> Unit
+        }
+    }
+
+    private fun startHeartbeat() {
+        heartbeat = scheduler.scheduleWithFixedDelay({
+            if (System.currentTimeMillis() - lastReceived > HEARTBEAT_TIMEOUT_MS) {
+                fail(ClientFailure.HeartbeatTimeout)
+            } else {
+                send(ControlMessage.Ping(System.currentTimeMillis()))
+            }
+        }, HEARTBEAT_INTERVAL_MS, HEARTBEAT_INTERVAL_MS, TimeUnit.MILLISECONDS)
+    }
+
+    private fun end(reason: ClientFailure?) {
+        synchronized(this) {
+            if (ended) return
+            ended = true
+        }
+        heartbeat?.cancel(false)
+        isAuthenticated = false
+        listener.onEnded(failure ?: reason)
+    }
+
+    private inner class SocketListener : WebSocketListener() {
+        override fun onOpen(webSocket: WebSocket, response: Response) {
+            socket = webSocket
+            lastReceived = System.currentTimeMillis()
+            val mode = if (target is ConnectTarget.Pair) ControlMessage.MODE_PAIR else ControlMessage.MODE_AUTH
+            send(ControlMessage.Hello(ProtocolConstants.PROTOCOL_VERSION, credentials.deviceId, mode))
+            if (target is ConnectTarget.Pair) {
+                send(ControlMessage.PairRequest(target.uri.token, credentials.deviceName, AuthCrypto.base64(credentials.publicKeyDer)))
+            }
+            startHeartbeat()
+        }
+
+        override fun onMessage(webSocket: WebSocket, text: String) {
+            lastReceived = System.currentTimeMillis()
+            handle(ControlMessage.parse(text))
+        }
+
+        override fun onMessage(webSocket: WebSocket, bytes: ByteString) {
+            lastReceived = System.currentTimeMillis()
+        }
+
+        override fun onClosing(webSocket: WebSocket, code: Int, reason: String) {
+            webSocket.close(1000, null)
+        }
+
+        override fun onClosed(webSocket: WebSocket, code: Int, reason: String) {
+            end(null)
+        }
+
+        override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
+            end(if (trustManager.mismatch) ClientFailure.FingerprintMismatch else ClientFailure.Network(t.message ?: t.javaClass.simpleName))
+        }
+    }
+
+    companion object {
+        const val HEARTBEAT_INTERVAL_MS = 5_000L
+        const val HEARTBEAT_TIMEOUT_MS = 15_000L
+
+        private val defaultScheduler: ScheduledExecutorService by lazy {
+            Executors.newSingleThreadScheduledExecutor { runnable ->
+                Thread(runnable, "cursorctl-heartbeat").apply { isDaemon = true }
+            }
+        }
+    }
+}
+
+/** Hanya menerima sertifikat dengan fingerprint yang dibawa QR. */
+class PinnedTrustManager(private val expectedFingerprint: String) : X509TrustManager {
+    @Volatile
+    var mismatch = false
+        private set
+
+    override fun checkServerTrusted(chain: Array<out X509Certificate>, authType: String) {
+        val leaf = chain.firstOrNull() ?: throw CertificateException("Tidak ada sertifikat")
+        val actual = AuthCrypto.fingerprint(leaf.encoded)
+        if (!MessageDigest.isEqual(actual.toByteArray(), expectedFingerprint.toByteArray())) {
+            mismatch = true
+            throw CertificateException("Fingerprint sertifikat tidak cocok")
+        }
+    }
+
+    override fun checkClientTrusted(chain: Array<out X509Certificate>, authType: String) {
+        throw CertificateException("Tidak dipakai")
+    }
+
+    override fun getAcceptedIssuers(): Array<X509Certificate> = emptyArray()
+}

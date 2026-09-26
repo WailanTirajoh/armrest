@@ -1,122 +1,112 @@
 package io.github.wailantirajoh.cursorcontroller
 
-import android.content.pm.PackageInfo
-import android.os.Build
+import android.content.Intent
 import android.os.Bundle
+import android.widget.Toast
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
+import androidx.activity.viewModels
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material3.Button
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import io.github.wailantirajoh.cursorcontroller.ui.HostsScreen
+import io.github.wailantirajoh.cursorcontroller.ui.PairingFailedScreen
+import io.github.wailantirajoh.cursorcontroller.ui.PairingWaitScreen
+import io.github.wailantirajoh.cursorcontroller.ui.ScanScreen
+import io.github.wailantirajoh.cursorcontroller.ui.TouchpadScreen
 import io.github.wailantirajoh.cursorcontroller.ui.theme.CursorControllerTheme
 
 class MainActivity : ComponentActivity() {
+    private val viewModel: ControllerViewModel by viewModels()
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-        val version = packageManager.getPackageInfo(packageName, 0).displayVersion()
+        if (savedInstanceState == null) handleDeepLink(intent)
         setContent {
             CursorControllerTheme {
-                ComputerListScreen(version = version)
+                Surface(color = MaterialTheme.colorScheme.background, modifier = Modifier.fillMaxSize()) {
+                    App(viewModel)
+                }
             }
+        }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        handleDeepLink(intent)
+    }
+
+    override fun onStart() {
+        super.onStart()
+        viewModel.onForeground(true)
+    }
+
+    override fun onStop() {
+        viewModel.onForeground(false)
+        super.onStop()
+    }
+
+    /** QR yang dipindai kamera bawaan HP membuka app lewat cursorctl://pair?… */
+    private fun handleDeepLink(intent: Intent?) {
+        val data = intent?.dataString ?: return
+        if (!viewModel.onPairingText(data)) {
+            Toast.makeText(this, "Tautan pairing tidak valid", Toast.LENGTH_SHORT).show()
         }
     }
 }
 
-private fun PackageInfo.displayVersion(): String {
-    val build = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-        longVersionCode
-    } else {
-        @Suppress("DEPRECATION")
-        versionCode.toLong()
-    }
-    return "$versionName (build $build)"
-}
+@androidx.compose.runtime.Composable
+private fun App(viewModel: ControllerViewModel) {
+    val state by viewModel.state.collectAsStateWithLifecycle()
+    val context = androidx.compose.ui.platform.LocalContext.current
 
-/** Mockup A1, state "Kosong". Daftar komputer dan pairing menyusul di M2–M3. */
-@Composable
-fun ComputerListScreen(version: String) {
-    val colors = MaterialTheme.colorScheme
-    Surface(color = colors.background, modifier = Modifier.fillMaxSize()) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .safeDrawingPadding()
-                .padding(horizontal = 24.dp),
-        ) {
-            Text(
-                text = "Komputer",
-                fontSize = 22.sp,
-                fontWeight = FontWeight.SemiBold,
-                modifier = Modifier.padding(top = 20.dp, bottom = 8.dp),
+    LaunchedEffect(state.message) {
+        state.message?.let {
+            Toast.makeText(context, it, Toast.LENGTH_LONG).show()
+            viewModel.consumeMessage()
+        }
+    }
+
+    val screen = state.screen
+    BackHandler(enabled = screen != Screen.Hosts) {
+        when (screen) {
+            is Screen.Pairing -> viewModel.cancelPairing()
+            is Screen.Touchpad -> viewModel.disconnect()
+            else -> viewModel.backToHosts()
+        }
+    }
+
+    androidx.compose.foundation.layout.Box(Modifier.fillMaxSize().safeDrawingPadding()) {
+        when (screen) {
+            Screen.Hosts -> HostsScreen(
+                hosts = state.hosts,
+                manualAddressFor = state.manualAddressFor,
+                onScan = viewModel::openScanner,
+                onConnect = viewModel::connect,
+                onRequestManual = viewModel::requestManualAddress,
+                onConnectManually = viewModel::connectManually,
+                onRemove = viewModel::removeHost,
             )
-            Column(
-                modifier = Modifier
-                    .weight(1f)
-                    .fillMaxWidth(),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(16.dp, Alignment.CenterVertically),
-            ) {
-                Box(
-                    modifier = Modifier
-                        .size(112.dp)
-                        .background(colors.primaryContainer, CircleShape),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Icon(
-                        painter = painterResource(R.drawable.ic_launcher_foreground),
-                        contentDescription = null,
-                        tint = colors.onPrimaryContainer,
-                        modifier = Modifier.size(112.dp),
-                    )
-                }
-                Text(text = "Belum ada komputer", fontSize = 22.sp, fontWeight = FontWeight.SemiBold)
-                Text(
-                    text = "Di Mac, klik ikon app di menu bar lalu pilih Tambah perangkat. QR akan muncul untuk dipindai.",
-                    textAlign = TextAlign.Center,
-                    color = colors.onSurfaceVariant,
-                    fontSize = 15.sp,
-                    lineHeight = 22.sp,
-                )
-            }
-            Button(
-                onClick = {},
-                enabled = false,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(48.dp),
-            ) {
-                Text("Pair komputer baru")
-            }
-            Text(
-                text = "Versi $version · pairing menyusul di M3",
-                color = colors.onSurfaceVariant,
-                fontSize = 12.sp,
-                modifier = Modifier
-                    .align(Alignment.CenterHorizontally)
-                    .padding(vertical = 16.dp),
+            Screen.Scan -> ScanScreen(onBack = { viewModel.backToHosts() }, onScanned = viewModel::onPairingText)
+            is Screen.Pairing -> PairingWaitScreen(screen.hostName, onCancel = viewModel::cancelPairing)
+            is Screen.PairingFailed -> PairingFailedScreen(screen.error, onRetry = viewModel::openScanner, onClose = { viewModel.backToHosts() })
+            is Screen.Touchpad -> TouchpadScreen(
+                hostName = screen.hostName,
+                link = state.link,
+                settings = state.settings,
+                showGestureHints = state.showGestureHints,
+                onActions = viewModel.sender::submit,
+                onSettingsChange = viewModel::updateSettings,
+                onDismissHints = viewModel::dismissGestureHints,
+                onBack = viewModel::disconnect,
             )
         }
     }

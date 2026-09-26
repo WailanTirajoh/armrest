@@ -1,4 +1,5 @@
 plugins {
+    `java-library`
     alias(libs.plugins.kotlin.jvm)
 }
 
@@ -7,5 +8,20 @@ kotlin {
 }
 
 dependencies {
+    // api: tipe OkHttp muncul di konstruktor AgentConnection.
+    api(libs.okhttp)
+    // org.json sudah ada di Android; di sini hanya untuk kompilasi dan test JVM.
+    compileOnly(libs.json)
+
     testImplementation(libs.junit)
+    testImplementation(libs.json)
+}
+
+tasks.test {
+    // Uji end-to-end ke agent Mac sungguhan hanya jalan kalau variabel ini di-set (lihat AgentClientE2ETest).
+    environment("CURSORCTL_E2E_PAIRING_FILE", System.getenv("CURSORCTL_E2E_PAIRING_FILE") ?: "")
+    testLogging {
+        events("failed", "skipped")
+        exceptionFormat = org.gradle.api.tasks.testing.logging.TestExceptionFormat.FULL
+    }
 }
