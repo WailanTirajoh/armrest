@@ -4,18 +4,24 @@ import Foundation
 import Testing
 @testable import AgentServer
 
+enum ScreenEvent: Equatable {
+    case request(UUID, ScreenRequest?)
+    case ack(UUID, UInt32)
+}
+
 /// Menjalankan server sungguhan (ws:// tanpa TLS) dan HP tiruan lewat URLSessionWebSocketTask.
 final class ServerHarness {
     let queue = DispatchQueue(label: "test.agent-server")
     let server: AgentServer
     let inputs: AsyncStream<InputMessage>
     let focusInterest: AsyncStream<Bool>
+    let screenEvents: AsyncStream<ScreenEvent>
     private let inputContinuation: AsyncStream<InputMessage>.Continuation
 
-    init(approve: Bool) {
+    init(approve: Bool, features: [String] = []) {
         let url = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString).appendingPathComponent("devices.json")
         server = AgentServer(
-            configuration: .init(port: 0, hostId: "host-1", hostName: "Mac Test", tlsIdentity: nil, advertise: false),
+            configuration: .init(port: 0, hostId: "host-1", hostName: "Mac Test", tlsIdentity: nil, advertise: false, features: features),
             devices: TrustedDeviceStore(fileURL: url),
             tokens: PairingTokens(),
             queue: queue
@@ -26,6 +32,10 @@ final class ServerHarness {
         server.onApprovalRequest = { _, decide in decide(approve) }
         server.onInput = { [inputContinuation] _, message in inputContinuation.yield(message) }
         server.onFocusInterestChanged = { focusContinuation.yield($0) }
+        let (screenEvents, screenContinuation) = AsyncStream.makeStream(of: ScreenEvent.self)
+        self.screenEvents = screenEvents
+        server.onScreenRequest = { connection, _, request in screenContinuation.yield(.request(connection, request)) }
+        server.onScreenAck = { connection, seq in screenContinuation.yield(.ack(connection, seq)) }
     }
 
     func start() async throws -> UInt16 {
@@ -56,6 +66,10 @@ final class ServerHarness {
         queue.sync { server.devices.devices.map(\.id) }
     }
 
+    func sendScreen(_ packet: Data, to connection: UUID) {
+        queue.sync { server.sendScreen(packet, to: connection) }
+    }
+
     func updateTextFocus(_ focused: Bool) {
         queue.sync { server.updateTextFocus(focused) }
     }
@@ -67,6 +81,19 @@ final class ServerHarness {
 
 private func sendJSON(_ task: URLSessionWebSocketTask, _ message: ControlMessage) async throws {
     try await task.send(.string(String(decoding: message.encoded(), as: UTF8.self)))
+}
+
+private func receiveBinary(_ task: URLSessionWebSocketTask) async throws -> Data? {
+    while true {
+        switch try await task.receive() {
+        case let .data(data):
+            return data
+        case .string:
+            continue
+        @unknown default:
+            return nil
+        }
+    }
 }
 
 private func receiveJSON(_ task: URLSessionWebSocketTask) async throws -> ControlMessage? {
@@ -85,7 +112,9 @@ private func receiveJSON(_ task: URLSessionWebSocketTask) async throws -> Contro
 }
 
 /// HP tiruan: pairing lewat QR, lalu autentikasi di koneksi yang sama.
-private func pairPhone(_ harness: ServerHarness, port: UInt16) async throws -> (task: URLSessionWebSocketTask, deviceId: String) {
+private func pairPhone(
+    _ harness: ServerHarness, port: UInt16, features: [String] = []
+) async throws -> (task: URLSessionWebSocketTask, deviceId: String) {
     let token = harness.issueToken()
     let key = P256.Signing.PrivateKey()
     let deviceId = UUID().uuidString.lowercased()
@@ -101,7 +130,7 @@ private func pairPhone(_ harness: ServerHarness, port: UInt16) async throws -> (
     let nonce = try #require(nonceB64.flatMap { Data(base64Encoded: $0) }, "harus menerima challenge")
     let payload = AuthCrypto.payload(nonce: nonce, hostId: "host-1", deviceId: deviceId)
     try await sendJSON(task, .auth(sig: try key.signature(for: payload).derRepresentation.base64EncodedString()))
-    #expect(try await receiveJSON(task) == .authResult(ok: true, error: nil))
+    #expect(try await receiveJSON(task) == .authResult(ok: true, error: nil, features: features))
     return (task, deviceId)
 }
 
@@ -165,4 +194,29 @@ private func pairPhone(_ harness: ServerHarness, port: UInt16) async throws -> (
     try await sendJSON(task, .pairRequest(token: token, deviceName: "Pixel", publicKey: key.publicKey.derRepresentation.base64EncodedString()))
     #expect(try await receiveJSON(task) == .pairResult(.failed("denied")))
     #expect(harness.trustedDeviceIds().isEmpty)
+}
+
+@Test func screenRequestsReachAppAndFramesReachPhone() async throws {
+    let harness = ServerHarness(approve: true, features: ["focus", "screen"])
+    let port = try await harness.start()
+    defer { harness.stop() }
+    var events = harness.screenEvents.makeAsyncIterator()
+
+    let phone = try await pairPhone(harness, port: port, features: ["focus", "screen"])
+    try await sendJSON(phone.task, .screen(ScreenRequest(maxWidth: 1920, maxHeight: 1080)))
+    guard case let .request(connection, request)? = await events.next() else {
+        Issue.record("app harus menerima permintaan layar")
+        return
+    }
+    #expect(request == ScreenRequest(maxWidth: 1920, maxHeight: 1080))
+
+    let packet = ScreenPacket.frame(seq: 1, keyframe: true, data: Data([0, 0, 0, 1, 0x65, 0x88]))
+    harness.sendScreen(packet.encoded(), to: connection)
+    #expect(try await receiveBinary(phone.task) == packet.encoded())
+    try await sendJSON(phone.task, .screenAck(seq: 1))
+    #expect(await events.next() == .ack(connection, 1))
+
+    // Koneksi putus: app diberi tahu supaya tangkapan layar berhenti.
+    phone.task.cancel(with: .normalClosure, reason: nil)
+    #expect(await events.next() == .request(connection, nil))
 }

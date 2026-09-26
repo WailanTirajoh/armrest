@@ -66,12 +66,21 @@ class AgentConnection(
         fun onAuthenticated() {}
         /** Kolom teks mulai atau berhenti fokus di Mac. Hanya dikirim setelah diminta lewat [sendSettings]. */
         fun onTextFocus(focused: Boolean) {}
+        /** Status aliran layar dari Mac, mis. [ControlMessage.SCREEN_DENIED]. */
+        fun onScreenStatus(state: String) {}
+        /** Paket video layar. Frame sudah dikonfirmasi ke Mac sebelum callback ini. */
+        fun onScreenPacket(packet: ScreenPacket) {}
         /** Koneksi selesai. `failure` null kalau ditutup normal. */
         fun onEnded(failure: ClientFailure?) {}
     }
 
     @Volatile
     var isAuthenticated = false
+        private set
+
+    /** Fitur opsional agent dari `auth_result`; kosong untuk agent lama. */
+    @Volatile
+    var features: Set<String> = emptySet()
         private set
 
     private val trustManager = PinnedTrustManager(target.fingerprint)
@@ -105,6 +114,15 @@ class AgentConnection(
         if (isAuthenticated) send(ControlMessage.Settings(sensitivity, scrollSpeed, focusUpdates))
     }
 
+    /** Minta video layar Mac, atau minta keyframe kalau sudah berjalan. Ukuran maksimum dalam piksel. */
+    fun requestScreen(maxWidth: Int, maxHeight: Int) {
+        if (isAuthenticated) send(ControlMessage.Screen(true, maxWidth, maxHeight))
+    }
+
+    fun stopScreen() {
+        if (isAuthenticated) send(ControlMessage.Screen(false))
+    }
+
     /** Byte yang masih menunggu dikirim; dipakai untuk menggabung gerakan saat jaringan lambat. */
     fun queueSize(): Long = webSocket.queueSize()
 
@@ -136,10 +154,12 @@ class AgentConnection(
             }
             is ControlMessage.AuthResult -> {
                 if (!message.ok) return fail(ClientFailure.AuthRejected(message.error ?: "unknown"))
+                features = message.features.toSet()
                 isAuthenticated = true
                 listener.onAuthenticated()
             }
             is ControlMessage.Focus -> if (isAuthenticated) listener.onTextFocus(message.text)
+            is ControlMessage.ScreenStatus -> if (isAuthenticated) listener.onScreenStatus(message.state)
             is ControlMessage.Ping -> send(ControlMessage.Pong(message.ts))
             is ControlMessage.Error -> fail(ClientFailure.Protocol(message.error))
             else -> Unit
@@ -185,6 +205,11 @@ class AgentConnection(
 
         override fun onMessage(webSocket: WebSocket, bytes: ByteString) {
             lastReceived = System.currentTimeMillis()
+            if (!isAuthenticated) return
+            val packet = ScreenPacket.parse(bytes.toByteArray()) ?: return
+            // Konfirmasi begitu diterima: Mac menahan frame berikutnya kalau terlalu banyak yang belum dikonfirmasi.
+            if (packet is ScreenPacket.Frame) send(ControlMessage.ScreenAck(packet.seq))
+            listener.onScreenPacket(packet)
         }
 
         override fun onClosing(webSocket: WebSocket, code: Int, reason: String) {

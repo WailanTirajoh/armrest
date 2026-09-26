@@ -5,4 +5,6 @@ object ProtocolConstants {
     const val PROTOCOL_VERSION = 1
     const val DEFAULT_PORT = 47810
     const val SERVICE_TYPE = "_cursorctl._tcp"
+    /** Fitur opsional di `auth_result`: agent bisa mengirim layar Mac. */
+    const val FEATURE_SCREEN = "screen"
 }

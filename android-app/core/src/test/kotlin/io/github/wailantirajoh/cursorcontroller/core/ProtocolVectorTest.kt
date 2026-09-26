@@ -4,6 +4,8 @@ import org.json.JSONObject
 import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
+import org.junit.Assert.fail
 import org.junit.Test
 import java.io.File
 import java.security.KeyFactory
@@ -66,6 +68,47 @@ class ProtocolVectorTest {
     }
 
     @Test
+    fun screenVectorsParse() {
+        val cases = vector("screen.json").getJSONArray("cases")
+        assertTrue(cases.length() >= 3)
+        for (i in 0 until cases.length()) {
+            val c = cases.getJSONObject(i)
+            val packet = ScreenPacket.parse(hex(c.getString("hex")))
+            when (c.getString("packet")) {
+                "config" -> assertEquals(
+                    c.getString("name"),
+                    ScreenPacket.Config(c.getInt("width"), c.getInt("height"), hex(c.getString("parameterSets_hex"))),
+                    packet,
+                )
+                "frame" -> {
+                    val frame = packet as ScreenPacket.Frame
+                    assertEquals(c.getLong("seq"), frame.seq)
+                    assertEquals(c.getBoolean("keyframe"), frame.keyframe)
+                    assertEquals(c.getString("data_hex"), frame.data.hex())
+                }
+                else -> fail("paket tidak dikenal: $c")
+            }
+        }
+    }
+
+    @Test
+    fun invalidScreenPacketsAreRejected() {
+        val invalid = vector("screen.json").getJSONArray("invalid_hex")
+        for (i in 0 until invalid.length()) {
+            assertNull(invalid.getString(i), ScreenPacket.parse(hex(invalid.getString(i))))
+        }
+    }
+
+    @Test
+    fun annexBSplitsNalUnitsWithBothStartCodes() {
+        val vector = vector("screen.json").getJSONObject("annexb")
+        val units = vector.getJSONArray("units_hex").let { a -> List(a.length()) { a.getString(it) } }
+        assertEquals(units, AnnexB.split(hex(vector.getString("annexb_hex"))).map { it.hex() })
+        assertEquals(units, AnnexB.split(hex(vector.getString("mixedStartCodes_hex"))).map { it.hex() })
+        assertEquals(AnnexB.NAL_IDR, AnnexB.nalType(hex(units[0])))
+    }
+
+    @Test
     fun controlMessagesRoundTrip() {
         val messages = listOf(
             ControlMessage.Hello(1, "d", ControlMessage.MODE_PAIR),
@@ -76,10 +119,15 @@ class ProtocolVectorTest {
             ControlMessage.Auth("c2ln"),
             ControlMessage.AuthResult(true, null),
             ControlMessage.AuthResult(false, "bad_sig"),
+            ControlMessage.AuthResult(true, null, listOf("focus", "screen")),
             ControlMessage.Settings(1.5, 2.0),
             ControlMessage.Settings(1.5, 2.0, focusUpdates = true),
             ControlMessage.Focus(true),
             ControlMessage.Focus(false),
+            ControlMessage.Screen(true, 2712, 1220),
+            ControlMessage.Screen(false),
+            ControlMessage.ScreenAck(4_294_967_295),
+            ControlMessage.ScreenStatus(ControlMessage.SCREEN_DENIED),
             ControlMessage.Ping(1_790_000_000_000),
             ControlMessage.Pong(42),
             ControlMessage.Error("bad_message"),
@@ -97,6 +145,12 @@ class ProtocolVectorTest {
             ControlMessage.parse("""{"hostId":"host-1","hostName":"Mac Test","ok":true,"t":"pair_result"}"""),
         )
         assertEquals(ControlMessage.Focus(true), ControlMessage.parse("""{"t":"focus","text":true}"""))
+        assertEquals(
+            ControlMessage.AuthResult(true, null, listOf("focus", "screen")),
+            ControlMessage.parse("""{"features":["focus","screen"],"ok":true,"t":"auth_result"}"""),
+        )
+        assertEquals(ControlMessage.AuthResult(true, null), ControlMessage.parse("""{"ok":true,"t":"auth_result"}"""))
+        assertEquals(ControlMessage.ScreenStatus("streaming"), ControlMessage.parse("""{"state":"streaming","t":"screen_status"}"""))
         assertNull(ControlMessage.parse("""{"t":"nope"}"""))
         assertNull(ControlMessage.parse("bukan json"))
     }

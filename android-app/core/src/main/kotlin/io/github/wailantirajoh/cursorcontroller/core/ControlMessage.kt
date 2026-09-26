@@ -1,5 +1,6 @@
 package io.github.wailantirajoh.cursorcontroller.core
 
+import org.json.JSONArray
 import org.json.JSONObject
 
 /** Pesan kontrol JSON (protocol/PROTOCOL.md). */
@@ -9,11 +10,18 @@ sealed interface ControlMessage {
     data class PairResult(val ok: Boolean, val hostId: String?, val hostName: String?, val error: String?) : ControlMessage
     data class Challenge(val nonce: String) : ControlMessage
     data class Auth(val sig: String) : ControlMessage
-    data class AuthResult(val ok: Boolean, val error: String?) : ControlMessage
+    /** `features`: fitur opsional agent, mis. [ProtocolConstants.FEATURE_SCREEN]. Kosong untuk agent lama. */
+    data class AuthResult(val ok: Boolean, val error: String?, val features: List<String> = emptyList()) : ControlMessage
     /** `focusUpdates`: minta Mac mengirim [Focus] setiap kali fokus kolom teks berubah. */
     data class Settings(val sensitivity: Double, val scrollSpeed: Double, val focusUpdates: Boolean = false) : ControlMessage
     /** Apakah kolom teks sedang fokus di Mac. */
     data class Focus(val text: Boolean) : ControlMessage
+    /** Mulai (`on`) atau berhenti melihat layar Mac. Diminta lagi saat aktif = minta keyframe. Ukuran dalam piksel. */
+    data class Screen(val on: Boolean, val maxWidth: Int = 0, val maxHeight: Int = 0) : ControlMessage
+    /** Frame layar sampai `seq` sudah diterima. */
+    data class ScreenAck(val seq: Long) : ControlMessage
+    /** [SCREEN_STREAMING], [SCREEN_DENIED], atau [SCREEN_FAILED]. */
+    data class ScreenStatus(val state: String) : ControlMessage
     data class Ping(val ts: Long) : ControlMessage
     data class Pong(val ts: Long) : ControlMessage
     data class Error(val error: String) : ControlMessage
@@ -27,9 +35,14 @@ sealed interface ControlMessage {
             is Challenge -> o.put("t", "challenge").put("nonce", nonce)
             is Auth -> o.put("t", "auth").put("sig", sig)
             is AuthResult -> o.put("t", "auth_result").put("ok", ok).putOpt("error", error)
+                .apply { if (features.isNotEmpty()) put("features", JSONArray(features)) }
             is Settings -> o.put("t", "settings").put("sensitivity", sensitivity).put("scrollSpeed", scrollSpeed)
                 .put("focusUpdates", focusUpdates)
             is Focus -> o.put("t", "focus").put("text", text)
+            is Screen -> o.put("t", "screen").put("on", on)
+                .apply { if (on) put("maxWidth", maxWidth).put("maxHeight", maxHeight) }
+            is ScreenAck -> o.put("t", "screen_ack").put("seq", seq)
+            is ScreenStatus -> o.put("t", "screen_status").put("state", state)
             is Ping -> o.put("t", "ping").put("ts", ts)
             is Pong -> o.put("t", "pong").put("ts", ts)
             is Error -> o.put("t", "error").put("error", error)
@@ -40,6 +53,9 @@ sealed interface ControlMessage {
     companion object {
         const val MODE_PAIR = "pair"
         const val MODE_AUTH = "auth"
+        const val SCREEN_STREAMING = "streaming"
+        const val SCREEN_DENIED = "denied"
+        const val SCREEN_FAILED = "failed"
 
         fun parse(text: String): ControlMessage? = try {
             val o = JSONObject(text)
@@ -51,9 +67,12 @@ sealed interface ControlMessage {
                 )
                 "challenge" -> Challenge(o.getString("nonce"))
                 "auth" -> Auth(o.getString("sig"))
-                "auth_result" -> AuthResult(o.getBoolean("ok"), o.optStringOrNull("error"))
+                "auth_result" -> AuthResult(o.getBoolean("ok"), o.optStringOrNull("error"), o.optStrings("features"))
                 "settings" -> Settings(o.getDouble("sensitivity"), o.getDouble("scrollSpeed"), o.optBoolean("focusUpdates", false))
                 "focus" -> Focus(o.getBoolean("text"))
+                "screen" -> if (o.getBoolean("on")) Screen(true, o.getInt("maxWidth"), o.getInt("maxHeight")) else Screen(false)
+                "screen_ack" -> ScreenAck(o.getLong("seq"))
+                "screen_status" -> ScreenStatus(o.getString("state"))
                 "ping" -> Ping(o.getLong("ts"))
                 "pong" -> Pong(o.getLong("ts"))
                 "error" -> Error(o.optString("error", "unknown"))
@@ -64,5 +83,8 @@ sealed interface ControlMessage {
         }
 
         private fun JSONObject.optStringOrNull(key: String): String? = if (has(key) && !isNull(key)) getString(key) else null
+
+        private fun JSONObject.optStrings(key: String): List<String> =
+            optJSONArray(key)?.let { array -> List(array.length()) { array.getString(it) } } ?: emptyList()
     }
 }

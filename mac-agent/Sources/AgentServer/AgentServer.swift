@@ -18,13 +18,18 @@ public final class AgentServer: SessionEnvironment {
         /// nil = tanpa TLS (hanya untuk test).
         public var tlsIdentity: SecIdentity?
         public var advertise: Bool
+        /// Fitur opsional yang diumumkan ke HP (lihat `AgentFeature`).
+        public var features: [String]
 
-        public init(port: UInt16, hostId: String, hostName: String, tlsIdentity: SecIdentity?, advertise: Bool) {
+        public init(
+            port: UInt16, hostId: String, hostName: String, tlsIdentity: SecIdentity?, advertise: Bool, features: [String] = []
+        ) {
             self.port = port
             self.hostId = hostId
             self.hostName = hostName
             self.tlsIdentity = tlsIdentity
             self.advertise = advertise
+            self.features = features
         }
     }
 
@@ -44,6 +49,11 @@ public final class AgentServer: SessionEnvironment {
     /// true saat mulai ada HP yang meminta status fokus kolom teks, false saat tidak ada lagi.
     /// App menyalakan atau mematikan pemantauan fokus mengikuti ini.
     public var onFocusInterestChanged: ((Bool) -> Void)?
+    /// HP mulai (request) atau berhenti (nil) melihat layar, per koneksi. Dipanggil dengan nil juga saat koneksinya
+    /// putus. Permintaan ulang selagi aktif berarti HP butuh keyframe atau ukuran baru.
+    public var onScreenRequest: ((UUID, TrustedDevice, ScreenRequest?) -> Void)?
+    /// HP sudah menerima frame layar sampai nomor ini.
+    public var onScreenAck: ((UUID, UInt32) -> Void)?
 
     public private(set) var state: ServerState = .starting
     private var listener: NWListener?
@@ -54,6 +64,7 @@ public final class AgentServer: SessionEnvironment {
 
     public var hostId: String { configuration.hostId }
     public var hostName: String { configuration.hostName }
+    public var features: [String] { configuration.features }
 
     public init(configuration: Configuration, devices: TrustedDeviceStore, tokens: PairingTokens, queue: DispatchQueue = .main) {
         self.configuration = configuration
@@ -109,7 +120,10 @@ public final class AgentServer: SessionEnvironment {
     public func stop() {
         listener?.cancel()
         listener = nil
-        connections.values.forEach { $0.close() }
+        for connection in connections.values {
+            endScreen(of: connection)
+            connection.close()
+        }
         connections.removeAll()
         updateFocusInterest()
     }
@@ -141,6 +155,15 @@ public final class AgentServer: SessionEnvironment {
         }
     }
 
+    /// Kirim paket video layar (`ScreenPacket`) ke satu koneksi. Diabaikan kalau koneksinya sudah tidak ada.
+    public func sendScreen(_ packet: Data, to connection: UUID) {
+        connections[connection]?.sendBinary(packet)
+    }
+
+    public func sendScreenStatus(_ status: ScreenStatus, to connection: UUID) {
+        connections[connection]?.send(.screenStatus(status))
+    }
+
     // MARK: SessionEnvironment
 
     public func checkPairingToken(_ token: String) -> PairingTokenCheck {
@@ -165,6 +188,7 @@ public final class AgentServer: SessionEnvironment {
 
     func connectionEnded(_ connection: AgentConnection) {
         guard connections.removeValue(forKey: connection.id) != nil else { return }
+        endScreen(of: connection)
         updateFocusInterest()
         if let device = connection.device {
             onSessionEnded?(device.id)
@@ -196,6 +220,12 @@ public final class AgentServer: SessionEnvironment {
         focusInterest = interested
         if !interested { textFocus = nil }
         onFocusInterestChanged?(interested)
+    }
+
+    private func endScreen(of connection: AgentConnection) {
+        if connection.screenRequested, let device = connection.device {
+            onScreenRequest?(connection.id, device, nil)
+        }
     }
 
     func trust(_ device: TrustedDevice) {

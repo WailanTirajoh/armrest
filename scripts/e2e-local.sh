@@ -2,8 +2,8 @@
 # Uji end-to-end lokal: agent Mac sungguhan (TLS, Keychain, Bonjour) melawan klien Android di JVM (OkHttp).
 #
 # Agent dijalankan dengan profil "e2e": port 47811, tanpa jendela, pairing otomatis diizinkan, status fokus
-# kolom teks dibaca dari file (bukan dari app lain), dan data terpisah dari app normal. Semua data profil e2e
-# (Keychain, Application Support, defaults) dihapus di akhir.
+# kolom teks dibaca dari file (bukan dari app lain), layar diganti pola uji, dan data terpisah dari app normal.
+# Semua data profil e2e (Keychain, Application Support, defaults) dihapus di akhir.
 # Tanpa izin Accessibility untuk build ini, event input diterima tapi tidak menggerakkan kursor.
 set -euo pipefail
 
@@ -57,4 +57,5 @@ cat "$LOG"
 grep -q "input: move" "$LOG" && grep -q "input: click" "$LOG" && grep -q "input: scroll" "$LOG"
 grep -q 'input: text("Halo dunia' "$LOG" && grep -q "input: key(AgentCore.KeyCode.returnKey" "$LOG" && grep -q "input: key(AgentCore.KeyCode.c" "$LOG"
 grep -q "focus: true" "$LOG" && grep -q "focus: false" "$LOG"
+grep -q "screen: start" "$LOG" && grep -q "screen: streaming" "$LOG" && grep -q "screen: stop" "$LOG"
 echo "E2E OK"

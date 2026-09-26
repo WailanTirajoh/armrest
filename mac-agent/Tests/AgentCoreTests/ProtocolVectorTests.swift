@@ -100,10 +100,17 @@ extension Data {
         .auth(sig: "c2ln"),
         .authResult(ok: true, error: nil),
         .authResult(ok: false, error: "bad_sig"),
+        .authResult(ok: true, error: nil, features: ["focus", "screen"]),
         .settings(sensitivity: 1.5, scrollSpeed: 2, focusUpdates: true),
         .settings(sensitivity: 1.5, scrollSpeed: 2, focusUpdates: false),
         .focus(text: true),
         .focus(text: false),
+        .screen(ScreenRequest(maxWidth: 2712, maxHeight: 1220)),
+        .screen(nil),
+        .screenAck(seq: 4_294_967_295),
+        .screenStatus(.streaming),
+        .screenStatus(.denied),
+        .screenStatus(.failed),
         .ping(ts: 1_790_000_000_000),
         .pong(ts: 42),
         .error("bad_message"),
@@ -121,6 +128,12 @@ extension Data {
     // HP v0.3 belum mengenal focusUpdates.
     let oldSettings = #"{"scrollSpeed":2.0,"sensitivity":1.5,"t":"settings"}"#
     #expect(ControlMessage.decode(Data(oldSettings.utf8)) == .settings(sensitivity: 1.5, scrollSpeed: 2, focusUpdates: false))
+    let screen = #"{"maxHeight":1220,"maxWidth":2712,"on":true,"t":"screen"}"#
+    #expect(ControlMessage.decode(Data(screen.utf8)) == .screen(ScreenRequest(maxWidth: 2712, maxHeight: 1220)))
+    #expect(ControlMessage.decode(Data(#"{"on":false,"t":"screen"}"#.utf8)) == .screen(nil))
+    #expect(ControlMessage.decode(Data(#"{"seq":42,"t":"screen_ack"}"#.utf8)) == .screenAck(seq: 42))
+    // Agent lama tidak mengirim features; HP lama mengabaikannya.
+    #expect(ControlMessage.decode(Data(#"{"ok":true,"t":"auth_result"}"#.utf8)) == .authResult(ok: true, error: nil))
     #expect(ControlMessage.decode(Data(#"{"t":"nope"}"#.utf8)) == nil)
     #expect(ControlMessage.decode(Data("bukan json".utf8)) == nil)
 }

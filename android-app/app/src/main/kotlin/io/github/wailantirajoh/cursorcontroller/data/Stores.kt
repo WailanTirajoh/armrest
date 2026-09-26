@@ -57,6 +57,8 @@ data class TouchSettings(
     val haptics: Boolean = true,
     /** Buka panel keyboard saat kolom teks di Mac aktif. */
     val autoKeyboard: Boolean = true,
+    /** Tampilkan layar Mac di area touchpad. */
+    val screenPreview: Boolean = false,
 )
 
 class SettingsStore(context: Context) {
@@ -68,6 +70,7 @@ class SettingsStore(context: Context) {
         showButtons = prefs.getBoolean("showButtons", true),
         haptics = prefs.getBoolean("haptics", true),
         autoKeyboard = prefs.getBoolean("autoKeyboard", true),
+        screenPreview = prefs.getBoolean("screenPreview", false),
     )
 
     fun save(settings: TouchSettings) {
@@ -77,6 +80,7 @@ class SettingsStore(context: Context) {
             .putBoolean("showButtons", settings.showButtons)
             .putBoolean("haptics", settings.haptics)
             .putBoolean("autoKeyboard", settings.autoKeyboard)
+            .putBoolean("screenPreview", settings.screenPreview)
             .apply()
     }
 

@@ -1,21 +1,25 @@
 package io.github.wailantirajoh.cursorcontroller
 
 import android.app.Application
+import android.view.Surface
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import io.github.wailantirajoh.cursorcontroller.core.AgentConnection
 import io.github.wailantirajoh.cursorcontroller.core.ClientFailure
 import io.github.wailantirajoh.cursorcontroller.core.ConnectTarget
+import io.github.wailantirajoh.cursorcontroller.core.ControlMessage
 import io.github.wailantirajoh.cursorcontroller.core.KeyboardPanelState
 import io.github.wailantirajoh.cursorcontroller.core.PairedHost
 import io.github.wailantirajoh.cursorcontroller.core.PairingUri
 import io.github.wailantirajoh.cursorcontroller.core.ProtocolConstants
 import io.github.wailantirajoh.cursorcontroller.core.ReconnectPolicy
+import io.github.wailantirajoh.cursorcontroller.core.ScreenPacket
 import io.github.wailantirajoh.cursorcontroller.data.HostDiscovery
 import io.github.wailantirajoh.cursorcontroller.data.HostStore
 import io.github.wailantirajoh.cursorcontroller.data.InputSender
 import io.github.wailantirajoh.cursorcontroller.data.KeystoreCredentials
 import io.github.wailantirajoh.cursorcontroller.data.SavedHost
+import io.github.wailantirajoh.cursorcontroller.data.ScreenDecoder
 import io.github.wailantirajoh.cursorcontroller.data.SettingsStore
 import io.github.wailantirajoh.cursorcontroller.data.TouchSettings
 import kotlinx.coroutines.Job
@@ -43,11 +47,17 @@ sealed interface Link {
 
 data class HostUi(val host: SavedHost, val online: Boolean)
 
+enum class ScreenState { OFF, UNSUPPORTED, LOADING, SHOWING, DENIED, FAILED }
+
+/** Preview layar Mac di area touchpad. `width` dan `height` = ukuran video, untuk rasio tampilan. */
+data class ScreenUi(val state: ScreenState = ScreenState.OFF, val width: Int = 16, val height: Int = 10)
+
 data class UiState(
     val screen: Screen = Screen.Hosts,
     val hosts: List<HostUi> = emptyList(),
     val link: Link = Link.Connecting,
     val keyboardOpen: Boolean = false,
+    val macScreen: ScreenUi = ScreenUi(),
     val settings: TouchSettings = TouchSettings(),
     val showGestureHints: Boolean = false,
     val manualAddressFor: SavedHost? = null,
@@ -70,11 +80,33 @@ class ControllerViewModel(application: Application) : AndroidViewModel(applicati
     val state: StateFlow<UiState> = _state
 
     @Volatile private var connection: AgentConnection? = null
-    private var generation = 0
+    // Dibaca juga dari thread OkHttp untuk membuang paket layar dari koneksi lama.
+    @Volatile private var generation = 0
     private var attempt = 0
     private var reconnectJob: Job? = null
     private val manualAddress = HashMap<String, String>()
     private val keyboardPanel = KeyboardPanelState()
+    private var foreground = false
+    /** Layar Mac sudah diminta di koneksi ini. */
+    private var screenStreaming = false
+    /** Ukuran maksimum video = layar HP dalam posisi mendatar, jadi putar layar tidak perlu ukuran baru. */
+    private val screenBox = application.resources.displayMetrics.let {
+        maxOf(it.widthPixels, it.heightPixels) to minOf(it.widthPixels, it.heightPixels)
+    }
+
+    val screenDecoder = ScreenDecoder(object : ScreenDecoder.Listener {
+        override fun onVideoSize(width: Int, height: Int) {
+            viewModelScope.launch { _state.update { it.copy(macScreen = it.macScreen.copy(width = width, height = height)) } }
+        }
+
+        override fun onFirstFrame() {
+            viewModelScope.launch { if (_state.value.macScreen.state == ScreenState.LOADING) setScreenState(ScreenState.SHOWING) }
+        }
+
+        override fun onKeyframeNeeded() {
+            viewModelScope.launch { syncScreen(keyframe = true) }
+        }
+    })
 
     val sender = InputSender { connection?.takeIf { it.isAuthenticated } }
 
@@ -83,7 +115,10 @@ class ControllerViewModel(application: Application) : AndroidViewModel(applicati
     }
 
     fun onForeground(visible: Boolean) {
+        foreground = visible
         if (visible) discovery.start() else discovery.stop()
+        // Layar Mac hanya dikirim selama app terlihat.
+        syncScreen()
     }
 
     // region Pairing
@@ -155,6 +190,13 @@ class ControllerViewModel(application: Application) : AndroidViewModel(applicati
 
             override fun onTextFocus(focused: Boolean) = onMain(gen) { textFocusChanged(focused) }
 
+            override fun onScreenStatus(state: String) = onMain(gen) { screenStatusChanged(state) }
+
+            // Langsung ke decoder tanpa lewat main thread, supaya jeda tetap kecil.
+            override fun onScreenPacket(packet: ScreenPacket) {
+                if (gen == generation) screenDecoder.submit(packet)
+            }
+
             override fun onEnded(failure: ClientFailure?) = onMain(gen) { ended(hostId, failure) }
         })
     }
@@ -172,12 +214,15 @@ class ControllerViewModel(application: Application) : AndroidViewModel(applicati
             )
         }
         sendSettings()
+        syncScreen()
     }
 
     private fun ended(hostId: String, failure: ClientFailure?) {
         connection = null
         sender.reset()
         keyboardPanel.onTextFocus(null, auto = false)
+        screenStreaming = false
+        screenDecoder.reset()
         when (val screen = _state.value.screen) {
             is Screen.Pairing -> _state.update { it.copy(screen = Screen.PairingFailed(pairingError(failure))) }
             is Screen.Touchpad -> when {
@@ -212,6 +257,8 @@ class ControllerViewModel(application: Application) : AndroidViewModel(applicati
         sender.reset()
         keyboardPanel.reset()
         syncKeyboard()
+        screenStreaming = false
+        screenDecoder.reset()
     }
 
     private fun pairingError(failure: ClientFailure?): PairingError = when (failure) {
@@ -235,6 +282,7 @@ class ControllerViewModel(application: Application) : AndroidViewModel(applicati
         if (!settings.autoKeyboard) keyboardPanel.onTextFocus(null, auto = false)
         _state.update { it.copy(settings = settings) }
         sendSettings()
+        syncScreen()
     }
 
     fun toggleKeyboard() {
@@ -248,6 +296,50 @@ class ControllerViewModel(application: Application) : AndroidViewModel(applicati
     }
 
     private fun syncKeyboard() = _state.update { it.copy(keyboardOpen = keyboardPanel.isOpen) }
+
+    fun toggleScreen() = updateSettings(_state.value.settings.let { it.copy(screenPreview = !it.screenPreview) })
+
+    /** Coba lagi setelah Mac menolak atau gagal menampilkan layar. */
+    fun retryScreen() {
+        stopScreenStream()
+        syncScreen()
+    }
+
+    fun onScreenSurface(surface: Surface?) = screenDecoder.setSurface(surface)
+
+    /** Minta atau hentikan layar Mac sesuai setelan, koneksi, dan apakah app terlihat. */
+    private fun syncScreen(keyframe: Boolean = false) {
+        val active = connection?.takeIf { it.isAuthenticated }
+        val preview = _state.value.settings.screenPreview
+        // Selama belum tersambung, anggap didukung; kepastiannya datang dari auth_result.
+        val supported = active == null || ProtocolConstants.FEATURE_SCREEN in active.features
+        val wanted = active != null && preview && foreground && supported
+        when {
+            wanted && !screenStreaming -> {
+                active.requestScreen(screenBox.first, screenBox.second)
+                screenStreaming = true
+                setScreenState(ScreenState.LOADING)
+            }
+            wanted && keyframe -> active.requestScreen(screenBox.first, screenBox.second)
+            !wanted && screenStreaming -> stopScreenStream()
+        }
+        if (!preview) setScreenState(ScreenState.OFF) else if (!supported) setScreenState(ScreenState.UNSUPPORTED)
+    }
+
+    private fun stopScreenStream() {
+        if (screenStreaming) connection?.stopScreen()
+        screenStreaming = false
+        screenDecoder.reset()
+    }
+
+    private fun screenStatusChanged(state: String) {
+        when (state) {
+            ControlMessage.SCREEN_DENIED -> setScreenState(ScreenState.DENIED)
+            ControlMessage.SCREEN_FAILED -> setScreenState(ScreenState.FAILED)
+        }
+    }
+
+    private fun setScreenState(state: ScreenState) = _state.update { it.copy(macScreen = it.macScreen.copy(state = state)) }
 
     fun dismissGestureHints() {
         settingsStore.gestureHintsSeen = true
@@ -276,6 +368,7 @@ class ControllerViewModel(application: Application) : AndroidViewModel(applicati
     override fun onCleared() {
         closeConnection()
         discovery.stop()
+        screenDecoder.close()
     }
 
     // endregion

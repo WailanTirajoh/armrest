@@ -19,6 +19,9 @@ final class AppModel: ObservableObject {
     @Published private(set) var activeDevices: [TrustedDevice] = []
     @Published private(set) var serverState: ServerState = .starting
     @Published private(set) var accessibilityGranted = AXIsProcessTrusted()
+    @Published private(set) var screenRecordingGranted = CGPreflightScreenCaptureAccess()
+    /// Id perangkat yang sedang melihat layar Mac.
+    @Published private(set) var screenViewers: Set<String> = []
     @Published private(set) var launchAtLogin = SMAppService.mainApp.status == .enabled
     @Published private(set) var pairing: PairingDisplay?
     @Published private(set) var startupError: String?
@@ -33,6 +36,7 @@ final class AppModel: ObservableObject {
     private let tokens = PairingTokens()
     private let injector = InputInjector()
     private lazy var focusMonitor = FocusMonitor(probe: makeFocusProbe())
+    private var streamers: [UUID: (deviceId: String, streamer: ScreenStreamer)] = [:]
     private var server: AgentServer?
     private var timer: Timer?
     private let windows = WindowPresenter()
@@ -69,7 +73,10 @@ final class AppModel: ObservableObject {
             let identity = try IdentityStore.loadOrCreate(name: profile.identityName)
             fingerprint = identity.fingerprint
             let server = AgentServer(
-                configuration: .init(port: profile.port, hostId: hostId, hostName: hostName, tlsIdentity: identity.identity, advertise: true),
+                configuration: .init(
+                    port: profile.port, hostId: hostId, hostName: hostName, tlsIdentity: identity.identity, advertise: true,
+                    features: [AgentFeature.focus, AgentFeature.screen]
+                ),
                 devices: store,
                 tokens: tokens
             )
@@ -126,6 +133,12 @@ final class AppModel: ObservableObject {
             self?.log("focus: \(focused)")
             server?.updateTextFocus(focused)
         }
+        server.onScreenRequest = { [weak self] connection, device, request in
+            self?.screenRequested(connection: connection, device: device, request: request)
+        }
+        server.onScreenAck = { [weak self] connection, seq in
+            self?.streamers[connection]?.streamer.ack(seq)
+        }
         server.onInput = { [weak self] _, message in
             guard let self else { return }
             self.log("input: \(message)")
@@ -145,6 +158,8 @@ final class AppModel: ObservableObject {
     private func tick() {
         let trusted = AXIsProcessTrusted()
         if trusted != accessibilityGranted { accessibilityGranted = trusted }
+        let screen = CGPreflightScreenCaptureAccess()
+        if screen != screenRecordingGranted { screenRecordingGranted = screen }
         if var current = pairing {
             let remaining = tokens.secondsRemaining()
             if remaining != current.secondsRemaining {
@@ -152,6 +167,55 @@ final class AppModel: ObservableObject {
                 pairing = current
             }
         }
+    }
+
+    // MARK: Layar
+
+    private func screenRequested(connection: UUID, device: TrustedDevice, request: ScreenRequest?) {
+        guard let request else {
+            if streamers.removeValue(forKey: connection)?.streamer.stop() != nil { log("screen: stop") }
+            updateScreenViewers()
+            return
+        }
+        if let existing = streamers[connection] {
+            existing.streamer.update(request)
+            return
+        }
+        // Profil uji memakai pola uji: tidak butuh izin dan tidak pernah menangkap layar sungguhan.
+        if !headless && !CGPreflightScreenCaptureAccess() {
+            // Menampilkan prompt sistem (sekali) dan memasukkan app ke daftar Screen Recording.
+            CGRequestScreenCaptureAccess()
+            server?.sendScreenStatus(.denied, to: connection)
+            return
+        }
+        let streamer = ScreenStreamer(
+            source: headless ? TestPatternSource() : DisplayCapture(),
+            send: { [weak self] packet in
+                DispatchQueue.main.async { self?.server?.sendScreen(packet, to: connection) }
+            },
+            report: { [weak self] status in
+                DispatchQueue.main.async { self?.screenStatusChanged(status, connection: connection) }
+            }
+        )
+        streamers[connection] = (device.id, streamer)
+        streamer.start(request)
+        updateScreenViewers()
+        log("screen: start \(request.maxWidth)x\(request.maxHeight)")
+    }
+
+    private func screenStatusChanged(_ status: ScreenStatus, connection: UUID) {
+        log("screen: \(status.rawValue)")
+        server?.sendScreenStatus(status, to: connection)
+        // Streamer yang gagal sudah berhenti sendiri; permintaan berikutnya dari HP membuat yang baru.
+        if status != .streaming {
+            streamers.removeValue(forKey: connection)
+            updateScreenViewers()
+        }
+    }
+
+    private func updateScreenViewers() {
+        let viewers = Set(streamers.values.map(\.deviceId))
+        if viewers != screenViewers { screenViewers = viewers }
     }
 
     // MARK: Pairing
@@ -255,6 +319,14 @@ final class AppModel: ObservableObject {
         let options = [kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: true] as CFDictionary
         _ = AXIsProcessTrustedWithOptions(options)
         if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility") {
+            NSWorkspace.shared.open(url)
+        }
+    }
+
+    func openScreenRecordingSettings() {
+        // Prompt ini juga memasukkan app ke daftar Screen Recording, jadi user tinggal menyalakan toggle.
+        CGRequestScreenCaptureAccess()
+        if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture") {
             NSWorkspace.shared.open(url)
         }
     }

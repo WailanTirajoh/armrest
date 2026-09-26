@@ -50,7 +50,8 @@ class MainActivity : ComponentActivity() {
     }
 
     override fun onStop() {
-        viewModel.onForeground(false)
+        // Putar layar membuat ulang Activity; itu bukan berarti app pindah ke latar belakang.
+        if (!isChangingConfigurations) viewModel.onForeground(false)
         super.onStop()
     }
 
@@ -104,12 +105,16 @@ private fun App(viewModel: ControllerViewModel) {
                 hostName = screen.hostName,
                 link = state.link,
                 keyboardOpen = state.keyboardOpen,
+                macScreen = state.macScreen,
                 settings = state.settings,
                 showGestureHints = state.showGestureHints,
                 onActions = viewModel.sender::submit,
                 onText = viewModel.sender::sendText,
                 onKey = { key, modifiers, times -> viewModel.sender.sendKey(key, modifiers, times) },
                 onToggleKeyboard = viewModel::toggleKeyboard,
+                onToggleScreen = viewModel::toggleScreen,
+                onRetryScreen = viewModel::retryScreen,
+                onScreenSurface = viewModel::onScreenSurface,
                 onSettingsChange = viewModel::updateSettings,
                 onDismissHints = viewModel::dismissGestureHints,
                 onBack = viewModel::disconnect,

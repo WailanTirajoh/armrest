@@ -1,12 +1,15 @@
 package io.github.wailantirajoh.cursorcontroller.ui
 
 import android.view.HapticFeedbackConstants
+import android.view.Surface
+import androidx.compose.foundation.AndroidEmbeddedExternalSurface
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -36,14 +39,19 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import io.github.wailantirajoh.cursorcontroller.Link
+import io.github.wailantirajoh.cursorcontroller.ScreenState
+import io.github.wailantirajoh.cursorcontroller.ScreenUi
 import io.github.wailantirajoh.cursorcontroller.core.GestureEngine
 import io.github.wailantirajoh.cursorcontroller.core.InputAction
 import io.github.wailantirajoh.cursorcontroller.core.KeyCode
@@ -58,12 +66,16 @@ fun TouchpadScreen(
     hostName: String,
     link: Link,
     keyboardOpen: Boolean,
+    macScreen: ScreenUi,
     settings: TouchSettings,
     showGestureHints: Boolean,
     onActions: (List<InputAction>) -> Unit,
     onText: (String) -> Unit,
     onKey: (key: KeyCode, modifiers: Int, times: Int) -> Unit,
     onToggleKeyboard: () -> Unit,
+    onToggleScreen: () -> Unit,
+    onRetryScreen: () -> Unit,
+    onScreenSurface: (Surface?) -> Unit,
     onSettingsChange: (TouchSettings) -> Unit,
     onDismissHints: () -> Unit,
     onBack: () -> Unit,
@@ -98,6 +110,13 @@ fun TouchpadScreen(
             onNavigate = onBack,
             subtitle = { LinkStatus(link) },
             actions = {
+                IconButton(onClick = onToggleScreen, enabled = connected) {
+                    Icon(
+                        AppIcons.Monitor,
+                        contentDescription = if (settings.screenPreview) "Sembunyikan layar Mac" else "Tampilkan layar Mac",
+                        tint = if (settings.screenPreview) colors.primary else colors.onSurface,
+                    )
+                }
                 IconButton(onClick = onToggleKeyboard, enabled = connected) {
                     Icon(
                         AppIcons.Keyboard,
@@ -122,48 +141,54 @@ fun TouchpadScreen(
                 Text("Koneksi putus. Mencoba lagi… (percobaan ${link.attempt})", color = Tones.warning(), fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
             }
         }
+        val touchpadShape = RoundedCornerShape(28.dp)
         Box(
             Modifier
                 .weight(1f)
                 .fillMaxWidth()
                 .padding(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 12.dp)
-                .background(colors.surfaceVariant.copy(alpha = if (connected) 1f else 0.45f), RoundedCornerShape(28.dp))
-                .border(1.dp, colors.outline, RoundedCornerShape(28.dp))
-                .semantics { contentDescription = "Area touchpad" }
-                .pointerInput(connected) {
-                    if (!connected) return@pointerInput
-                    val engine = GestureEngine()
-                    awaitPointerEventScope {
-                        try {
-                            while (true) {
-                                val event = awaitPointerEvent()
-                                val actions = ArrayList<InputAction>()
-                                for (change in event.changes) {
-                                    val id = change.id.value
-                                    val x = change.position.x.toDp().value
-                                    val y = change.position.y.toDp().value
-                                    val t = change.uptimeMillis
-                                    when {
-                                        change.pressed && !change.previousPressed -> actions += engine.down(id, x, y, t)
-                                        change.pressed -> if (change.position != change.previousPosition) actions += engine.move(id, x, y, t)
-                                        change.previousPressed -> actions += engine.up(id, t)
-                                    }
-                                    change.consume()
-                                }
-                                currentEmit(actions)
-                            }
-                        } finally {
-                            currentEmit(engine.cancel())
-                        }
-                    }
-                },
+                .clip(touchpadShape)
+                .background(colors.surfaceVariant.copy(alpha = if (connected) 1f else 0.45f))
+                .border(1.dp, colors.outline, touchpadShape),
             contentAlignment = Alignment.Center,
         ) {
-            Text(
-                if (connected) "Geser untuk menggerakkan kursor" else "Touchpad nonaktif sampai tersambung",
-                fontSize = 13.sp,
-                color = colors.onSurfaceVariant,
+            if (connected && (macScreen.state == ScreenState.LOADING || macScreen.state == ScreenState.SHOWING)) {
+                ScreenPreview(macScreen, onScreenSurface)
+            }
+            // Lapisan gesture di atas video: layar Mac hanya ditampilkan, semua sentuhan tetap untuk touchpad.
+            Box(
+                Modifier
+                    .matchParentSize()
+                    .semantics { contentDescription = "Area touchpad" }
+                    .pointerInput(connected) {
+                        if (!connected) return@pointerInput
+                        val engine = GestureEngine()
+                        awaitPointerEventScope {
+                            try {
+                                while (true) {
+                                    val event = awaitPointerEvent()
+                                    val actions = ArrayList<InputAction>()
+                                    for (change in event.changes) {
+                                        val id = change.id.value
+                                        val x = change.position.x.toDp().value
+                                        val y = change.position.y.toDp().value
+                                        val t = change.uptimeMillis
+                                        when {
+                                            change.pressed && !change.previousPressed -> actions += engine.down(id, x, y, t)
+                                            change.pressed -> if (change.position != change.previousPosition) actions += engine.move(id, x, y, t)
+                                            change.previousPressed -> actions += engine.up(id, t)
+                                        }
+                                        change.consume()
+                                    }
+                                    currentEmit(actions)
+                                }
+                            } finally {
+                                currentEmit(engine.cancel())
+                            }
+                        }
+                    },
             )
+            TouchpadMessage(connected, macScreen.state, onRetryScreen)
         }
         if (keyboardOpen && connected) {
             KeyboardPanel(onText = onText, onKey = onKey)
@@ -195,6 +220,46 @@ fun TouchpadScreen(
     }
     if (showGestureHints && connected) {
         GestureHints(onDismissHints)
+    }
+}
+
+/** Video layar Mac, pas di area touchpad dengan rasio aslinya. */
+@Composable
+private fun ScreenPreview(screen: ScreenUi, onSurface: (Surface?) -> Unit) {
+    val currentOnSurface by rememberUpdatedState(onSurface)
+    AndroidEmbeddedExternalSurface(
+        modifier = Modifier
+            .aspectRatio(screen.width.toFloat() / screen.height)
+            // Tersembunyi sampai frame pertama tampil, supaya tidak ada kotak hitam saat memuat.
+            .alpha(if (screen.state == ScreenState.SHOWING) 1f else 0f),
+    ) {
+        onSurface { surface, _, _ ->
+            currentOnSurface(surface)
+            surface.onDestroyed { currentOnSurface(null) }
+        }
+    }
+}
+
+@Composable
+private fun TouchpadMessage(connected: Boolean, state: ScreenState, onRetry: () -> Unit) {
+    val text = when {
+        !connected -> "Touchpad nonaktif sampai tersambung"
+        state == ScreenState.SHOWING -> return
+        state == ScreenState.LOADING -> "Memuat layar Mac…"
+        state == ScreenState.DENIED -> "Mac belum mengizinkan Screen Recording. Izinkan lewat menu Cursor Controller di Mac."
+        state == ScreenState.FAILED -> "Layar Mac tidak bisa ditampilkan."
+        state == ScreenState.UNSUPPORTED -> "Perbarui Cursor Controller di Mac ke versi 0.5 atau lebih baru untuk melihat layar."
+        else -> "Geser untuk menggerakkan kursor"
+    }
+    Column(
+        Modifier.padding(24.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        Text(text, fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center)
+        if (connected && (state == ScreenState.DENIED || state == ScreenState.FAILED)) {
+            OutlinedButton(onClick = onRetry) { Text("Coba lagi") }
+        }
     }
 }
 

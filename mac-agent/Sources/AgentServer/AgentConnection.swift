@@ -11,6 +11,8 @@ final class AgentConnection {
     private(set) var device: TrustedDevice?
     /// HP meminta status fokus kolom teks (`focusUpdates` di pesan settings).
     private(set) var wantsFocusUpdates = false
+    /// HP sedang meminta video layar.
+    private(set) var screenRequested = false
     private let connection: NWConnection
     private let machine: SessionMachine
     private weak var server: AgentServer?
@@ -108,6 +110,12 @@ final class AgentConnection {
                     wantsFocusUpdates = focusUpdates
                     server.focusSubscriptionChanged(self)
                 }
+            case let .screen(request):
+                guard let device else { continue }
+                screenRequested = request != nil
+                server.onScreenRequest?(id, device, request)
+            case let .screenAck(seq):
+                server.onScreenAck?(id, seq)
             case .close:
                 close()
             }
@@ -118,6 +126,12 @@ final class AgentConnection {
         let metadata = NWProtocolWebSocket.Metadata(opcode: .text)
         let context = NWConnection.ContentContext(identifier: "text", metadata: [metadata])
         connection.send(content: message.encoded(), contentContext: context, isComplete: true, completion: .contentProcessed { _ in })
+    }
+
+    func sendBinary(_ data: Data) {
+        let metadata = NWProtocolWebSocket.Metadata(opcode: .binary)
+        let context = NWConnection.ContentContext(identifier: "binary", metadata: [metadata])
+        connection.send(content: data, contentContext: context, isComplete: true, completion: .contentProcessed { _ in })
     }
 
     private func startHeartbeat() {

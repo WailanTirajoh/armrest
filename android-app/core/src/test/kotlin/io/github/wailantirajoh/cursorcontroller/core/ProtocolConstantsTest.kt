@@ -9,5 +9,6 @@ class ProtocolConstantsTest {
         assertEquals(1, ProtocolConstants.PROTOCOL_VERSION)
         assertEquals(47810, ProtocolConstants.DEFAULT_PORT)
         assertEquals("_cursorctl._tcp", ProtocolConstants.SERVICE_TYPE)
+        assertEquals("screen", ProtocolConstants.FEATURE_SCREEN)
     }
 }

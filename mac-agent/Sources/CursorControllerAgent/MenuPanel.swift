@@ -19,7 +19,8 @@ struct MenuPanel: View {
                 HStack(spacing: 10) {
                     VStack(alignment: .leading, spacing: 2) {
                         Text("Dikontrol oleh \(device.name)").font(.system(size: 13, weight: .bold))
-                        Text("Sesi aktif").font(.system(size: 12))
+                        Text(model.screenViewers.contains(device.id) ? "Sesi aktif · melihat layar" : "Sesi aktif")
+                            .font(.system(size: 12))
                     }
                     Spacer()
                     Button("Putuskan") { model.disconnect(device) }
@@ -64,6 +65,18 @@ struct MenuPanel: View {
                         .foregroundColor(Palette.success)
                 } else {
                     Button("Berikan izin…") { model.showOnboarding() }
+                }
+            }
+            HStack {
+                Text("Izin Screen Recording").font(.system(size: 13))
+                    .help("Untuk menampilkan layar Mac di HP")
+                Spacer()
+                if model.screenRecordingGranted {
+                    Label("Diizinkan", systemImage: "checkmark")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundColor(Palette.success)
+                } else {
+                    Button("Izinkan…") { model.openScreenRecordingSettings() }
                 }
             }
             Divider()

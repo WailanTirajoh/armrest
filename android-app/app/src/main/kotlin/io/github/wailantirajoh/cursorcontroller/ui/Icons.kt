@@ -33,6 +33,11 @@ object AppIcons {
     )
     val Refresh = stroke("refresh", "M20 12a8 8 0 1 1-2.3-5.6", "M20 4v4h-4")
     val Plus = stroke("plus", "M12 5v14M5 12h14")
+    val Monitor = stroke(
+        "monitor",
+        "M4.5 4h15A1.5 1.5 0 0 1 21 5.5v10a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 15.5v-10A1.5 1.5 0 0 1 4.5 4z",
+        "M8 21h8M12 17v4",
+    )
     val Keyboard = stroke(
         "keyboard",
         "M4.5 5h15A1.5 1.5 0 0 1 21 6.5v11a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 17.5v-11A1.5 1.5 0 0 1 4.5 5z",

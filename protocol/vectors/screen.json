@@ -1,0 +1,46 @@
+{
+  "cases": [
+    {
+      "name": "config 1280x800",
+      "packet": "config",
+      "width": 1280,
+      "height": 800,
+      "parameterSets_hex": "000000016742c01f8c8d400000000168ce3c80",
+      "hex": "810100052003000000016742c01f8c8d400000000168ce3c80"
+    },
+    {
+      "name": "keyframe pertama",
+      "packet": "frame",
+      "seq": 1,
+      "keyframe": true,
+      "data_hex": "0000000165888400330f",
+      "hex": "8201000000010000000165888400330f"
+    },
+    {
+      "name": "frame P dengan seq besar",
+      "packet": "frame",
+      "seq": 4294967295,
+      "keyframe": false,
+      "data_hex": "00000001419a246c",
+      "hex": "82ffffffff0000000001419a246c"
+    }
+  ],
+  "invalid_hex": [
+    "81",
+    "810100052003",
+    "8102000520030000000167",
+    "8101000020030000000167",
+    "820100000001",
+    "82010000000200000001419a246c",
+    "83010000000100000001419a246c"
+  ],
+  "annexb": {
+    "lengthPrefixed_hex": "0000000665888400330f00000004419a246c",
+    "annexb_hex": "0000000165888400330f00000001419a246c",
+    "units_hex": [
+      "65888400330f",
+      "419a246c"
+    ],
+    "mixedStartCodes_hex": "0000000165888400330f000001419a246c"
+  }
+}

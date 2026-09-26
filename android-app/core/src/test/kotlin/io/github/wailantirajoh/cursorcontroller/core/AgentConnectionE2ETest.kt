@@ -15,7 +15,8 @@ import java.util.concurrent.TimeUnit
 /**
  * Uji end-to-end ke agent Mac sungguhan (TLS + WebSocket + pairing + auth + input).
  * Jalankan lewat scripts/e2e-local.sh; tanpa CURSORCTL_E2E_PAIRING_FILE test ini dilewati.
- * Agent uji membaca status fokus kolom teks dari CURSORCTL_E2E_FOCUS_FILE, bukan dari Accessibility.
+ * Agent uji membaca status fokus kolom teks dari CURSORCTL_E2E_FOCUS_FILE, bukan dari Accessibility, dan
+ * mengirim pola uji sebagai layar (lewat encoder H.264 sungguhan), bukan layar Mac.
  */
 class AgentConnectionE2ETest {
     private class JvmCredentials(override val deviceName: String) : DeviceCredentials {
@@ -30,14 +31,21 @@ class AgentConnectionE2ETest {
     }
 
     private val events = LinkedBlockingQueue<String>()
+    private val packets = LinkedBlockingQueue<ScreenPacket>()
     private val listener = object : AgentConnection.Listener {
         override fun onPaired(host: PairedHost) { events.add("paired") }
         override fun onAuthenticated() { events.add("authenticated") }
         override fun onTextFocus(focused: Boolean) { events.add("focus:$focused") }
+        override fun onScreenStatus(state: String) { events.add("screen:$state") }
+        override fun onScreenPacket(packet: ScreenPacket) { packets.add(packet) }
         override fun onEnded(failure: ClientFailure?) { events.add("ended:$failure") }
     }
 
     private fun next(): String? = events.poll(15, TimeUnit.SECONDS)
+
+    private fun nextPacket(): ScreenPacket? = packets.poll(15, TimeUnit.SECONDS)
+
+    private fun nalTypes(annexB: ByteArray) = AnnexB.split(annexB).map(AnnexB::nalType)
 
     @Test
     fun pairAuthenticateReconnectAndRejectAgainstRealAgent() {
@@ -67,6 +75,29 @@ class AgentConnectionE2ETest {
         assertEquals("focus:true", next())
         focusFile.writeText("0")
         assertEquals("focus:false", next())
+
+        // Layar: config (SPS + PPS) lalu keyframe IDR, lalu frame terus mengalir karena setiap frame dikonfirmasi.
+        assertTrue(ProtocolConstants.FEATURE_SCREEN in pairing.features)
+        pairing.requestScreen(1920, 1080)
+        assertEquals("screen:streaming", next())
+        val config = nextPacket() as ScreenPacket.Config
+        assertEquals(1440 to 900, config.width to config.height)
+        assertEquals(listOf(AnnexB.NAL_SPS, AnnexB.NAL_PPS), nalTypes(config.parameterSets))
+        val first = nextPacket() as ScreenPacket.Frame
+        assertTrue(first.keyframe && AnnexB.NAL_IDR in nalTypes(first.data))
+        var seq = first.seq
+        repeat(20) {
+            val frame = nextPacket() as ScreenPacket.Frame
+            assertTrue(frame.seq > seq)
+            seq = frame.seq
+        }
+        // Permintaan ulang (mis. decoder HP dibuat ulang) menghasilkan config dan keyframe baru.
+        pairing.requestScreen(1920, 1080)
+        var packet = nextPacket()
+        repeat(10) { if (packet !is ScreenPacket.Config) packet = nextPacket() }
+        assertTrue(packet is ScreenPacket.Config)
+        assertTrue((nextPacket() as ScreenPacket.Frame).keyframe)
+        pairing.stopScreen()
         pairing.close()
         assertEquals("ended:null", next())
 

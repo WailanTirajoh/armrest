@@ -1,6 +1,6 @@
 # Cursor Controller
 
-Pakai HP Android sebagai touchpad untuk Mac lewat WiFi yang sama: gerak kursor, klik, klik ganda, klik kanan, scroll, dan drag. HP cukup dipasangkan sekali lewat QR, lalu tersambung ulang otomatis.
+Pakai HP Android sebagai touchpad dan keyboard untuk Mac lewat WiFi yang sama: gerak kursor, klik, klik ganda, klik kanan, scroll, drag, dan mengetik. Layar Mac juga bisa ditampilkan di HP. HP cukup dipasangkan sekali lewat QR, lalu tersambung ulang otomatis.
 
 | Folder | Isi |
 | --- | --- |
@@ -37,6 +37,12 @@ Baris di atas kolom ketik berisi Esc, Tab, dan tombol panah, plus ⌘ ⌃ ⌥ �
 
 Keyboard juga terbuka sendiri saat kolom teks di Mac aktif, misalnya setelah kamu mengklik kolom pencarian, dan tertutup lagi saat fokus pindah dari kolom teks. Keyboard yang kamu buka manual tidak ditutup otomatis, dan tombol Back di HP menutup panel keyboard. Matikan lewat **Buka keyboard otomatis** di pengaturan touchpad.
 
+### Layar Mac di HP
+
+Ketuk ikon monitor di kanan atas layar touchpad. Layar Mac, termasuk kursornya, tampil di area touchpad, dan semua gesture tetap berfungsi di atasnya. Jadi kamu bisa melihat posisi kursor tanpa melihat ke Mac. Dengan beberapa monitor, yang tampil adalah monitor tempat kursor berada. Miringkan HP untuk gambar yang lebih besar.
+
+Pertama kali dipakai, Mac meminta izin **Screen Recording**: nyalakan Cursor Controller di System Settings, lalu pilih **Quit & Reopen**. Selama layar tampil di HP, macOS menampilkan indikator perekaman layar di menu bar, dan panel Cursor Controller menulis "melihat layar" di sesi HP itu. Video hanya dikirim selama app di HP terbuka; ketuk ikon monitor lagi untuk berhenti.
+
 ### Pengaturan
 
 Sensitivitas, kecepatan scroll, tombol Kiri/Kanan, getar saat klik, dan keyboard otomatis diatur lewat ikon pengaturan di layar touchpad. Akses HP bisa dicabut kapan saja lewat **Cabut…** di menu bar Mac.
@@ -46,6 +52,7 @@ Sensitivitas, kecepatan scroll, tombol Kiri/Kanan, getar saat klik, dan keyboard
 - **HP tidak menemukan Mac** (WiFi kantor atau hotspot sering memblokir mDNS): di HP, menu ⋮ pada kartu komputer → **Sambungkan via IP**. Alamatnya tertulis di panel menu bar Mac (mis. `Siap · 192.168.1.20:47810`).
 - **Kursor tidak bergerak atau ketikan tidak masuk**: pastikan panel menu bar Mac menampilkan "Izin Accessibility: Diizinkan".
 - **Keyboard tidak terbuka otomatis**: sebagian app tidak melaporkan kolom teksnya lewat Accessibility, misalnya app Electron seperti VS Code dan Slack, game, atau remote desktop. Di app seperti itu, buka keyboard lewat ikonnya. Fitur ini butuh agent Mac versi 0.4 ke atas.
+- **Layar Mac tidak muncul di HP**: pastikan panel menu bar Mac menampilkan "Izin Screen Recording: Diizinkan". Kalau toggle di System Settings sudah menyala tapi tetap ditolak (biasanya setelah update build tanpa signing), jalankan `tccutil reset ScreenCapture io.github.wailantirajoh.cursorcontroller.agent` lalu izinkan ulang. Video yang dilindungi DRM (Netflix, Apple TV+) dan jendela yang memblokir tangkapan layar tampil hitam. Fitur ini butuh agent Mac versi 0.5 ke atas.
 - **Ketikan tidak masuk ke kolom password**: macOS bisa memblokir ketikan dari app lain saat Secure Input aktif, misalnya di kolom password atau Terminal dengan Secure Keyboard Entry.
 - **macOS menolak membuka app**: app belum dinotarisasi Apple. Klik kanan → Open (macOS 14), atau System Settings → Privacy & Security → **Open Anyway** (macOS 15+).
 
@@ -75,7 +82,7 @@ Agent juga bisa diuji dengan emulator Android: jalankan agent dengan `CURSORCTL_
 
 ## Signing di CI
 
-Tanpa secret, CI tetap jalan: APK ditandatangani debug key dan app Mac ditandatangani ad-hoc. Akibatnya APK baru tidak bisa menimpa yang lama, dan izin Accessibility serta akses Keychain di Mac perlu diberikan ulang setiap update.
+Tanpa secret, CI tetap jalan: APK ditandatangani debug key dan app Mac ditandatangani ad-hoc. Akibatnya APK baru tidak bisa menimpa yang lama, dan izin Accessibility, Screen Recording, serta akses Keychain di Mac perlu diberikan ulang setiap update.
 
 Untuk signing yang tetap, jalankan sekali:
 

@@ -17,11 +17,17 @@ public enum ControlMessage: Equatable, Sendable {
     case pairResult(PairResult)
     case challenge(nonce: String)
     case auth(sig: String)
-    case authResult(ok: Bool, error: String?)
+    /// `features`: fitur opsional agent (lihat `AgentFeature`), hanya saat ok.
+    case authResult(ok: Bool, error: String?, features: [String] = [])
     /// `focusUpdates`: HP ingin menerima pesan `focus`.
     case settings(sensitivity: Double, scrollSpeed: Double, focusUpdates: Bool)
     /// Apakah kolom teks sedang fokus di Mac, supaya HP bisa membuka keyboard sendiri.
     case focus(text: Bool)
+    /// HP mulai (request) atau berhenti (nil) melihat layar. Permintaan ulang saat aktif = minta keyframe.
+    case screen(ScreenRequest?)
+    /// HP sudah menerima frame layar sampai `seq`.
+    case screenAck(seq: UInt32)
+    case screenStatus(ScreenStatus)
     case ping(ts: Int64)
     case pong(ts: Int64)
     case error(String)
@@ -41,13 +47,24 @@ public enum ControlMessage: Equatable, Sendable {
             object = ["t": "challenge", "nonce": nonce]
         case let .auth(sig):
             object = ["t": "auth", "sig": sig]
-        case let .authResult(ok, error):
+        case let .authResult(ok, error, features):
             object = ["t": "auth_result", "ok": ok]
             if let error { object["error"] = error }
+            if !features.isEmpty { object["features"] = features }
         case let .settings(sensitivity, scrollSpeed, focusUpdates):
             object = ["t": "settings", "sensitivity": sensitivity, "scrollSpeed": scrollSpeed, "focusUpdates": focusUpdates]
         case let .focus(text):
             object = ["t": "focus", "text": text]
+        case let .screen(request):
+            object = ["t": "screen", "on": request != nil]
+            if let request {
+                object["maxWidth"] = request.maxWidth
+                object["maxHeight"] = request.maxHeight
+            }
+        case let .screenAck(seq):
+            object = ["t": "screen_ack", "seq": seq]
+        case let .screenStatus(status):
+            object = ["t": "screen_status", "state": status.rawValue]
         case let .ping(ts):
             object = ["t": "ping", "ts": ts]
         case let .pong(ts):
@@ -86,7 +103,7 @@ public enum ControlMessage: Equatable, Sendable {
             return string("sig").map { .auth(sig: $0) }
         case "auth_result":
             guard let ok = o["ok"] as? Bool else { return nil }
-            return .authResult(ok: ok, error: string("error"))
+            return .authResult(ok: ok, error: string("error"), features: o["features"] as? [String] ?? [])
         case "settings":
             guard let sensitivity = number("sensitivity")?.doubleValue,
                   let scrollSpeed = number("scrollSpeed")?.doubleValue else { return nil }
@@ -94,6 +111,15 @@ public enum ControlMessage: Equatable, Sendable {
             return .settings(sensitivity: sensitivity, scrollSpeed: scrollSpeed, focusUpdates: o["focusUpdates"] as? Bool ?? false)
         case "focus":
             return (o["text"] as? Bool).map { .focus(text: $0) }
+        case "screen":
+            guard let on = o["on"] as? Bool else { return nil }
+            guard on else { return .screen(nil) }
+            guard let width = number("maxWidth")?.intValue, let height = number("maxHeight")?.intValue else { return nil }
+            return .screen(ScreenRequest(maxWidth: width, maxHeight: height))
+        case "screen_ack":
+            return number("seq").map { .screenAck(seq: $0.uint32Value) }
+        case "screen_status":
+            return string("state").flatMap(ScreenStatus.init(rawValue:)).map { .screenStatus($0) }
         case "ping":
             return number("ts").map { .ping(ts: $0.int64Value) }
         case "pong":

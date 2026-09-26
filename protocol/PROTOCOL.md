@@ -7,7 +7,7 @@ Versi protokol: **1** (field `v` di pesan `hello`). Agent menolak versi lain den
 - WebSocket di atas TLS (`wss://`) di jaringan lokal, port default **47810**, dengan `TCP_NODELAY`.
 - Sertifikat agent self-signed (ECDSA P-256). HP tidak memakai CA: HP mencocokkan **fingerprint** = base64url tanpa padding dari SHA-256 sertifikat (DER). Fingerprint dibawa lewat QR saat pairing, lalu disimpan.
 - Agent mengiklankan diri lewat Bonjour dengan tipe `_cursorctl._tcp`. TXT record berisi `hostId` dan `v`.
-- Pesan kontrol memakai **text frame JSON**. Event input memakai **binary frame** 3–5 byte.
+- Pesan kontrol memakai **text frame JSON**. Event input (HP → Mac) dan video layar (Mac → HP) memakai **binary frame**.
 
 ## Format nilai
 
@@ -29,9 +29,12 @@ Versi protokol: **1** (field `v` di pesan `hello`). Agent menolak versi lain den
 | Mac → HP | `pair_result` | `ok: true`, `hostId`, `hostName`, atau `ok: false`, `error` | Setelah user klik Izinkan/Tolak, atau token ditolak |
 | Mac → HP | `challenge` | `nonce` | Mode auth, atau langsung setelah `pair_result` ok |
 | HP → Mac | `auth` | `sig` | Balasan challenge |
-| Mac → HP | `auth_result` | `ok: true`, atau `ok: false`, `error` | Setelah verifikasi |
+| Mac → HP | `auth_result` | `ok: true` dan `features` (opsional), atau `ok: false`, `error` | Setelah verifikasi |
 | HP → Mac | `settings` | `sensitivity`, `scrollSpeed`, `focusUpdates` | Setelah `auth_result` ok, dan setiap kali diubah |
 | Mac → HP | `focus` | `text` (bool) | Setelah HP meminta lewat `focusUpdates`, lalu setiap kali berubah |
+| HP → Mac | `screen` | `on: true`, `maxWidth`, `maxHeight`, atau `on: false` | Mulai atau berhenti melihat layar Mac; permintaan ulang = minta keyframe |
+| Mac → HP | `screen_status` | `state`: `streaming`, `denied`, `failed` | Setelah `screen` on, dan saat aliran berhenti karena error |
+| HP → Mac | `screen_ack` | `seq` | Setiap frame layar yang diterima |
 | Dua arah | `ping` / `pong` | `ts` (ms) | Tiap 5 detik; koneksi ditutup kalau 15 detik tidak ada pesan masuk |
 | Mac → HP | `error` | `error` | Pesan tidak valid atau versi tidak didukung, lalu koneksi ditutup |
 
@@ -89,6 +92,32 @@ Supaya HP bisa membuka dan menutup keyboard sendiri, agent memberi tahu apakah e
 - Fokus masuk ke kolom teks langsung dikirim. Fokus keluar baru dikirim setelah bertahan 500 ms, supaya pindah antar kolom tidak membuat keyboard HP tertutup lalu terbuka lagi.
 - HP v0.3 mengabaikan pesan `focus`, dan agent v0.3 mengabaikan `focusUpdates`.
 
+## Layar Mac
+
+HP bisa menampilkan layar Mac, misalnya di belakang area touchpad. Videonya H.264, dikirim sebagai binary frame di koneksi yang sama.
+
+- **Fitur**: agent yang mendukung mengirim `features: ["focus", "screen"]` di `auth_result`. HP hanya mengirim `screen` kalau ada `"screen"`, karena agent lama menutup koneksi saat menerima pesan yang tidak dikenal.
+- **Mulai**: HP mengirim `screen` dengan `maxWidth` dan `maxHeight` dalam piksel, biasanya ukuran layar HP. Agent membalas `screen_status` `streaming`, lalu mengirim `screen_config` dan keyframe.
+- **Izin**: kalau Mac belum memberi izin Screen Recording, agent membalas `screen_status` `denied` tanpa mengirim video. Kalau tangkapan gagal atau berhenti karena error, statusnya `failed`. Dalam dua kasus itu HP boleh mengirim `screen` lagi untuk mencoba ulang.
+- **Keyframe**: `screen` on yang dikirim lagi selama aliran berjalan berarti decoder HP butuh keyframe, misalnya setelah Surface dibuat ulang. Agent mengirim `screen_config` lalu keyframe dari gambar terakhir, juga saat layar sedang diam.
+- **Berhenti**: `screen` off, atau koneksi putus.
+
+Binary frame Mac → HP (little-endian, byte pertama = tipe):
+
+| Tipe | Byte | Isi | Arti |
+| --- | --- | --- | --- |
+| `0x81` screen_config | 7+ | `codec: u8` (1 = H.264), `width: u16`, `height: u16`, SPS dan PPS | Ukuran video dan parameter decoder, dikirim sebelum setiap keyframe |
+| `0x82` screen_frame | 7+ | `seq: u32`, `flags: u8` (bit 0 = keyframe), access unit | Satu frame video |
+
+SPS, PPS, dan access unit memakai format Annex B (setiap NAL diawali `00 00 00 01`). Frame dengan tipe atau codec tidak dikenal, ukuran 0, flag selain bit 0, atau tanpa isi dibuang.
+
+Aturan video:
+
+- H.264 Constrained High tanpa B-frame, jadi setiap frame bisa langsung ditampilkan. Paling besar 1920 × 1200 dan 30 fps, rasio mengikuti layar Mac, sisi genap, warna BT.709.
+- Layar yang diam tidak menghasilkan frame. Kursor ikut tergambar. Dengan beberapa monitor, agent mengikuti monitor tempat kursor berada; kalau ukurannya berubah, `screen_config` baru mendahului keyframe berikutnya.
+- **Kontrol aliran**: `seq` naik satu per frame. HP mengirim `screen_ack` untuk setiap frame yang diterima, dan konfirmasinya kumulatif. Agent menahan frame baru selama ada 4 frame yang belum dikonfirmasi, lalu mengirim gambar terbaru begitu ada konfirmasi. Jadi saat WiFi lambat gambar dilewati, bukan menumpuk.
+- HP menyalakan video hanya selama app terlihat, supaya WiFi dan baterai tidak terpakai sia-sia.
+
 ## QR pairing
 
 ```
@@ -125,3 +154,4 @@ cursorctl://pair?h=<hostId>&n=<hostName>&a=<ip>:<port>&t=<token>&fp=<fingerprint
 
 - `input.json`: encoding biner setiap tipe event, plus frame yang harus ditolak.
 - `auth.json`: payload, public key, dan signature buatan openssl (valid dan tidak valid), plus contoh fingerprint.
+- `screen.json`: encoding `screen_config` dan `screen_frame`, frame yang harus ditolak, dan konversi NAL berawalan panjang ke Annex B.

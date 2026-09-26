@@ -7,6 +7,12 @@ public protocol SessionEnvironment: AnyObject {
     func checkPairingToken(_ token: String) -> PairingTokenCheck
     func trustedDevice(id: String) -> TrustedDevice?
     func makeNonce() -> Data
+    /// Fitur opsional yang diumumkan ke HP di `auth_result`.
+    var features: [String] { get }
+}
+
+public extension SessionEnvironment {
+    var features: [String] { [] }
 }
 
 public struct PendingDevice: Equatable, Sendable {
@@ -23,6 +29,8 @@ public enum SessionAction: Equatable, Sendable {
     case authenticated(TrustedDevice)
     case input(InputMessage)
     case settings(sensitivity: Double, scrollSpeed: Double, focusUpdates: Bool)
+    case screen(ScreenRequest?)
+    case screenAck(UInt32)
     case close(reason: String)
 }
 
@@ -99,12 +107,18 @@ public final class SessionMachine {
                 return close(.authResult(ok: false, error: "bad_sig"), reason: "bad_sig")
             }
             state = .authenticated(device)
-            return [.send(.authResult(ok: true, error: nil)), .authenticated(device)]
+            return [.send(.authResult(ok: true, error: nil, features: environment.features)), .authenticated(device)]
 
         case let (.authenticated, .settings(sensitivity, scrollSpeed, focusUpdates)):
             return [.settings(
                 sensitivity: min(max(sensitivity, 0.3), 5), scrollSpeed: min(max(scrollSpeed, 0.3), 8), focusUpdates: focusUpdates
             )]
+
+        case let (.authenticated, .screen(request)):
+            return [.screen(request)]
+
+        case let (.authenticated, .screenAck(seq)):
+            return [.screenAck(seq)]
 
         default:
             return fail("bad_message")
