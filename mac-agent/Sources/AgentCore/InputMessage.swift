@@ -11,6 +11,10 @@ public enum InputMessage: Equatable, Sendable {
     case button(MouseButton, down: Bool)
     case click(MouseButton, count: UInt8)
     case scroll(dx: Int16, dy: Int16)
+    case text(String)
+    case key(KeyCode, KeyModifiers)
+
+    public static let maxTextBytes = 1024
 
     public func encoded() -> Data {
         switch self {
@@ -18,6 +22,8 @@ public enum InputMessage: Equatable, Sendable {
         case let .button(button, down): return Data([0x02, button.rawValue, down ? 1 : 0])
         case let .click(button, count): return Data([0x03, button.rawValue, count])
         case let .scroll(dx, dy): return Data([0x04] + Self.bytes(dx) + Self.bytes(dy))
+        case let .text(text): return Data([0x05] + Array(text.utf8))
+        case let .key(key, modifiers): return Data([0x06, key.rawValue, modifiers.rawValue])
         }
     }
 
@@ -36,6 +42,13 @@ public enum InputMessage: Equatable, Sendable {
             return .click(button, count: b[2])
         case (0x04, 5):
             return .scroll(dx: int16(b[1], b[2]), dy: int16(b[3], b[4]))
+        case (0x05, 2...(maxTextBytes + 1)):
+            guard let text = String(bytes: b[1...], encoding: .utf8), TextChunker.isAllowed(text) else { return nil }
+            return .text(text)
+        case (0x06, 3):
+            let modifiers = KeyModifiers(rawValue: b[2])
+            guard let key = KeyCode(rawValue: b[1]), KeyModifiers.all.isSuperset(of: modifiers) else { return nil }
+            return .key(key, modifiers)
         default:
             return nil
         }

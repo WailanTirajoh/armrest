@@ -104,6 +104,8 @@ private fun App(viewModel: ControllerViewModel) {
                 settings = state.settings,
                 showGestureHints = state.showGestureHints,
                 onActions = viewModel.sender::submit,
+                onText = viewModel.sender::sendText,
+                onKey = { key, modifiers, times -> viewModel.sender.sendKey(key, modifiers, times) },
                 onSettingsChange = viewModel::updateSettings,
                 onDismissHints = viewModel::dismissGestureHints,
                 onBack = viewModel::disconnect,

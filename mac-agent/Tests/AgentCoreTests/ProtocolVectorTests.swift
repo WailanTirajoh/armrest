@@ -34,7 +34,7 @@ extension Data {
 
 @Test func inputVectorsRoundTrip() throws {
     let cases = try #require(try Vectors.load("input.json")["cases"] as? [[String: Any]])
-    #expect(cases.count >= 7)
+    #expect(cases.count >= 12)
     for c in cases {
         let hex = try #require(c["hex"] as? String)
         let expected: InputMessage
@@ -47,6 +47,10 @@ extension Data {
             expected = .button(MouseButton(rawValue: UInt8(c["button"] as! Int))!, down: c["down"] as! Bool)
         case "click":
             expected = .click(MouseButton(rawValue: UInt8(c["button"] as! Int))!, count: UInt8(c["count"] as! Int))
+        case "text":
+            expected = .text(c["text"] as! String)
+        case "key":
+            expected = .key(KeyCode(rawValue: UInt8(c["key"] as! Int))!, KeyModifiers(rawValue: UInt8(c["modifiers"] as! Int)))
         default:
             Issue.record("tipe tidak dikenal: \(c)")
             continue

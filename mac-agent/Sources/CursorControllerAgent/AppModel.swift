@@ -116,6 +116,8 @@ final class AppModel: ObservableObject {
         server.onInput = { [weak self] _, message in
             guard let self else { return }
             self.log("input: \(message)")
+            // Profil uji hanya mencatat input, tidak pernah mengetik atau menggerakkan kursor sungguhan.
+            guard !self.headless else { return }
             self.injector.handle(message)
         }
     }

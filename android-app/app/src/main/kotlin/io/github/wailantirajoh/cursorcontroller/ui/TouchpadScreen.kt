@@ -33,6 +33,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -46,6 +47,7 @@ import androidx.compose.ui.unit.sp
 import io.github.wailantirajoh.cursorcontroller.Link
 import io.github.wailantirajoh.cursorcontroller.core.GestureEngine
 import io.github.wailantirajoh.cursorcontroller.core.InputAction
+import io.github.wailantirajoh.cursorcontroller.core.KeyCode
 import io.github.wailantirajoh.cursorcontroller.core.MouseButton
 import io.github.wailantirajoh.cursorcontroller.data.TouchSettings
 import java.util.Locale
@@ -59,6 +61,8 @@ fun TouchpadScreen(
     settings: TouchSettings,
     showGestureHints: Boolean,
     onActions: (List<InputAction>) -> Unit,
+    onText: (String) -> Unit,
+    onKey: (key: KeyCode, modifiers: Int, times: Int) -> Unit,
     onSettingsChange: (TouchSettings) -> Unit,
     onDismissHints: () -> Unit,
     onBack: () -> Unit,
@@ -66,6 +70,7 @@ fun TouchpadScreen(
     val colors = MaterialTheme.colorScheme
     val view = LocalView.current
     var showSettings by remember { mutableStateOf(false) }
+    var keyboardOpen by rememberSaveable { mutableStateOf(false) }
     val connected = link == Link.Connected
 
     // Layar tetap menyala selama touchpad terbuka.
@@ -93,6 +98,13 @@ fun TouchpadScreen(
             onNavigate = onBack,
             subtitle = { LinkStatus(link) },
             actions = {
+                IconButton(onClick = { keyboardOpen = !keyboardOpen }, enabled = connected) {
+                    Icon(
+                        AppIcons.Keyboard,
+                        contentDescription = if (keyboardOpen) "Tutup keyboard" else "Buka keyboard",
+                        tint = if (keyboardOpen) colors.primary else colors.onSurface,
+                    )
+                }
                 IconButton(onClick = { showSettings = true }) { Icon(AppIcons.Settings, contentDescription = "Pengaturan touchpad") }
             },
         )
@@ -153,7 +165,9 @@ fun TouchpadScreen(
                 color = colors.onSurfaceVariant,
             )
         }
-        if (settings.showButtons) {
+        if (keyboardOpen && connected) {
+            KeyboardPanel(onText = onText, onKey = onKey)
+        } else if (settings.showButtons) {
             Row(
                 Modifier
                     .fillMaxWidth()

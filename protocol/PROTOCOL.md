@@ -52,14 +52,31 @@ Hanya diproses setelah `auth_result` ok. Event yang datang sebelumnya dibuang.
 | `0x02` button | 3 | `button: u8` (0 kiri, 1 kanan), `state: u8` (1 down, 0 up) | Untuk drag |
 | `0x03` click | 3 | `button: u8`, `count: u8` (1 atau 2) | Klik tunggal atau ganda |
 | `0x04` scroll | 5 | `dx: i16`, `dy: i16` | Delta scroll dalam 0,1 dp |
+| `0x05` text | 2–1025 | teks UTF-8, 1–1024 byte | Ketik teks di app yang sedang aktif; `\n` = Return, `\t` = Tab |
+| `0x06` key | 3 | `key: u8`, `modifiers: u8` | Tekan satu tombol sambil menahan modifier |
 
-Frame dengan panjang yang salah, tipe tidak dikenal, atau nilai di luar rentang dibuang.
+Frame dengan panjang yang salah, tipe tidak dikenal, atau nilai di luar rentang dibuang. Untuk `text`, itu termasuk UTF-8 yang tidak valid dan karakter kontrol selain `\n` dan `\t`.
+
+Kode `key`:
+
+| Kode | Tombol |
+| --- | --- |
+| `0x01`–`0x06` | Return, Backspace, Tab, Esc, Space, Forward Delete |
+| `0x07`–`0x0A` | ←, →, ↑, ↓ |
+| `0x0B`–`0x0E` | Home, End, Page Up, Page Down |
+| `0x10`–`0x1B` | F1–F12 |
+| `0x20`–`0x39` | A–Z |
+| `0x40`–`0x49` | 0–9 |
+| `0x50`–`0x5A` | `-` `=` `[` `]` `\` `;` `'` `,` `.` `/` `` ` `` |
+
+Bit `modifiers`: `0x01` Shift, `0x02` Control, `0x04` Option, `0x08` Command. Bit lain harus 0. Huruf dan tanda baca memakai posisi tombol ANSI, jadi ⌘C selalu tombol di posisi C.
 
 Aturan:
 
 - HP mengirim delta **mentah**. Akselerasi dihitung di agent: `gain = sensitivity × min(6, 1 + 2 × max(0, v − 0,2))`, dengan `v` dalam dp/ms. Sisa pecahan piksel disimpan antar paket.
 - `scroll` dikalikan `scrollSpeed` tanpa akselerasi. Arahnya mengikuti setelan natural scrolling di Mac.
-- HP mengumpulkan delta per frame dan mengirim maksimal satu `move` per frame. Kalau antrean kirim menumpuk, delta digabung ke paket berikutnya. `click` dan `button` tidak pernah digabung atau dibuang.
+- HP mengumpulkan delta per frame dan mengirim maksimal satu `move` per frame. Kalau antrean kirim menumpuk, delta digabung ke paket berikutnya. `click`, `button`, `text`, dan `key` tidak pernah digabung atau dibuang, dan selalu dikirim setelah gerakan yang tertunda.
+- `text` diketik lewat event Unicode, jadi tidak bergantung pada layout keyboard Mac. Backspace dikirim sebagai `key` `0x02`.
 
 ## QR pairing
 

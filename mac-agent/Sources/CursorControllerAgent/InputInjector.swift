@@ -2,7 +2,7 @@ import AgentCore
 import CoreGraphics
 import Foundation
 
-/// Menerjemahkan event input dari HP menjadi CGEvent sistem. Butuh izin Accessibility.
+/// Menerjemahkan event input dari HP menjadi CGEvent sistem (mouse dan keyboard). Butuh izin Accessibility.
 final class InputInjector {
     private var math = PointerMath()
     private var leftDown = false
@@ -25,6 +25,10 @@ final class InputInjector {
             press(button, down: false, clickState: Int64(count))
         case let .scroll(dx, dy):
             scroll(dx: dx, dy: dy)
+        case let .text(text):
+            type(text)
+        case let .key(key, modifiers):
+            press(key, modifiers: modifiers)
         }
     }
 
@@ -75,6 +79,46 @@ final class InputInjector {
             scrollWheelEvent2Source: source, units: .pixel, wheelCount: 2,
             wheel1: Int32(delta.dy) * sign, wheel2: Int32(delta.dx) * sign, wheel3: 0
         )?.post(tap: .cghidEventTap)
+    }
+
+    /// Teks diketik lewat event Unicode, jadi hasilnya tidak bergantung pada layout keyboard Mac.
+    private func type(_ text: String) {
+        for piece in TextChunker.pieces(text) {
+            switch piece {
+            case let .unicode(chunk):
+                let units = Array(chunk.utf16)
+                for down in [true, false] {
+                    guard let event = CGEvent(keyboardEventSource: source, virtualKey: 0, keyDown: down) else { continue }
+                    event.flags = []
+                    event.keyboardSetUnicodeString(stringLength: units.count, unicodeString: units)
+                    event.post(tap: .cghidEventTap)
+                }
+            case let .key(key):
+                press(key, modifiers: [])
+            }
+        }
+    }
+
+    /// Modifier ditekan sebagai tombol tersendiri dulu (supaya ⌘Tab dan app Electron ikut membaca),
+    /// lalu tombol utama dengan flag lengkap, lalu modifier dilepas dengan urutan terbalik.
+    private func press(_ key: KeyCode, modifiers: KeyModifiers) {
+        var held: CGEventFlags = []
+        for modifier in modifiers.keys {
+            held.insert(modifier.flag)
+            postKey(modifier.virtualKey, down: true, flags: held)
+        }
+        postKey(key.virtualKey, down: true, flags: held)
+        postKey(key.virtualKey, down: false, flags: held)
+        for modifier in modifiers.keys.reversed() {
+            held.remove(modifier.flag)
+            postKey(modifier.virtualKey, down: false, flags: held)
+        }
+    }
+
+    private func postKey(_ virtualKey: CGKeyCode, down: Bool, flags: CGEventFlags) {
+        guard let event = CGEvent(keyboardEventSource: source, virtualKey: virtualKey, keyDown: down) else { return }
+        event.flags = flags
+        event.post(tap: .cghidEventTap)
     }
 
     private var naturalScrolling: Bool {

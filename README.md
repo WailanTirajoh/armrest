@@ -29,12 +29,21 @@ Pakai HP Android sebagai touchpad untuk Mac lewat WiFi yang sama: gerak kursor, 
 | Geser 2 jari | Scroll (arah mengikuti setelan natural scrolling Mac) |
 | Tap, lalu tahan dan geser | Drag |
 
+### Keyboard
+
+Di layar touchpad, ketuk ikon keyboard di kanan atas. Apa yang kamu ketik langsung muncul di app yang sedang aktif di Mac, termasuk Backspace dan koreksi otomatis. Tombol Enter di keyboard HP mengirim Return.
+
+Baris di atas kolom ketik berisi Esc, Tab, dan tombol panah, plus ⌘ ⌃ ⌥ ⇧ untuk shortcut. Contohnya, ketuk ⌘ lalu ketik `c` untuk ⌘C. Modifier hanya berlaku untuk satu tombol berikutnya. Touchpad tetap bisa dipakai selama keyboard terbuka.
+
+### Pengaturan
+
 Sensitivitas, kecepatan scroll, tombol Kiri/Kanan, dan getar saat klik diatur lewat ikon pengaturan di layar touchpad. Akses HP bisa dicabut kapan saja lewat **Cabut…** di menu bar Mac.
 
 ### Kalau ada masalah
 
 - **HP tidak menemukan Mac** (WiFi kantor atau hotspot sering memblokir mDNS): di HP, menu ⋮ pada kartu komputer → **Sambungkan via IP**. Alamatnya tertulis di panel menu bar Mac (mis. `Siap · 192.168.1.20:47810`).
-- **Kursor tidak bergerak**: pastikan panel menu bar Mac menampilkan "Izin Accessibility: Diizinkan".
+- **Kursor tidak bergerak atau ketikan tidak masuk**: pastikan panel menu bar Mac menampilkan "Izin Accessibility: Diizinkan".
+- **Ketikan tidak masuk ke kolom password**: macOS bisa memblokir ketikan dari app lain saat Secure Input aktif, misalnya di kolom password atau Terminal dengan Secure Keyboard Entry.
 - **macOS menolak membuka app**: app belum dinotarisasi Apple. Klik kanan → Open (macOS 14), atau System Settings → Privacy & Security → **Open Anyway** (macOS 15+).
 
 ## Mengunduh hasil build
@@ -75,4 +84,4 @@ Skrip ini membuat keystore Android dan sertifikat code signing self-signed, meng
 
 ## Setelah MVP
 
-Urutan dari spec: keyboard dan tombol spesial, mode presentasi/media, transport UDP, air mouse (gyroscope), koneksi lintas jaringan (WebRTC), lalu dukungan Windows/Linux.
+Urutan berikutnya dari spec: mode presentasi/media, transport UDP, air mouse (gyroscope), koneksi lintas jaringan (WebRTC), lalu dukungan Windows/Linux.

@@ -33,6 +33,11 @@ object AppIcons {
     )
     val Refresh = stroke("refresh", "M20 12a8 8 0 1 1-2.3-5.6", "M20 4v4h-4")
     val Plus = stroke("plus", "M12 5v14M5 12h14")
+    val Keyboard = stroke(
+        "keyboard",
+        "M4.5 5h15A1.5 1.5 0 0 1 21 6.5v11a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 17.5v-11A1.5 1.5 0 0 1 4.5 5z",
+        "M7 9h.01M11 9h.01M15 9h.01M7 12.5h.01M11 12.5h.01M15 12.5h.01M8 16h8",
+    )
 
     private fun circle(cx: Float, cy: Float, r: Float) = "M${cx - r} ${cy}a$r $r 0 1 0 ${2 * r} 0a$r $r 0 1 0 ${-2 * r} 0"
 

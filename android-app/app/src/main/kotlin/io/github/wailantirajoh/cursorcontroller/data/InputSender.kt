@@ -5,11 +5,14 @@ import io.github.wailantirajoh.cursorcontroller.core.AgentConnection
 import io.github.wailantirajoh.cursorcontroller.core.DeltaAccumulator
 import io.github.wailantirajoh.cursorcontroller.core.InputAction
 import io.github.wailantirajoh.cursorcontroller.core.InputMessage
+import io.github.wailantirajoh.cursorcontroller.core.KeyCode
+import io.github.wailantirajoh.cursorcontroller.core.splitTextFrames
 
 /**
- * Mengirim aksi gesture ke agent. Gerakan dikumpulkan dan dikirim maksimal satu paket per frame;
- * kalau antrean kirim menumpuk (jaringan lambat), gerakan digabung ke frame berikutnya.
- * Klik dan tombol dikirim segera dan tidak pernah dibuang. Dipanggil dari main thread.
+ * Mengirim aksi gesture dan ketikan ke agent. Gerakan dikumpulkan dan dikirim maksimal satu paket per
+ * frame; kalau antrean kirim menumpuk (jaringan lambat), gerakan digabung ke frame berikutnya.
+ * Klik, tombol mouse, teks, dan tombol keyboard dikirim segera dan tidak pernah dibuang.
+ * Dipanggil dari main thread.
  */
 class InputSender(private val connection: () -> AgentConnection?) : Choreographer.FrameCallback {
     private val moves = DeltaAccumulator()
@@ -33,6 +36,20 @@ class InputSender(private val connection: () -> AgentConnection?) : Choreographe
             }
         }
         schedule()
+    }
+
+    fun sendText(text: String) {
+        if (text.isEmpty()) return
+        flush(force = true)
+        val target = connection() ?: return
+        splitTextFrames(text).forEach { target.sendInput(InputMessage.Text(it)) }
+    }
+
+    fun sendKey(key: KeyCode, modifiers: Int = 0, times: Int = 1) {
+        if (times <= 0) return
+        flush(force = true)
+        val target = connection() ?: return
+        repeat(times) { target.sendInput(InputMessage.Key(key, modifiers)) }
     }
 
     fun reset() {

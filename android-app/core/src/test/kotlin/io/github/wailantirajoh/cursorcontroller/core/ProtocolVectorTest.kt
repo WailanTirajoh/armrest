@@ -28,6 +28,8 @@ class ProtocolVectorTest {
                 "scroll" -> InputMessage.Scroll(c.getInt("dx").toShort(), c.getInt("dy").toShort())
                 "button" -> InputMessage.Button(MouseButton.fromCode(c.getInt("button"))!!, c.getBoolean("down"))
                 "click" -> InputMessage.Click(MouseButton.fromCode(c.getInt("button"))!!, c.getInt("count"))
+                "text" -> InputMessage.Text(c.getString("text"))
+                "key" -> InputMessage.Key(KeyCode.fromCode(c.getInt("key"))!!, c.getInt("modifiers"))
                 else -> error("tipe tidak dikenal: $c")
             }
             assertEquals(expected, InputMessage.decode(hex(c.getString("hex"))))

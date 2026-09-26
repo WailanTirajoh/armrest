@@ -1,5 +1,9 @@
 package io.github.wailantirajoh.cursorcontroller.core
 
+import java.nio.ByteBuffer
+import java.nio.charset.CharacterCodingException
+import java.nio.charset.CodingErrorAction
+
 enum class MouseButton(val code: Int) {
     LEFT(0),
     RIGHT(1);
@@ -15,12 +19,17 @@ sealed interface InputMessage {
     data class Button(val button: MouseButton, val down: Boolean) : InputMessage
     data class Click(val button: MouseButton, val count: Int) : InputMessage
     data class Scroll(val dx: Short, val dy: Short) : InputMessage
+    /** Maksimal MAX_TEXT_BYTES byte UTF-8; pakai splitTextFrames untuk teks panjang. */
+    data class Text(val text: String) : InputMessage
+    data class Key(val key: KeyCode, val modifiers: Int = 0) : InputMessage
 
     fun encode(): ByteArray = when (this) {
         is Move -> byteArrayOf(0x01) + le(dx) + le(dy)
         is Button -> byteArrayOf(0x02, button.code.toByte(), if (down) 1 else 0)
         is Click -> byteArrayOf(0x03, button.code.toByte(), count.toByte())
         is Scroll -> byteArrayOf(0x04) + le(dx) + le(dy)
+        is Text -> byteArrayOf(0x05) + text.toByteArray(Charsets.UTF_8)
+        is Key -> byteArrayOf(0x06, key.code.toByte(), modifiers.toByte())
     }
 
     companion object {
@@ -36,8 +45,28 @@ sealed interface InputMessage {
                 bytes[0] == 0x03.toByte() && bytes.size == 3 && (u8(2) == 1 || u8(2) == 2) ->
                     MouseButton.fromCode(u8(1))?.let { Click(it, u8(2)) }
                 bytes[0] == 0x04.toByte() && bytes.size == 5 -> Scroll(i16(1), i16(3))
+                bytes[0] == 0x05.toByte() && bytes.size in 2..MAX_TEXT_BYTES + 1 ->
+                    utf8(bytes, 1)?.takeIf(::isAllowedText)?.let { Text(it) }
+                bytes[0] == 0x06.toByte() && bytes.size == 3 && (u8(2) and KeyModifiers.ALL.inv()) == 0 ->
+                    KeyCode.fromCode(u8(1))?.let { Key(it, u8(2)) }
                 else -> null
             }
+        }
+
+        const val MAX_TEXT_BYTES = 1024
+
+        /** Teks valid: tidak kosong, tanpa karakter kontrol selain \n dan \t. */
+        fun isAllowedText(text: String): Boolean =
+            text.isNotEmpty() && text.codePoints().allMatch { it == '\n'.code || it == '\t'.code || (it >= 0x20 && it != 0x7F) }
+
+        private fun utf8(bytes: ByteArray, offset: Int): String? = try {
+            Charsets.UTF_8.newDecoder()
+                .onMalformedInput(CodingErrorAction.REPORT)
+                .onUnmappableCharacter(CodingErrorAction.REPORT)
+                .decode(ByteBuffer.wrap(bytes, offset, bytes.size - offset))
+                .toString()
+        } catch (_: CharacterCodingException) {
+            null
         }
 
         private fun le(value: Short): ByteArray {
