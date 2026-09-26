@@ -22,7 +22,7 @@ public enum SessionAction: Equatable, Sendable {
     case trustDevice(TrustedDevice)
     case authenticated(TrustedDevice)
     case input(InputMessage)
-    case settings(sensitivity: Double, scrollSpeed: Double)
+    case settings(sensitivity: Double, scrollSpeed: Double, focusUpdates: Bool)
     case close(reason: String)
 }
 
@@ -101,8 +101,10 @@ public final class SessionMachine {
             state = .authenticated(device)
             return [.send(.authResult(ok: true, error: nil)), .authenticated(device)]
 
-        case let (.authenticated, .settings(sensitivity, scrollSpeed)):
-            return [.settings(sensitivity: min(max(sensitivity, 0.3), 5), scrollSpeed: min(max(scrollSpeed, 0.3), 8))]
+        case let (.authenticated, .settings(sensitivity, scrollSpeed, focusUpdates)):
+            return [.settings(
+                sensitivity: min(max(sensitivity, 0.3), 5), scrollSpeed: min(max(scrollSpeed, 0.3), 8), focusUpdates: focusUpdates
+            )]
 
         default:
             return fail("bad_message")

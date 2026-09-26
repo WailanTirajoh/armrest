@@ -18,7 +18,10 @@ public enum ControlMessage: Equatable, Sendable {
     case challenge(nonce: String)
     case auth(sig: String)
     case authResult(ok: Bool, error: String?)
-    case settings(sensitivity: Double, scrollSpeed: Double)
+    /// `focusUpdates`: HP ingin menerima pesan `focus`.
+    case settings(sensitivity: Double, scrollSpeed: Double, focusUpdates: Bool)
+    /// Apakah kolom teks sedang fokus di Mac, supaya HP bisa membuka keyboard sendiri.
+    case focus(text: Bool)
     case ping(ts: Int64)
     case pong(ts: Int64)
     case error(String)
@@ -41,8 +44,10 @@ public enum ControlMessage: Equatable, Sendable {
         case let .authResult(ok, error):
             object = ["t": "auth_result", "ok": ok]
             if let error { object["error"] = error }
-        case let .settings(sensitivity, scrollSpeed):
-            object = ["t": "settings", "sensitivity": sensitivity, "scrollSpeed": scrollSpeed]
+        case let .settings(sensitivity, scrollSpeed, focusUpdates):
+            object = ["t": "settings", "sensitivity": sensitivity, "scrollSpeed": scrollSpeed, "focusUpdates": focusUpdates]
+        case let .focus(text):
+            object = ["t": "focus", "text": text]
         case let .ping(ts):
             object = ["t": "ping", "ts": ts]
         case let .pong(ts):
@@ -85,7 +90,10 @@ public enum ControlMessage: Equatable, Sendable {
         case "settings":
             guard let sensitivity = number("sensitivity")?.doubleValue,
                   let scrollSpeed = number("scrollSpeed")?.doubleValue else { return nil }
-            return .settings(sensitivity: sensitivity, scrollSpeed: scrollSpeed)
+            // HP v0.3 belum mengirim focusUpdates.
+            return .settings(sensitivity: sensitivity, scrollSpeed: scrollSpeed, focusUpdates: o["focusUpdates"] as? Bool ?? false)
+        case "focus":
+            return (o["text"] as? Bool).map { .focus(text: $0) }
         case "ping":
             return number("ts").map { .ping(ts: $0.int64Value) }
         case "pong":

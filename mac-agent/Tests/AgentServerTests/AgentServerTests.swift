@@ -9,6 +9,7 @@ final class ServerHarness {
     let queue = DispatchQueue(label: "test.agent-server")
     let server: AgentServer
     let inputs: AsyncStream<InputMessage>
+    let focusInterest: AsyncStream<Bool>
     private let inputContinuation: AsyncStream<InputMessage>.Continuation
 
     init(approve: Bool) {
@@ -20,8 +21,11 @@ final class ServerHarness {
             queue: queue
         )
         (inputs, inputContinuation) = AsyncStream.makeStream(of: InputMessage.self)
+        let (focusInterest, focusContinuation) = AsyncStream.makeStream(of: Bool.self)
+        self.focusInterest = focusInterest
         server.onApprovalRequest = { _, decide in decide(approve) }
         server.onInput = { [inputContinuation] _, message in inputContinuation.yield(message) }
+        server.onFocusInterestChanged = { focusContinuation.yield($0) }
     }
 
     func start() async throws -> UInt16 {
@@ -52,6 +56,10 @@ final class ServerHarness {
         queue.sync { server.devices.devices.map(\.id) }
     }
 
+    func updateTextFocus(_ focused: Bool) {
+        queue.sync { server.updateTextFocus(focused) }
+    }
+
     func stop() {
         queue.sync { server.stop() }
     }
@@ -76,34 +84,70 @@ private func receiveJSON(_ task: URLSessionWebSocketTask) async throws -> Contro
     }
 }
 
-@Test func pairingAndInputOverRealWebSocket() async throws {
-    let harness = ServerHarness(approve: true)
-    let port = try await harness.start()
-    defer { harness.stop() }
-
+/// HP tiruan: pairing lewat QR, lalu autentikasi di koneksi yang sama.
+private func pairPhone(_ harness: ServerHarness, port: UInt16) async throws -> (task: URLSessionWebSocketTask, deviceId: String) {
     let token = harness.issueToken()
     let key = P256.Signing.PrivateKey()
     let deviceId = UUID().uuidString.lowercased()
     let task = URLSession.shared.webSocketTask(with: URL(string: "ws://127.0.0.1:\(port)")!)
     task.resume()
-    defer { task.cancel(with: .normalClosure, reason: nil) }
 
     try await sendJSON(task, .hello(version: 1, deviceId: deviceId, mode: .pair))
     try await sendJSON(task, .pairRequest(token: token, deviceName: "Pixel 8", publicKey: key.publicKey.derRepresentation.base64EncodedString()))
     #expect(try await receiveJSON(task) == .pairResult(.ok(hostId: "host-1", hostName: "Mac Test")))
 
-    guard case let .challenge(nonceB64)? = try await receiveJSON(task), let nonce = Data(base64Encoded: nonceB64) else {
-        Issue.record("harus menerima challenge")
-        return
-    }
+    var nonceB64: String?
+    if case let .challenge(value)? = try await receiveJSON(task) { nonceB64 = value }
+    let nonce = try #require(nonceB64.flatMap { Data(base64Encoded: $0) }, "harus menerima challenge")
     let payload = AuthCrypto.payload(nonce: nonce, hostId: "host-1", deviceId: deviceId)
     try await sendJSON(task, .auth(sig: try key.signature(for: payload).derRepresentation.base64EncodedString()))
     #expect(try await receiveJSON(task) == .authResult(ok: true, error: nil))
-    #expect(harness.trustedDeviceIds() == [deviceId])
+    return (task, deviceId)
+}
 
-    try await task.send(.data(InputMessage.click(.left, count: 2).encoded()))
+@Test func pairingAndInputOverRealWebSocket() async throws {
+    let harness = ServerHarness(approve: true)
+    let port = try await harness.start()
+    defer { harness.stop() }
+
+    let phone = try await pairPhone(harness, port: port)
+    defer { phone.task.cancel(with: .normalClosure, reason: nil) }
+    #expect(harness.trustedDeviceIds() == [phone.deviceId])
+
+    try await phone.task.send(.data(InputMessage.click(.left, count: 2).encoded()))
     var iterator = harness.inputs.makeAsyncIterator()
     #expect(await iterator.next() == .click(.left, count: 2))
+}
+
+@Test func textFocusReachesPhonesThatAskForIt() async throws {
+    let harness = ServerHarness(approve: true)
+    let port = try await harness.start()
+    defer { harness.stop() }
+    var interest = harness.focusInterest.makeAsyncIterator()
+
+    let first = try await pairPhone(harness, port: port)
+    defer { first.task.cancel(with: .normalClosure, reason: nil) }
+    try await sendJSON(first.task, .settings(sensitivity: 1, scrollSpeed: 1, focusUpdates: true))
+    #expect(await interest.next() == true)
+
+    harness.updateTextFocus(true)
+    harness.updateTextFocus(true) // tidak berubah, jadi tidak dikirim ulang
+    harness.updateTextFocus(false)
+    #expect(try await receiveJSON(first.task) == .focus(text: true))
+    #expect(try await receiveJSON(first.task) == .focus(text: false))
+
+    // HP yang baru meminta langsung menerima status saat ini.
+    harness.updateTextFocus(true)
+    #expect(try await receiveJSON(first.task) == .focus(text: true))
+    let second = try await pairPhone(harness, port: port)
+    defer { second.task.cancel(with: .normalClosure, reason: nil) }
+    try await sendJSON(second.task, .settings(sensitivity: 1, scrollSpeed: 1, focusUpdates: true))
+    #expect(try await receiveJSON(second.task) == .focus(text: true))
+
+    // Pemantauan berhenti setelah tidak ada lagi HP yang meminta.
+    try await sendJSON(first.task, .settings(sensitivity: 1, scrollSpeed: 1, focusUpdates: false))
+    try await sendJSON(second.task, .settings(sensitivity: 1, scrollSpeed: 1, focusUpdates: false))
+    #expect(await interest.next() == false)
 }
 
 @Test func deniedPairingDoesNotTrustDevice() async throws {

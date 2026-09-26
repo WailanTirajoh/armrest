@@ -35,14 +35,17 @@ Di layar touchpad, ketuk ikon keyboard di kanan atas. Apa yang kamu ketik langsu
 
 Baris di atas kolom ketik berisi Esc, Tab, dan tombol panah, plus ⌘ ⌃ ⌥ ⇧ untuk shortcut. Contohnya, ketuk ⌘ lalu ketik `c` untuk ⌘C. Modifier hanya berlaku untuk satu tombol berikutnya. Touchpad tetap bisa dipakai selama keyboard terbuka.
 
+Keyboard juga terbuka sendiri saat kolom teks di Mac aktif, misalnya setelah kamu mengklik kolom pencarian, dan tertutup lagi saat fokus pindah dari kolom teks. Keyboard yang kamu buka manual tidak ditutup otomatis, dan tombol Back di HP menutup panel keyboard. Matikan lewat **Buka keyboard otomatis** di pengaturan touchpad.
+
 ### Pengaturan
 
-Sensitivitas, kecepatan scroll, tombol Kiri/Kanan, dan getar saat klik diatur lewat ikon pengaturan di layar touchpad. Akses HP bisa dicabut kapan saja lewat **Cabut…** di menu bar Mac.
+Sensitivitas, kecepatan scroll, tombol Kiri/Kanan, getar saat klik, dan keyboard otomatis diatur lewat ikon pengaturan di layar touchpad. Akses HP bisa dicabut kapan saja lewat **Cabut…** di menu bar Mac.
 
 ### Kalau ada masalah
 
 - **HP tidak menemukan Mac** (WiFi kantor atau hotspot sering memblokir mDNS): di HP, menu ⋮ pada kartu komputer → **Sambungkan via IP**. Alamatnya tertulis di panel menu bar Mac (mis. `Siap · 192.168.1.20:47810`).
 - **Kursor tidak bergerak atau ketikan tidak masuk**: pastikan panel menu bar Mac menampilkan "Izin Accessibility: Diizinkan".
+- **Keyboard tidak terbuka otomatis**: sebagian app tidak melaporkan kolom teksnya lewat Accessibility, misalnya app Electron seperti VS Code dan Slack, game, atau remote desktop. Di app seperti itu, buka keyboard lewat ikonnya. Fitur ini butuh agent Mac versi 0.4 ke atas.
 - **Ketikan tidak masuk ke kolom password**: macOS bisa memblokir ketikan dari app lain saat Secure Input aktif, misalnya di kolom password atau Terminal dengan Secure Keyboard Entry.
 - **macOS menolak membuka app**: app belum dinotarisasi Apple. Klik kanan → Open (macOS 14), atau System Settings → Privacy & Security → **Open Anyway** (macOS 15+).
 

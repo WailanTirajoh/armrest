@@ -1,14 +1,16 @@
 #!/usr/bin/env bash
 # Uji end-to-end lokal: agent Mac sungguhan (TLS, Keychain, Bonjour) melawan klien Android di JVM (OkHttp).
 #
-# Agent dijalankan dengan profil "e2e": port 47811, tanpa jendela, pairing otomatis diizinkan, dan data
-# terpisah dari app normal. Semua data profil e2e (Keychain, Application Support, defaults) dihapus di akhir.
+# Agent dijalankan dengan profil "e2e": port 47811, tanpa jendela, pairing otomatis diizinkan, status fokus
+# kolom teks dibaca dari file (bukan dari app lain), dan data terpisah dari app normal. Semua data profil e2e
+# (Keychain, Application Support, defaults) dihapus di akhir.
 # Tanpa izin Accessibility untuk build ini, event input diterima tapi tidak menggerakkan kursor.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 WORK="$(mktemp -d)"
 PAIRING="$WORK/pairing.txt"
+FOCUS="$WORK/focus.txt"
 LOG="$WORK/agent.log"
 
 echo "== Build agent"
@@ -21,6 +23,7 @@ CURSORCTL_PORT=47811 \
 CURSORCTL_E2E_ADDRESS=127.0.0.1 \
 CURSORCTL_E2E_AUTO_APPROVE=1 \
 CURSORCTL_E2E_PAIRING_FILE="$PAIRING" \
+CURSORCTL_E2E_FOCUS_FILE="$FOCUS" \
 CURSORCTL_E2E_LOG=1 \
   "$AGENT" > "$LOG" 2>&1 &
 AGENT_PID=$!
@@ -47,10 +50,11 @@ fi
 echo "QR: $(cat "$PAIRING")"
 
 echo "== Klien JVM"
-(cd "$ROOT/android-app" && CURSORCTL_E2E_PAIRING_FILE="$PAIRING" ./gradlew -q :core:test --tests '*AgentConnectionE2ETest' --rerun)
+(cd "$ROOT/android-app" && CURSORCTL_E2E_PAIRING_FILE="$PAIRING" CURSORCTL_E2E_FOCUS_FILE="$FOCUS" ./gradlew -q :core:test --tests '*AgentConnectionE2ETest' --rerun)
 
 echo "== Log agent"
 cat "$LOG"
 grep -q "input: move" "$LOG" && grep -q "input: click" "$LOG" && grep -q "input: scroll" "$LOG"
 grep -q 'input: text("Halo dunia' "$LOG" && grep -q "input: key(AgentCore.KeyCode.returnKey" "$LOG" && grep -q "input: key(AgentCore.KeyCode.c" "$LOG"
+grep -q "focus: true" "$LOG" && grep -q "focus: false" "$LOG"
 echo "E2E OK"

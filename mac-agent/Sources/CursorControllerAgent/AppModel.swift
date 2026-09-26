@@ -32,6 +32,7 @@ final class AppModel: ObservableObject {
     private let store: TrustedDeviceStore
     private let tokens = PairingTokens()
     private let injector = InputInjector()
+    private lazy var focusMonitor = FocusMonitor(probe: makeFocusProbe())
     private var server: AgentServer?
     private var timer: Timer?
     private let windows = WindowPresenter()
@@ -113,6 +114,18 @@ final class AppModel: ObservableObject {
         server.onSettings = { [weak self] _, sensitivity, scrollSpeed in
             self?.injector.apply(sensitivity: sensitivity, scrollSpeed: scrollSpeed)
         }
+        server.onFocusInterestChanged = { [weak self] interested in
+            guard let self else { return }
+            if interested {
+                self.focusMonitor.start()
+            } else {
+                self.focusMonitor.stop()
+            }
+        }
+        focusMonitor.onChange = { [weak self, weak server] focused in
+            self?.log("focus: \(focused)")
+            server?.updateTextFocus(focused)
+        }
         server.onInput = { [weak self] _, message in
             guard let self else { return }
             self.log("input: \(message)")
@@ -120,6 +133,13 @@ final class AppModel: ObservableObject {
             guard !self.headless else { return }
             self.injector.handle(message)
         }
+    }
+
+    /// Profil uji tidak membaca app lain: status fokus diambil dari file, atau selalu "bukan kolom teks".
+    private func makeFocusProbe() -> () -> Bool {
+        guard headless else { return AccessibilityFocus.textInputFocused }
+        guard let file = profile.focusFile else { return { false } }
+        return { (try? String(contentsOf: file, encoding: .utf8))?.trimmingCharacters(in: .whitespacesAndNewlines) == "1" }
     }
 
     private func tick() {

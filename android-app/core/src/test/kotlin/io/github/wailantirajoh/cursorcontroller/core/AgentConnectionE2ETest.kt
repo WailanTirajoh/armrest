@@ -15,6 +15,7 @@ import java.util.concurrent.TimeUnit
 /**
  * Uji end-to-end ke agent Mac sungguhan (TLS + WebSocket + pairing + auth + input).
  * Jalankan lewat scripts/e2e-local.sh; tanpa CURSORCTL_E2E_PAIRING_FILE test ini dilewati.
+ * Agent uji membaca status fokus kolom teks dari CURSORCTL_E2E_FOCUS_FILE, bukan dari Accessibility.
  */
 class AgentConnectionE2ETest {
     private class JvmCredentials(override val deviceName: String) : DeviceCredentials {
@@ -32,6 +33,7 @@ class AgentConnectionE2ETest {
     private val listener = object : AgentConnection.Listener {
         override fun onPaired(host: PairedHost) { events.add("paired") }
         override fun onAuthenticated() { events.add("authenticated") }
+        override fun onTextFocus(focused: Boolean) { events.add("focus:$focused") }
         override fun onEnded(failure: ClientFailure?) { events.add("ended:$failure") }
     }
 
@@ -42,6 +44,8 @@ class AgentConnectionE2ETest {
         val file = System.getenv("CURSORCTL_E2E_PAIRING_FILE").orEmpty()
         assumeTrue("CURSORCTL_E2E_PAIRING_FILE tidak di-set", file.isNotBlank())
         val uri = requireNotNull(PairingUri.parse(File(file).readText())) { "QR pairing tidak valid" }
+        val focusFile = File(System.getenv("CURSORCTL_E2E_FOCUS_FILE").orEmpty())
+        assumeTrue("CURSORCTL_E2E_FOCUS_FILE tidak di-set", focusFile.path.isNotBlank())
         val phone = JvmCredentials("JVM E2E")
 
         // 1. Pairing lewat QR, lalu autentikasi di koneksi yang sama, lalu kirim input.
@@ -54,7 +58,15 @@ class AgentConnectionE2ETest {
         assertTrue(pairing.sendInput(InputMessage.Text("Halo dunia \uD83D\uDC4B\n")))
         assertTrue(pairing.sendInput(InputMessage.Key(KeyCode.RETURN)))
         assertTrue(pairing.sendInput(InputMessage.Key(KeyCode.C, KeyModifiers.COMMAND)))
-        Thread.sleep(300)
+
+        // Fokus kolom teks: status awal dikirim begitu diminta, lalu setiap kali berubah.
+        focusFile.writeText("0")
+        pairing.sendSettings(1.5, 2.0, focusUpdates = true)
+        assertEquals("focus:false", next())
+        focusFile.writeText("1")
+        assertEquals("focus:true", next())
+        focusFile.writeText("0")
+        assertEquals("focus:false", next())
         pairing.close()
         assertEquals("ended:null", next())
 

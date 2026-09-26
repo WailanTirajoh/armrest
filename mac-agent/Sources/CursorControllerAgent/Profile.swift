@@ -11,6 +11,8 @@ struct Profile {
     let autoApprove: Bool
     let pairingFile: URL?
     let logInput: Bool
+    /// Profil uji tidak membaca fokus app lain; status fokus kolom teks diambil dari file ini ("1" = fokus).
+    let focusFile: URL?
 
     static let current: Profile = {
         let env = ProcessInfo.processInfo.environment
@@ -21,7 +23,8 @@ struct Profile {
             advertisedAddress: env["CURSORCTL_E2E_ADDRESS"],
             autoApprove: env["CURSORCTL_E2E_AUTO_APPROVE"] == "1",
             pairingFile: env["CURSORCTL_E2E_PAIRING_FILE"].map { URL(fileURLWithPath: $0) },
-            logInput: env["CURSORCTL_E2E_LOG"] == "1"
+            logInput: env["CURSORCTL_E2E_LOG"] == "1",
+            focusFile: env["CURSORCTL_E2E_FOCUS_FILE"].map { URL(fileURLWithPath: $0) }
         )
     }()
 

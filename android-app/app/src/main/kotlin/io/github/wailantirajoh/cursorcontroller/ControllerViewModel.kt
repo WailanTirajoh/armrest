@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import io.github.wailantirajoh.cursorcontroller.core.AgentConnection
 import io.github.wailantirajoh.cursorcontroller.core.ClientFailure
 import io.github.wailantirajoh.cursorcontroller.core.ConnectTarget
+import io.github.wailantirajoh.cursorcontroller.core.KeyboardPanelState
 import io.github.wailantirajoh.cursorcontroller.core.PairedHost
 import io.github.wailantirajoh.cursorcontroller.core.PairingUri
 import io.github.wailantirajoh.cursorcontroller.core.ProtocolConstants
@@ -46,6 +47,7 @@ data class UiState(
     val screen: Screen = Screen.Hosts,
     val hosts: List<HostUi> = emptyList(),
     val link: Link = Link.Connecting,
+    val keyboardOpen: Boolean = false,
     val settings: TouchSettings = TouchSettings(),
     val showGestureHints: Boolean = false,
     val manualAddressFor: SavedHost? = null,
@@ -72,6 +74,7 @@ class ControllerViewModel(application: Application) : AndroidViewModel(applicati
     private var attempt = 0
     private var reconnectJob: Job? = null
     private val manualAddress = HashMap<String, String>()
+    private val keyboardPanel = KeyboardPanelState()
 
     val sender = InputSender { connection?.takeIf { it.isAuthenticated } }
 
@@ -150,6 +153,8 @@ class ControllerViewModel(application: Application) : AndroidViewModel(applicati
 
             override fun onAuthenticated() = onMain(gen) { authenticated(hostId, target.address) }
 
+            override fun onTextFocus(focused: Boolean) = onMain(gen) { textFocusChanged(focused) }
+
             override fun onEnded(failure: ClientFailure?) = onMain(gen) { ended(hostId, failure) }
         })
     }
@@ -172,6 +177,7 @@ class ControllerViewModel(application: Application) : AndroidViewModel(applicati
     private fun ended(hostId: String, failure: ClientFailure?) {
         connection = null
         sender.reset()
+        keyboardPanel.onTextFocus(null, auto = false)
         when (val screen = _state.value.screen) {
             is Screen.Pairing -> _state.update { it.copy(screen = Screen.PairingFailed(pairingError(failure))) }
             is Screen.Touchpad -> when {
@@ -204,6 +210,8 @@ class ControllerViewModel(application: Application) : AndroidViewModel(applicati
         connection?.close()
         connection = null
         sender.reset()
+        keyboardPanel.reset()
+        syncKeyboard()
     }
 
     private fun pairingError(failure: ClientFailure?): PairingError = when (failure) {
@@ -223,9 +231,23 @@ class ControllerViewModel(application: Application) : AndroidViewModel(applicati
 
     fun updateSettings(settings: TouchSettings) {
         settingsStore.save(settings)
+        // Mode otomatis dimatikan: lupakan fokus terakhir supaya status baru dari Mac berlaku saat dinyalakan lagi.
+        if (!settings.autoKeyboard) keyboardPanel.onTextFocus(null, auto = false)
         _state.update { it.copy(settings = settings) }
         sendSettings()
     }
+
+    fun toggleKeyboard() {
+        keyboardPanel.toggle()
+        syncKeyboard()
+    }
+
+    private fun textFocusChanged(focused: Boolean) {
+        keyboardPanel.onTextFocus(focused, _state.value.settings.autoKeyboard)
+        syncKeyboard()
+    }
+
+    private fun syncKeyboard() = _state.update { it.copy(keyboardOpen = keyboardPanel.isOpen) }
 
     fun dismissGestureHints() {
         settingsStore.gestureHintsSeen = true
@@ -239,7 +261,7 @@ class ControllerViewModel(application: Application) : AndroidViewModel(applicati
 
     private fun sendSettings() {
         val settings = _state.value.settings
-        connection?.sendSettings(settings.sensitivity.toDouble(), settings.scrollSpeed.toDouble())
+        connection?.sendSettings(settings.sensitivity.toDouble(), settings.scrollSpeed.toDouble(), focusUpdates = settings.autoKeyboard)
     }
 
     private fun refreshHosts() {

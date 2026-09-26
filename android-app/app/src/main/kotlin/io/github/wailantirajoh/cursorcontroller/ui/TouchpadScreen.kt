@@ -33,7 +33,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -58,11 +57,13 @@ import java.util.Locale
 fun TouchpadScreen(
     hostName: String,
     link: Link,
+    keyboardOpen: Boolean,
     settings: TouchSettings,
     showGestureHints: Boolean,
     onActions: (List<InputAction>) -> Unit,
     onText: (String) -> Unit,
     onKey: (key: KeyCode, modifiers: Int, times: Int) -> Unit,
+    onToggleKeyboard: () -> Unit,
     onSettingsChange: (TouchSettings) -> Unit,
     onDismissHints: () -> Unit,
     onBack: () -> Unit,
@@ -70,7 +71,6 @@ fun TouchpadScreen(
     val colors = MaterialTheme.colorScheme
     val view = LocalView.current
     var showSettings by remember { mutableStateOf(false) }
-    var keyboardOpen by rememberSaveable { mutableStateOf(false) }
     val connected = link == Link.Connected
 
     // Layar tetap menyala selama touchpad terbuka.
@@ -98,7 +98,7 @@ fun TouchpadScreen(
             onNavigate = onBack,
             subtitle = { LinkStatus(link) },
             actions = {
-                IconButton(onClick = { keyboardOpen = !keyboardOpen }, enabled = connected) {
+                IconButton(onClick = onToggleKeyboard, enabled = connected) {
                     Icon(
                         AppIcons.Keyboard,
                         contentDescription = if (keyboardOpen) "Tutup keyboard" else "Buka keyboard",
@@ -225,6 +225,9 @@ private fun SettingsSheet(settings: TouchSettings, onChange: (TouchSettings) -> 
         SliderRow("Kecepatan scroll", settings.scrollSpeed, 0.5f..4f) { onChange(settings.copy(scrollSpeed = it)) }
         SwitchRow("Tombol kiri/kanan", settings.showButtons) { onChange(settings.copy(showButtons = it)) }
         SwitchRow("Getar saat klik", settings.haptics) { onChange(settings.copy(haptics = it)) }
+        SwitchRow("Buka keyboard otomatis", settings.autoKeyboard, "Saat kolom teks di Mac aktif") {
+            onChange(settings.copy(autoKeyboard = it))
+        }
     }
 }
 
@@ -240,9 +243,14 @@ private fun SliderRow(label: String, value: Float, range: ClosedFloatingPointRan
 }
 
 @Composable
-private fun SwitchRow(label: String, checked: Boolean, onChange: (Boolean) -> Unit) {
+private fun SwitchRow(label: String, checked: Boolean, description: String? = null, onChange: (Boolean) -> Unit) {
     Row(Modifier.fillMaxWidth().padding(vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-        Text(label, fontSize = 15.sp, modifier = Modifier.weight(1f))
+        Column(Modifier.weight(1f)) {
+            Text(label, fontSize = 15.sp)
+            if (description != null) {
+                Text(description, fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        }
         Switch(checked = checked, onCheckedChange = onChange)
     }
 }

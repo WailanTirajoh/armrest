@@ -122,3 +122,40 @@ fun splitTextFrames(text: String, maxBytes: Int = InputMessage.MAX_TEXT_BYTES): 
     if (current.isNotEmpty()) frames += current.toString()
     return frames
 }
+
+/**
+ * Kapan panel keyboard terbuka. Dengan mode otomatis, panel terbuka saat Mac melaporkan kolom teks aktif dan
+ * tertutup lagi saat fokus pindah, tapi hanya kalau tadi terbukanya otomatis. Panel yang dibuka manual tidak
+ * ditutup otomatis, dan panel yang ditutup manual baru terbuka lagi saat kolom teks berikutnya fokus.
+ */
+class KeyboardPanelState {
+    var isOpen = false
+        private set
+    private var openedByFocus = false
+    private var lastFocus: Boolean? = null
+
+    fun toggle() {
+        isOpen = !isOpen
+        openedByFocus = false
+    }
+
+    /** Status fokus dari Mac. null = tidak diketahui, mis. koneksi putus atau mode otomatis dimatikan. */
+    fun onTextFocus(focused: Boolean?, auto: Boolean) {
+        if (focused == lastFocus) return
+        lastFocus = focused
+        if (!auto || focused == null) return
+        if (focused && !isOpen) {
+            isOpen = true
+            openedByFocus = true
+        } else if (!focused && openedByFocus) {
+            isOpen = false
+            openedByFocus = false
+        }
+    }
+
+    fun reset() {
+        isOpen = false
+        openedByFocus = false
+        lastFocus = null
+    }
+}

@@ -123,5 +123,8 @@ private func sign(_ key: P256.Signing.PrivateKey, nonce: Data, env: FakeEnvironm
     #expect(machine.handleText(text(.ping(ts: 9))) == [.send(.pong(ts: 9))])
     _ = machine.handleText(text(.hello(version: 1, deviceId: deviceId, mode: .auth)))
     _ = machine.handleText(text(.auth(sig: try sign(key, nonce: env.nonce, env: env))))
-    #expect(machine.handleText(text(.settings(sensitivity: 99, scrollSpeed: 0))) == [.settings(sensitivity: 5, scrollSpeed: 0.3)])
+    #expect(
+        machine.handleText(text(.settings(sensitivity: 99, scrollSpeed: 0, focusUpdates: true)))
+            == [.settings(sensitivity: 5, scrollSpeed: 0.3, focusUpdates: true)]
+    )
 }

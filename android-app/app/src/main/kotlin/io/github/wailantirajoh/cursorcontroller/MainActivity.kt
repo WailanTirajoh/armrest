@@ -79,7 +79,9 @@ private fun App(viewModel: ControllerViewModel) {
     BackHandler(enabled = screen != Screen.Hosts) {
         when (screen) {
             is Screen.Pairing -> viewModel.cancelPairing()
-            is Screen.Touchpad -> viewModel.disconnect()
+            // Panel keyboard ditutup dulu sebelum keluar dari touchpad.
+            is Screen.Touchpad ->
+                if (state.keyboardOpen && state.link == Link.Connected) viewModel.toggleKeyboard() else viewModel.disconnect()
             else -> viewModel.backToHosts()
         }
     }
@@ -101,11 +103,13 @@ private fun App(viewModel: ControllerViewModel) {
             is Screen.Touchpad -> TouchpadScreen(
                 hostName = screen.hostName,
                 link = state.link,
+                keyboardOpen = state.keyboardOpen,
                 settings = state.settings,
                 showGestureHints = state.showGestureHints,
                 onActions = viewModel.sender::submit,
                 onText = viewModel.sender::sendText,
                 onKey = { key, modifiers, times -> viewModel.sender.sendKey(key, modifiers, times) },
+                onToggleKeyboard = viewModel::toggleKeyboard,
                 onSettingsChange = viewModel::updateSettings,
                 onDismissHints = viewModel::dismissGestureHints,
                 onBack = viewModel::disconnect,

@@ -9,6 +9,8 @@ final class AgentConnection {
 
     let id = UUID()
     private(set) var device: TrustedDevice?
+    /// HP meminta status fokus kolom teks (`focusUpdates` di pesan settings).
+    private(set) var wantsFocusUpdates = false
     private let connection: NWConnection
     private let machine: SessionMachine
     private weak var server: AgentServer?
@@ -100,15 +102,19 @@ final class AgentConnection {
                 server.connectionAuthenticated(self, device: device)
             case let .input(message):
                 if let device { server.onInput?(device.id, message) }
-            case let .settings(sensitivity, scrollSpeed):
+            case let .settings(sensitivity, scrollSpeed, focusUpdates):
                 if let device { server.onSettings?(device.id, sensitivity, scrollSpeed) }
+                if focusUpdates != wantsFocusUpdates {
+                    wantsFocusUpdates = focusUpdates
+                    server.focusSubscriptionChanged(self)
+                }
             case .close:
                 close()
             }
         }
     }
 
-    private func send(_ message: ControlMessage) {
+    func send(_ message: ControlMessage) {
         let metadata = NWProtocolWebSocket.Metadata(opcode: .text)
         let context = NWConnection.ContentContext(identifier: "text", metadata: [metadata])
         connection.send(content: message.encoded(), contentContext: context, isComplete: true, completion: .contentProcessed { _ in })

@@ -10,7 +10,10 @@ sealed interface ControlMessage {
     data class Challenge(val nonce: String) : ControlMessage
     data class Auth(val sig: String) : ControlMessage
     data class AuthResult(val ok: Boolean, val error: String?) : ControlMessage
-    data class Settings(val sensitivity: Double, val scrollSpeed: Double) : ControlMessage
+    /** `focusUpdates`: minta Mac mengirim [Focus] setiap kali fokus kolom teks berubah. */
+    data class Settings(val sensitivity: Double, val scrollSpeed: Double, val focusUpdates: Boolean = false) : ControlMessage
+    /** Apakah kolom teks sedang fokus di Mac. */
+    data class Focus(val text: Boolean) : ControlMessage
     data class Ping(val ts: Long) : ControlMessage
     data class Pong(val ts: Long) : ControlMessage
     data class Error(val error: String) : ControlMessage
@@ -25,6 +28,8 @@ sealed interface ControlMessage {
             is Auth -> o.put("t", "auth").put("sig", sig)
             is AuthResult -> o.put("t", "auth_result").put("ok", ok).putOpt("error", error)
             is Settings -> o.put("t", "settings").put("sensitivity", sensitivity).put("scrollSpeed", scrollSpeed)
+                .put("focusUpdates", focusUpdates)
+            is Focus -> o.put("t", "focus").put("text", text)
             is Ping -> o.put("t", "ping").put("ts", ts)
             is Pong -> o.put("t", "pong").put("ts", ts)
             is Error -> o.put("t", "error").put("error", error)
@@ -47,7 +52,8 @@ sealed interface ControlMessage {
                 "challenge" -> Challenge(o.getString("nonce"))
                 "auth" -> Auth(o.getString("sig"))
                 "auth_result" -> AuthResult(o.getBoolean("ok"), o.optStringOrNull("error"))
-                "settings" -> Settings(o.getDouble("sensitivity"), o.getDouble("scrollSpeed"))
+                "settings" -> Settings(o.getDouble("sensitivity"), o.getDouble("scrollSpeed"), o.optBoolean("focusUpdates", false))
+                "focus" -> Focus(o.getBoolean("text"))
                 "ping" -> Ping(o.getLong("ts"))
                 "pong" -> Pong(o.getLong("ts"))
                 "error" -> Error(o.optString("error", "unknown"))

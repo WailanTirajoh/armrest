@@ -64,6 +64,8 @@ class AgentConnection(
     interface Listener {
         fun onPaired(host: PairedHost) {}
         fun onAuthenticated() {}
+        /** Kolom teks mulai atau berhenti fokus di Mac. Hanya dikirim setelah diminta lewat [sendSettings]. */
+        fun onTextFocus(focused: Boolean) {}
         /** Koneksi selesai. `failure` null kalau ditutup normal. */
         fun onEnded(failure: ClientFailure?) {}
     }
@@ -99,8 +101,8 @@ class AgentConnection(
     fun sendInput(message: InputMessage): Boolean =
         isAuthenticated && webSocket.send(message.encode().toByteString())
 
-    fun sendSettings(sensitivity: Double, scrollSpeed: Double) {
-        if (isAuthenticated) send(ControlMessage.Settings(sensitivity, scrollSpeed))
+    fun sendSettings(sensitivity: Double, scrollSpeed: Double, focusUpdates: Boolean) {
+        if (isAuthenticated) send(ControlMessage.Settings(sensitivity, scrollSpeed, focusUpdates))
     }
 
     /** Byte yang masih menunggu dikirim; dipakai untuk menggabung gerakan saat jaringan lambat. */
@@ -137,6 +139,7 @@ class AgentConnection(
                 isAuthenticated = true
                 listener.onAuthenticated()
             }
+            is ControlMessage.Focus -> if (isAuthenticated) listener.onTextFocus(message.text)
             is ControlMessage.Ping -> send(ControlMessage.Pong(message.ts))
             is ControlMessage.Error -> fail(ClientFailure.Protocol(message.error))
             else -> Unit

@@ -30,7 +30,8 @@ Versi protokol: **1** (field `v` di pesan `hello`). Agent menolak versi lain den
 | Mac → HP | `challenge` | `nonce` | Mode auth, atau langsung setelah `pair_result` ok |
 | HP → Mac | `auth` | `sig` | Balasan challenge |
 | Mac → HP | `auth_result` | `ok: true`, atau `ok: false`, `error` | Setelah verifikasi |
-| HP → Mac | `settings` | `sensitivity`, `scrollSpeed` | Setelah `auth_result` ok, dan setiap kali diubah |
+| HP → Mac | `settings` | `sensitivity`, `scrollSpeed`, `focusUpdates` | Setelah `auth_result` ok, dan setiap kali diubah |
+| Mac → HP | `focus` | `text` (bool) | Setelah HP meminta lewat `focusUpdates`, lalu setiap kali berubah |
 | Dua arah | `ping` / `pong` | `ts` (ms) | Tiap 5 detik; koneksi ditutup kalau 15 detik tidak ada pesan masuk |
 | Mac → HP | `error` | `error` | Pesan tidak valid atau versi tidak didukung, lalu koneksi ditutup |
 
@@ -77,6 +78,16 @@ Aturan:
 - `scroll` dikalikan `scrollSpeed` tanpa akselerasi. Arahnya mengikuti setelan natural scrolling di Mac.
 - HP mengumpulkan delta per frame dan mengirim maksimal satu `move` per frame. Kalau antrean kirim menumpuk, delta digabung ke paket berikutnya. `click`, `button`, `text`, dan `key` tidak pernah digabung atau dibuang, dan selalu dikirim setelah gerakan yang tertunda.
 - `text` diketik lewat event Unicode, jadi tidak bergantung pada layout keyboard Mac. Backspace dikirim sebagai `key` `0x02`.
+
+## Fokus kolom teks
+
+Supaya HP bisa membuka dan menutup keyboard sendiri, agent memberi tahu apakah elemen yang sedang fokus di Mac adalah kolom teks.
+
+- HP meminta dengan `focusUpdates: true` di pesan `settings`, dan berhenti dengan `false`. Kalau field ini tidak ada (HP v0.3), nilainya `false`.
+- Agent langsung mengirim status saat ini, lalu mengirim ulang setiap kali berubah: `{"t":"focus","text":true}`.
+- Agent memeriksa elemen yang fokus lewat Accessibility setiap 250 ms, hanya selama ada HP yang meminta. Yang dihitung kolom teks: role `AXTextField` (termasuk kolom password dan pencarian), `AXTextArea`, `AXComboBox`, atau elemen di dalam area yang bisa diedit (`AXEditableAncestor`, mis. editor contenteditable di browser).
+- Fokus masuk ke kolom teks langsung dikirim. Fokus keluar baru dikirim setelah bertahan 500 ms, supaya pindah antar kolom tidak membuat keyboard HP tertutup lalu terbuka lagi.
+- HP v0.3 mengabaikan pesan `focus`, dan agent v0.3 mengabaikan `focusUpdates`.
 
 ## QR pairing
 

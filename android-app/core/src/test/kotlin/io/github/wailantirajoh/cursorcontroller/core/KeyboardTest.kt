@@ -90,4 +90,53 @@ class KeyboardTest {
         assertTrue(frames.all { it.toByteArray(Charsets.UTF_8).size <= InputMessage.MAX_TEXT_BYTES })
         assertEquals(text, frames.joinToString(""))
     }
+
+    @Test
+    fun panelOpensWithMacTextFocusAndClosesWhenFocusLeaves() {
+        val panel = KeyboardPanelState()
+        panel.onTextFocus(false, auto = true) // status awal
+        assertFalse(panel.isOpen)
+        panel.onTextFocus(true, auto = true)
+        assertTrue(panel.isOpen)
+        panel.onTextFocus(false, auto = true)
+        assertFalse(panel.isOpen)
+    }
+
+    @Test
+    fun manuallyOpenedPanelStaysOpenWhenFocusLeaves() {
+        val panel = KeyboardPanelState()
+        panel.toggle()
+        panel.onTextFocus(true, auto = true)
+        panel.onTextFocus(false, auto = true)
+        assertTrue(panel.isOpen)
+    }
+
+    @Test
+    fun manuallyClosedPanelReopensOnlyOnNextFocus() {
+        val panel = KeyboardPanelState()
+        panel.onTextFocus(true, auto = true)
+        panel.toggle() // ditutup manual saat kolom teks masih fokus
+        panel.onTextFocus(true, auto = true)
+        assertFalse(panel.isOpen)
+        panel.onTextFocus(false, auto = true)
+        panel.onTextFocus(true, auto = true)
+        assertTrue(panel.isOpen)
+    }
+
+    @Test
+    fun reconnectingReappliesMacFocus() {
+        val panel = KeyboardPanelState()
+        panel.onTextFocus(true, auto = true)
+        panel.onTextFocus(null, auto = true) // koneksi putus: panel tetap, status dilupakan
+        assertTrue(panel.isOpen)
+        panel.onTextFocus(false, auto = true) // setelah tersambung, kolom teks sudah tidak fokus
+        assertFalse(panel.isOpen)
+    }
+
+    @Test
+    fun focusIsIgnoredWhenAutoModeIsOff() {
+        val panel = KeyboardPanelState()
+        panel.onTextFocus(true, auto = false)
+        assertFalse(panel.isOpen)
+    }
 }

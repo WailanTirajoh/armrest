@@ -77,6 +77,9 @@ class ProtocolVectorTest {
             ControlMessage.AuthResult(true, null),
             ControlMessage.AuthResult(false, "bad_sig"),
             ControlMessage.Settings(1.5, 2.0),
+            ControlMessage.Settings(1.5, 2.0, focusUpdates = true),
+            ControlMessage.Focus(true),
+            ControlMessage.Focus(false),
             ControlMessage.Ping(1_790_000_000_000),
             ControlMessage.Pong(42),
             ControlMessage.Error("bad_message"),
@@ -93,6 +96,7 @@ class ProtocolVectorTest {
             ControlMessage.PairResult(true, "host-1", "Mac Test", null),
             ControlMessage.parse("""{"hostId":"host-1","hostName":"Mac Test","ok":true,"t":"pair_result"}"""),
         )
+        assertEquals(ControlMessage.Focus(true), ControlMessage.parse("""{"t":"focus","text":true}"""))
         assertNull(ControlMessage.parse("""{"t":"nope"}"""))
         assertNull(ControlMessage.parse("bukan json"))
     }

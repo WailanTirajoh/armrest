@@ -41,10 +41,16 @@ public final class AgentServer: SessionEnvironment {
     public var onSessionsChanged: (([TrustedDevice]) -> Void)?
     public var onSessionEnded: ((String) -> Void)?
     public var onStateChange: ((ServerState) -> Void)?
+    /// true saat mulai ada HP yang meminta status fokus kolom teks, false saat tidak ada lagi.
+    /// App menyalakan atau mematikan pemantauan fokus mengikuti ini.
+    public var onFocusInterestChanged: ((Bool) -> Void)?
 
     public private(set) var state: ServerState = .starting
     private var listener: NWListener?
     private var connections: [UUID: AgentConnection] = [:]
+    private var focusInterest = false
+    /// Status fokus terakhir yang dikirim ke HP; nil selama tidak ada yang meminta.
+    private var textFocus: Bool?
 
     public var hostId: String { configuration.hostId }
     public var hostName: String { configuration.hostName }
@@ -105,6 +111,7 @@ public final class AgentServer: SessionEnvironment {
         listener = nil
         connections.values.forEach { $0.close() }
         connections.removeAll()
+        updateFocusInterest()
     }
 
     /// Perangkat yang sesinya sedang aktif (sudah terautentikasi).
@@ -123,6 +130,15 @@ public final class AgentServer: SessionEnvironment {
         try? devices.remove(id: deviceId)
         disconnect(deviceId: deviceId)
         onDevicesChanged?()
+    }
+
+    /// Status fokus kolom teks dari pemantau fokus. Dikirim ke HP yang memintanya, hanya kalau berubah.
+    public func updateTextFocus(_ focused: Bool) {
+        guard focusInterest, focused != textFocus else { return }
+        textFocus = focused
+        for connection in connections.values where connection.wantsFocusUpdates {
+            connection.send(.focus(text: focused))
+        }
     }
 
     // MARK: SessionEnvironment
@@ -149,6 +165,7 @@ public final class AgentServer: SessionEnvironment {
 
     func connectionEnded(_ connection: AgentConnection) {
         guard connections.removeValue(forKey: connection.id) != nil else { return }
+        updateFocusInterest()
         if let device = connection.device {
             onSessionEnded?(device.id)
             onSessionsChanged?(activeDevices)
@@ -163,6 +180,22 @@ public final class AgentServer: SessionEnvironment {
         try? devices.touch(id: device.id, at: Date())
         onDevicesChanged?()
         onSessionsChanged?(activeDevices)
+    }
+
+    func focusSubscriptionChanged(_ connection: AgentConnection) {
+        // HP yang baru meminta langsung menerima status saat ini, kalau sudah diketahui.
+        if connection.wantsFocusUpdates, let textFocus {
+            connection.send(.focus(text: textFocus))
+        }
+        updateFocusInterest()
+    }
+
+    private func updateFocusInterest() {
+        let interested = connections.values.contains { $0.wantsFocusUpdates }
+        guard interested != focusInterest else { return }
+        focusInterest = interested
+        if !interested { textFocus = nil }
+        onFocusInterestChanged?(interested)
     }
 
     func trust(_ device: TrustedDevice) {

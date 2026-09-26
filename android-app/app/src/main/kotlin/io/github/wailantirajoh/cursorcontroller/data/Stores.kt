@@ -55,6 +55,8 @@ data class TouchSettings(
     val scrollSpeed: Float = 2.0f,
     val showButtons: Boolean = true,
     val haptics: Boolean = true,
+    /** Buka panel keyboard saat kolom teks di Mac aktif. */
+    val autoKeyboard: Boolean = true,
 )
 
 class SettingsStore(context: Context) {
@@ -65,6 +67,7 @@ class SettingsStore(context: Context) {
         scrollSpeed = prefs.getFloat("scrollSpeed", 2.0f),
         showButtons = prefs.getBoolean("showButtons", true),
         haptics = prefs.getBoolean("haptics", true),
+        autoKeyboard = prefs.getBoolean("autoKeyboard", true),
     )
 
     fun save(settings: TouchSettings) {
@@ -73,6 +76,7 @@ class SettingsStore(context: Context) {
             .putFloat("scrollSpeed", settings.scrollSpeed)
             .putBoolean("showButtons", settings.showButtons)
             .putBoolean("haptics", settings.haptics)
+            .putBoolean("autoKeyboard", settings.autoKeyboard)
             .apply()
     }
 

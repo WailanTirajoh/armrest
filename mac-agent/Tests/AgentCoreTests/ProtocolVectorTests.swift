@@ -100,7 +100,10 @@ extension Data {
         .auth(sig: "c2ln"),
         .authResult(ok: true, error: nil),
         .authResult(ok: false, error: "bad_sig"),
-        .settings(sensitivity: 1.5, scrollSpeed: 2),
+        .settings(sensitivity: 1.5, scrollSpeed: 2, focusUpdates: true),
+        .settings(sensitivity: 1.5, scrollSpeed: 2, focusUpdates: false),
+        .focus(text: true),
+        .focus(text: false),
         .ping(ts: 1_790_000_000_000),
         .pong(ts: 42),
         .error("bad_message"),
@@ -113,6 +116,11 @@ extension Data {
 @Test func controlMessageDecodesJsonFromAndroid() {
     let json = #"{"deviceId":"5f1e","mode":"auth","t":"hello","v":1}"#
     #expect(ControlMessage.decode(Data(json.utf8)) == .hello(version: 1, deviceId: "5f1e", mode: .auth))
+    let settings = #"{"focusUpdates":true,"scrollSpeed":2.0,"sensitivity":1.5,"t":"settings"}"#
+    #expect(ControlMessage.decode(Data(settings.utf8)) == .settings(sensitivity: 1.5, scrollSpeed: 2, focusUpdates: true))
+    // HP v0.3 belum mengenal focusUpdates.
+    let oldSettings = #"{"scrollSpeed":2.0,"sensitivity":1.5,"t":"settings"}"#
+    #expect(ControlMessage.decode(Data(oldSettings.utf8)) == .settings(sensitivity: 1.5, scrollSpeed: 2, focusUpdates: false))
     #expect(ControlMessage.decode(Data(#"{"t":"nope"}"#.utf8)) == nil)
     #expect(ControlMessage.decode(Data("bukan json".utf8)) == nil)
 }
