@@ -1,0 +1,24 @@
+# macOS
+.DS_Store
+
+# Swift / mac-agent
+mac-agent/.build/
+mac-agent/.swiftpm/
+
+# Gradle / android-app
+android-app/.gradle/
+android-app/.kotlin/
+android-app/build/
+android-app/*/build/
+android-app/local.properties
+*.iml
+.idea/
+
+# Build output
+dist/
+
+# Signing material: never commit (see scripts/setup-signing.sh)
+*.jks
+*.keystore
+*.p12
+signing/

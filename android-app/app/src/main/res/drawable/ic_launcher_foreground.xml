@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Glyph app (pointer + HP) dari mockup, viewBox 24 diskalakan 2x di tengah kanvas 108 dp. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path
+        android:pathData="M37,36 L56,44.4 L47.8,47.4 L44.8,55.6 Z"
+        android:strokeWidth="3.5"
+        android:strokeColor="#FFFFFF"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round" />
+    <path
+        android:pathData="M60.2,52 H67.8 A3.2,3.2 0 0 1 71,55.2 V70.8 A3.2,3.2 0 0 1 67.8,74 H60.2 A3.2,3.2 0 0 1 57,70.8 V55.2 A3.2,3.2 0 0 1 60.2,52 Z"
+        android:strokeWidth="3.5"
+        android:strokeColor="#FFFFFF"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round" />
+</vector>

@@ -1,0 +1,7 @@
+<resources>
+    <color name="ic_launcher_background">#1F5FBF</color>
+
+    <style name="Theme.CursorController" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:windowBackground">#F6F6F2</item>
+    </style>
+</resources>

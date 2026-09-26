@@ -1,0 +1,86 @@
+name: macOS
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "mac-agent/**"
+      - "protocol/**"
+      - "VERSION"
+      - ".github/workflows/mac.yml"
+  pull_request:
+    paths:
+      - "mac-agent/**"
+      - "protocol/**"
+      - "VERSION"
+      - ".github/workflows/mac.yml"
+  workflow_dispatch:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: macos-26
+    # Prefix literal: saat dipanggil release.yml, github.workflow berisi nama pemanggil.
+    concurrency:
+      group: mac-${{ github.ref }}
+      cancel-in-progress: true
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Versi toolchain
+        run: |
+          xcodebuild -version
+          swift --version
+
+      - name: Unit test
+        working-directory: mac-agent
+        run: swift test
+
+      - name: Impor sertifikat signing
+        env:
+          MAC_CERT_P12_BASE64: ${{ secrets.MAC_CERT_P12_BASE64 }}
+          MAC_CERT_PASSWORD: ${{ secrets.MAC_CERT_PASSWORD }}
+        run: |
+          if [ -z "$MAC_CERT_P12_BASE64" ]; then
+            echo "::warning::Secret MAC_CERT_P12_BASE64 belum ada, app ditandatangani ad-hoc dan izin Accessibility hilang tiap update."
+            exit 0
+          fi
+          keychain="$RUNNER_TEMP/signing.keychain-db"
+          keychain_password="$(uuidgen)"
+          echo "$MAC_CERT_P12_BASE64" | base64 --decode > "$RUNNER_TEMP/codesign.p12"
+          security create-keychain -p "$keychain_password" "$keychain"
+          security set-keychain-settings -lut 21600 "$keychain"
+          security unlock-keychain -p "$keychain_password" "$keychain"
+          security import "$RUNNER_TEMP/codesign.p12" -k "$keychain" -P "$MAC_CERT_PASSWORD" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple: -s -k "$keychain_password" "$keychain" > /dev/null
+          security list-keychains -d user -s "$keychain" $(security list-keychains -d user | tr -d '"')
+          # Sertifikat self-signed tidak "trusted", jadi dicari tanpa -v dan dipakai lewat hash SHA-1.
+          identity="$(security find-identity -p codesigning "$keychain" | awk '/Cursor Controller Dev Signing/ { print $2; exit }')"
+          if [ -z "$identity" ]; then
+            echo "::error::Identitas 'Cursor Controller Dev Signing' tidak ditemukan di p12."
+            exit 1
+          fi
+          echo "SIGN_IDENTITY=$identity" >> "$GITHUB_ENV"
+
+      - name: Build app dan DMG
+        working-directory: mac-agent
+        run: ./scripts/bundle.sh
+
+      - name: Nama DMG
+        id: dmg
+        run: echo "name=$(basename dist/*.dmg)" >> "$GITHUB_OUTPUT"
+
+      # archive: false → artifact diunduh sebagai file .dmg langsung, bukan zip.
+      - uses: actions/upload-artifact@v7
+        with:
+          path: dist/${{ steps.dmg.outputs.name }}
+          archive: false
+          retention-days: 30
+          if-no-files-found: error
+
+      - name: Hapus keychain sementara
+        if: always()
+        run: security delete-keychain "$RUNNER_TEMP/signing.keychain-db" 2> /dev/null || true
