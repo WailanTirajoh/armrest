@@ -40,6 +40,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import io.github.wailantirajoh.cursorcontroller.HostUi
+import io.github.wailantirajoh.cursorcontroller.core.ProtocolConstants
 import io.github.wailantirajoh.cursorcontroller.data.SavedHost
 import java.text.DateFormat
 import java.util.Date
@@ -65,7 +66,7 @@ fun HostsScreen(
                     iconTint = colors.onPrimaryContainer,
                     iconBackground = colors.primaryContainer,
                     title = "Belum ada komputer",
-                    body = "Di Mac, klik ikon Cursor Controller di menu bar lalu pilih Tambah perangkat. QR akan muncul untuk dipindai.",
+                    body = "Di komputer, buka Cursor Controller (ikon di menu bar Mac atau di tray Windows), lalu pilih Tambah perangkat. QR akan muncul untuk dipindai.",
                 )
                 Button(
                     onClick = onScan,
@@ -90,7 +91,7 @@ fun HostsScreen(
                     }
                     item {
                         Text(
-                            "Ketuk komputer untuk mulai memakai touchpad. HP dan Mac harus di WiFi yang sama.",
+                            "Ketuk komputer untuk mulai memakai touchpad. HP dan komputer harus di WiFi yang sama.",
                             fontSize = 13.sp,
                             color = colors.onSurfaceVariant,
                             modifier = Modifier.padding(horizontal = 4.dp),
@@ -135,7 +136,11 @@ private fun HostCard(item: HostUi, onConnect: () -> Unit, onManual: () -> Unit, 
                 .background(colors.surfaceVariant, RoundedCornerShape(14.dp)),
             contentAlignment = Alignment.Center,
         ) {
-            Icon(AppIcons.Laptop, contentDescription = null, tint = if (item.online) colors.onSurface else colors.onSurfaceVariant)
+            Icon(
+                if (item.host.platform == ProtocolConstants.PLATFORM_WINDOWS) AppIcons.Monitor else AppIcons.Laptop,
+                contentDescription = null,
+                tint = if (item.online) colors.onSurface else colors.onSurfaceVariant,
+            )
         }
         Column(
             Modifier
@@ -188,7 +193,7 @@ private fun ManualAddressDialog(host: SavedHost, onDismiss: () -> Unit, onSubmit
         title = { Text("Sambungkan via IP") },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Text("Pakai ini kalau ${host.name} tidak ditemukan otomatis, misalnya karena WiFi memblokir mDNS. Alamatnya tertulis di menu Cursor Controller di Mac.")
+                Text("Pakai ini kalau ${host.name} tidak ditemukan otomatis, misalnya karena WiFi memblokir mDNS. Alamatnya tertulis di menu Cursor Controller di komputer.")
                 OutlinedTextField(
                     value = address,
                     onValueChange = { address = it },
@@ -196,7 +201,7 @@ private fun ManualAddressDialog(host: SavedHost, onDismiss: () -> Unit, onSubmit
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
                 )
-                Text("Sertifikat Mac tetap dicek, jadi koneksi tetap aman.", fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text("Sertifikat komputer tetap dicek, jadi koneksi tetap aman.", fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         },
         confirmButton = { TextButton(onClick = { onSubmit(address) }) { Text("Sambungkan") } },

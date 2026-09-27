@@ -1,0 +1,116 @@
+name: Windows
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "windows-agent/**"
+      - "protocol/**"
+      - "android-app/core/**"
+      - "scripts/e2e-windows.ps1"
+      - "VERSION"
+      - ".github/workflows/windows.yml"
+  pull_request:
+    paths:
+      - "windows-agent/**"
+      - "protocol/**"
+      - "android-app/core/**"
+      - "scripts/e2e-windows.ps1"
+      - "VERSION"
+      - ".github/workflows/windows.yml"
+  workflow_dispatch:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: windows-latest
+    timeout-minutes: 30
+    # Prefix literal: saat dipanggil release.yml, github.workflow berisi nama pemanggil.
+    concurrency:
+      group: windows-build-${{ github.ref }}
+      cancel-in-progress: true
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Unit test
+        working-directory: windows-agent
+        run: dotnet test tests/Agent.Tests --nologo
+
+      - name: Publish x64 dan arm64
+        working-directory: windows-agent
+        run: |
+          foreach ($arch in 'x64', 'arm64') {
+            dotnet publish src/Agent.Windows -c Release -r "win-$arch" --self-contained `
+              -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:EnableCompressionInSingleFile=true `
+              -o "publish/$arch" --nologo
+            if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          }
+
+      - name: Installer
+        id: installer
+        working-directory: windows-agent
+        run: |
+          $version = (Get-Content ../VERSION -Raw).Trim()
+          # Path absolut: ISCC mengartikan path relatif dari folder skrip .iss, bukan folder kerja.
+          $publish = (Resolve-Path publish).Path
+          $dist = Join-Path $env:GITHUB_WORKSPACE dist
+          $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
+          if (-not (Test-Path $iscc)) {
+            choco install innosetup --no-progress -y | Out-Null
+          }
+          foreach ($arch in 'x64', 'arm64') {
+            $name = "cursor-controller-windows-$version-b$env:GITHUB_RUN_NUMBER-$arch"
+            & $iscc /Q "/DAppVersion=$version" "/DArch=$arch" "/DSourceDir=$publish\$arch" "/DOutputName=$name" "/O$dist" installer\CursorController.iss
+            if ($LASTEXITCODE) { exit $LASTEXITCODE }
+            "$arch=$name.exe" >> $env:GITHUB_OUTPUT
+          }
+
+      # archive: false → artifact diunduh sebagai file .exe langsung, bukan zip.
+      - uses: actions/upload-artifact@v7
+        with:
+          path: dist/${{ steps.installer.outputs.x64 }}
+          archive: false
+          retention-days: 30
+          if-no-files-found: error
+
+      - uses: actions/upload-artifact@v7
+        with:
+          path: dist/${{ steps.installer.outputs.arm64 }}
+          archive: false
+          retention-days: 30
+          if-no-files-found: error
+
+  e2e:
+    runs-on: windows-latest
+    timeout-minutes: 20
+    concurrency:
+      group: windows-e2e-${{ github.ref }}
+      cancel-in-progress: true
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: 10.0.x
+
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - uses: gradle/actions/setup-gradle@v6
+
+      # Windows Server tidak memasang Media Foundation secara default; tanpa itu bagian layar di uji dilewati.
+      - name: Media Foundation
+        continue-on-error: true
+        run: Install-WindowsFeature Server-Media-Foundation
+
+      - name: Uji end-to-end (agent Windows vs klien JVM)
+        run: ./scripts/e2e-windows.ps1

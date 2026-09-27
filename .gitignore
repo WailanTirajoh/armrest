@@ -22,3 +22,9 @@ dist/
 *.keystore
 *.p12
 signing/
+
+# .NET / windows-agent
+windows-agent/**/bin/
+windows-agent/**/obj/
+windows-agent/**/TestResults/
+windows-agent/publish/

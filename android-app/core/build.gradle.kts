@@ -21,6 +21,7 @@ tasks.test {
     // Uji end-to-end ke agent Mac sungguhan hanya jalan kalau variabel ini di-set (lihat AgentClientE2ETest).
     environment("CURSORCTL_E2E_PAIRING_FILE", System.getenv("CURSORCTL_E2E_PAIRING_FILE") ?: "")
     environment("CURSORCTL_E2E_FOCUS_FILE", System.getenv("CURSORCTL_E2E_FOCUS_FILE") ?: "")
+    environment("CURSORCTL_E2E_EXPECT_SCREEN", System.getenv("CURSORCTL_E2E_EXPECT_SCREEN") ?: "1")
     testLogging {
         events("failed", "skipped")
         exceptionFormat = org.gradle.api.tasks.testing.logging.TestExceptionFormat.FULL

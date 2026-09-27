@@ -1,6 +1,7 @@
 package io.github.wailantirajoh.cursorcontroller.data
 
 import android.content.Context
+import io.github.wailantirajoh.cursorcontroller.core.ProtocolConstants
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -11,6 +12,8 @@ data class SavedHost(
     val fingerprint: String,
     val lastAddress: String,
     val lastUsed: Long,
+    /** [ProtocolConstants.PLATFORM_MACOS] atau [ProtocolConstants.PLATFORM_WINDOWS], dari auth_result. */
+    val platform: String = ProtocolConstants.PLATFORM_MACOS,
 )
 
 class HostStore(context: Context) {
@@ -20,7 +23,10 @@ class HostStore(context: Context) {
         val array = JSONArray(prefs.getString(KEY, "[]"))
         return (0 until array.length()).map { i ->
             val o = array.getJSONObject(i)
-            SavedHost(o.getString("hostId"), o.getString("name"), o.getString("fingerprint"), o.getString("lastAddress"), o.optLong("lastUsed"))
+            SavedHost(
+                o.getString("hostId"), o.getString("name"), o.getString("fingerprint"), o.getString("lastAddress"), o.optLong("lastUsed"),
+                o.optString("platform", ProtocolConstants.PLATFORM_MACOS),
+            )
         }.sortedByDescending { it.lastUsed }
     }
 
@@ -39,7 +45,8 @@ class HostStore(context: Context) {
                     .put("name", it.name)
                     .put("fingerprint", it.fingerprint)
                     .put("lastAddress", it.lastAddress)
-                    .put("lastUsed", it.lastUsed),
+                    .put("lastUsed", it.lastUsed)
+                    .put("platform", it.platform),
             )
         }
         prefs.edit().putString(KEY, array.toString()).apply()

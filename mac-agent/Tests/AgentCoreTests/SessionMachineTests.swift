@@ -10,6 +10,7 @@ final class FakeEnvironment: SessionEnvironment {
     var devices: [String: TrustedDevice] = [:]
     let nonce = Data(repeating: 7, count: 32)
     var features: [String] = []
+    var platform: String?
 
     func checkPairingToken(_ token: String) -> PairingTokenCheck { tokens.check(token) }
     func trustedDevice(id: String) -> TrustedDevice? { devices[id] }
@@ -133,6 +134,7 @@ private func sign(_ key: P256.Signing.PrivateKey, nonce: Data, env: FakeEnvironm
 @Test func screenRequestsOnlyAfterAuthenticationAndFeaturesAreAnnounced() throws {
     let env = FakeEnvironment()
     env.features = ["focus", "screen"]
+    env.platform = "macos"
     let key = P256.Signing.PrivateKey()
     env.devices[deviceId] = TrustedDevice(id: deviceId, name: "Pixel", publicKey: key.publicKey.derRepresentation, pairedAt: Date())
 
@@ -144,7 +146,7 @@ private func sign(_ key: P256.Signing.PrivateKey, nonce: Data, env: FakeEnvironm
     let machine = SessionMachine(environment: env)
     _ = machine.handleText(text(.hello(version: 1, deviceId: deviceId, mode: .auth)))
     let auth = machine.handleText(text(.auth(sig: try sign(key, nonce: env.nonce, env: env))))
-    #expect(sentMessages(auth) == [.authResult(ok: true, error: nil, features: ["focus", "screen"])])
+    #expect(sentMessages(auth) == [.authResult(ok: true, error: nil, features: ["focus", "screen"], platform: "macos")])
     let request = ScreenRequest(maxWidth: 1920, maxHeight: 1080)
     #expect(machine.handleText(text(.screen(request))) == [.screen(request)])
     #expect(machine.handleText(text(.screenAck(seq: 7))) == [.screenAck(7)])

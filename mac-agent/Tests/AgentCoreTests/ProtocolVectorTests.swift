@@ -101,6 +101,7 @@ extension Data {
         .authResult(ok: true, error: nil),
         .authResult(ok: false, error: "bad_sig"),
         .authResult(ok: true, error: nil, features: ["focus", "screen"]),
+        .authResult(ok: true, error: nil, features: ["focus", "screen"], platform: "windows"),
         .settings(sensitivity: 1.5, scrollSpeed: 2, focusUpdates: true),
         .settings(sensitivity: 1.5, scrollSpeed: 2, focusUpdates: false),
         .focus(text: true),

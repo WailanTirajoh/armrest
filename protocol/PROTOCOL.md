@@ -6,7 +6,7 @@ Versi protokol: **1** (field `v` di pesan `hello`). Agent menolak versi lain den
 
 - WebSocket di atas TLS (`wss://`) di jaringan lokal, port default **47810**, dengan `TCP_NODELAY`.
 - Sertifikat agent self-signed (ECDSA P-256). HP tidak memakai CA: HP mencocokkan **fingerprint** = base64url tanpa padding dari SHA-256 sertifikat (DER). Fingerprint dibawa lewat QR saat pairing, lalu disimpan.
-- Agent mengiklankan diri lewat Bonjour dengan tipe `_cursorctl._tcp`. TXT record berisi `hostId` dan `v`.
+- Agent mengiklankan diri lewat Bonjour dengan tipe `_cursorctl._tcp`. TXT record berisi `hostId`, `v`, dan `os` (`macos` atau `windows`).
 - Pesan kontrol memakai **text frame JSON**. Event input (HP → Mac) dan video layar (Mac → HP) memakai **binary frame**.
 
 ## Format nilai
@@ -29,7 +29,7 @@ Versi protokol: **1** (field `v` di pesan `hello`). Agent menolak versi lain den
 | Mac → HP | `pair_result` | `ok: true`, `hostId`, `hostName`, atau `ok: false`, `error` | Setelah user klik Izinkan/Tolak, atau token ditolak |
 | Mac → HP | `challenge` | `nonce` | Mode auth, atau langsung setelah `pair_result` ok |
 | HP → Mac | `auth` | `sig` | Balasan challenge |
-| Mac → HP | `auth_result` | `ok: true` dan `features` (opsional), atau `ok: false`, `error` | Setelah verifikasi |
+| Mac → HP | `auth_result` | `ok: true` dengan `features` dan `platform` (opsional), atau `ok: false`, `error` | Setelah verifikasi |
 | HP → Mac | `settings` | `sensitivity`, `scrollSpeed`, `focusUpdates` | Setelah `auth_result` ok, dan setiap kali diubah |
 | Mac → HP | `focus` | `text` (bool) | Setelah HP meminta lewat `focusUpdates`, lalu setiap kali berubah |
 | HP → Mac | `screen` | `on: true`, `maxWidth`, `maxHeight`, atau `on: false` | Mulai atau berhenti melihat layar Mac; permintaan ulang = minta keyframe |
@@ -37,6 +37,11 @@ Versi protokol: **1** (field `v` di pesan `hello`). Agent menolak versi lain den
 | HP → Mac | `screen_ack` | `seq` | Setiap frame layar yang diterima |
 | Dua arah | `ping` / `pong` | `ts` (ms) | Tiap 5 detik; koneksi ditutup kalau 15 detik tidak ada pesan masuk |
 | Mac → HP | `error` | `error` | Pesan tidak valid atau versi tidak didukung, lalu koneksi ditutup |
+
+"Mac" di tabel di atas berarti komputer yang menjalankan agent, termasuk Windows. Field opsional di `auth_result`:
+
+- `features`: fitur opsional agent, yaitu `focus` dan `screen`.
+- `platform`: `macos` atau `windows`. HP memakainya untuk label modifier (⌘ ⌃ ⌥ ⇧ atau Ctrl Win Alt Shift), ikon, dan teks. Kalau tidak ada (agent sebelum v0.6), nilainya `macos`.
 
 Kode `error`:
 
@@ -74,6 +79,8 @@ Kode `key`:
 | `0x50`–`0x5A` | `-` `=` `[` `]` `\` `;` `'` `,` `.` `/` `` ` `` |
 
 Bit `modifiers`: `0x01` Shift, `0x02` Control, `0x04` Option, `0x08` Command. Bit lain harus 0. Huruf dan tanda baca memakai posisi tombol ANSI, jadi ⌘C selalu tombol di posisi C.
+
+Bit modifier berarti posisi tombol fisik. Di Windows: Control = Ctrl, Option = Alt, Command = tombol Windows, jadi Ctrl+C dikirim sebagai `C` dengan bit Control. Agent Windows menekan huruf lewat scan code posisi ANSI, sama dengan agent Mac.
 
 Aturan:
 
@@ -113,7 +120,7 @@ SPS, PPS, dan access unit memakai format Annex B (setiap NAL diawali `00 00 00 0
 
 Aturan video:
 
-- H.264 Constrained High tanpa B-frame, jadi setiap frame bisa langsung ditampilkan. Paling besar 1920 × 1200 dan 30 fps, rasio mengikuti layar Mac, sisi genap, warna BT.709.
+- H.264 tanpa B-frame (profil Baseline, Main, atau High), jadi setiap frame bisa langsung ditampilkan. Agent Mac memakai Constrained High, agent Windows Main. Paling besar 1920 × 1200 dan 30 fps, rasio mengikuti layar, sisi genap, warna BT.709.
 - Layar yang diam tidak menghasilkan frame. Kursor ikut tergambar. Dengan beberapa monitor, agent mengikuti monitor tempat kursor berada; kalau ukurannya berubah, `screen_config` baru mendahului keyframe berikutnya.
 - **Kontrol aliran**: `seq` naik satu per frame. HP mengirim `screen_ack` untuk setiap frame yang diterima, dan konfirmasinya kumulatif. Agent menahan frame baru selama ada 4 frame yang belum dikonfirmasi, lalu mengirim gambar terbaru begitu ada konfirmasi. Jadi saat WiFi lambat gambar dilewati, bukan menumpuk.
 - HP menyalakan video hanya selama app terlihat, supaya WiFi dan baterai tidak terpakai sia-sia.
@@ -155,3 +162,5 @@ cursorctl://pair?h=<hostId>&n=<hostName>&a=<ip>:<port>&t=<token>&fp=<fingerprint
 - `input.json`: encoding biner setiap tipe event, plus frame yang harus ditolak.
 - `auth.json`: payload, public key, dan signature buatan openssl (valid dan tidak valid), plus contoh fingerprint.
 - `screen.json`: encoding `screen_config` dan `screen_frame`, frame yang harus ditolak, dan konversi NAL berawalan panjang ke Annex B.
+
+Uji end-to-end memakai profil uji yang sama di setiap agent: lihat [E2E.md](E2E.md).

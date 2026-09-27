@@ -16,7 +16,8 @@ import java.util.concurrent.TimeUnit
  * Uji end-to-end ke agent Mac sungguhan (TLS + WebSocket + pairing + auth + input).
  * Jalankan lewat scripts/e2e-local.sh; tanpa CURSORCTL_E2E_PAIRING_FILE test ini dilewati.
  * Agent uji membaca status fokus kolom teks dari CURSORCTL_E2E_FOCUS_FILE, bukan dari Accessibility, dan
- * mengirim pola uji sebagai layar (lewat encoder H.264 sungguhan), bukan layar Mac.
+ * mengirim pola uji sebagai layar (lewat encoder H.264 sungguhan), bukan layar asli. Agent tanpa encoder (host
+ * headless C# di luar Windows) dijalankan dengan CURSORCTL_E2E_EXPECT_SCREEN=0. Kontraknya: protocol/E2E.md.
  */
 class AgentConnectionE2ETest {
     private class JvmCredentials(override val deviceName: String) : DeviceCredentials {
@@ -77,27 +78,9 @@ class AgentConnectionE2ETest {
         assertEquals("focus:false", next())
 
         // Layar: config (SPS + PPS) lalu keyframe IDR, lalu frame terus mengalir karena setiap frame dikonfirmasi.
-        assertTrue(ProtocolConstants.FEATURE_SCREEN in pairing.features)
-        pairing.requestScreen(1920, 1080)
-        assertEquals("screen:streaming", next())
-        val config = nextPacket() as ScreenPacket.Config
-        assertEquals(1440 to 900, config.width to config.height)
-        assertEquals(listOf(AnnexB.NAL_SPS, AnnexB.NAL_PPS), nalTypes(config.parameterSets))
-        val first = nextPacket() as ScreenPacket.Frame
-        assertTrue(first.keyframe && AnnexB.NAL_IDR in nalTypes(first.data))
-        var seq = first.seq
-        repeat(20) {
-            val frame = nextPacket() as ScreenPacket.Frame
-            assertTrue(frame.seq > seq)
-            seq = frame.seq
-        }
-        // Permintaan ulang (mis. decoder HP dibuat ulang) menghasilkan config dan keyframe baru.
-        pairing.requestScreen(1920, 1080)
-        var packet = nextPacket()
-        repeat(10) { if (packet !is ScreenPacket.Config) packet = nextPacket() }
-        assertTrue(packet is ScreenPacket.Config)
-        assertTrue((nextPacket() as ScreenPacket.Frame).keyframe)
-        pairing.stopScreen()
+        val expectScreen = System.getenv("CURSORCTL_E2E_EXPECT_SCREEN") != "0"
+        assertEquals(expectScreen, ProtocolConstants.FEATURE_SCREEN in pairing.features)
+        if (expectScreen) checkScreen(pairing)
         pairing.close()
         assertEquals("ended:null", next())
 
@@ -118,5 +101,28 @@ class AgentConnectionE2ETest {
         // 5. Perangkat yang belum pernah pairing ditolak.
         AgentConnection(ConnectTarget.Auth(uri.hostId, uri.address, uri.fingerprint), JvmCredentials("Asing"), listener)
         assertEquals("ended:AuthRejected(code=unknown_device)", next())
+    }
+
+    private fun checkScreen(connection: AgentConnection) {
+        connection.requestScreen(1920, 1080)
+        assertEquals("screen:streaming", next())
+        val config = nextPacket() as ScreenPacket.Config
+        assertEquals(1440 to 900, config.width to config.height)
+        assertEquals(listOf(AnnexB.NAL_SPS, AnnexB.NAL_PPS), nalTypes(config.parameterSets))
+        val first = nextPacket() as ScreenPacket.Frame
+        assertTrue(first.keyframe && AnnexB.NAL_IDR in nalTypes(first.data))
+        var seq = first.seq
+        repeat(20) {
+            val frame = nextPacket() as ScreenPacket.Frame
+            assertTrue(frame.seq > seq)
+            seq = frame.seq
+        }
+        // Permintaan ulang (mis. decoder HP dibuat ulang) menghasilkan config dan keyframe baru.
+        connection.requestScreen(1920, 1080)
+        var packet = nextPacket()
+        repeat(10) { if (packet !is ScreenPacket.Config) packet = nextPacket() }
+        assertTrue(packet is ScreenPacket.Config)
+        assertTrue((nextPacket() as ScreenPacket.Frame).keyframe)
+        connection.stopScreen()
     }
 }

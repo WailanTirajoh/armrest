@@ -102,7 +102,7 @@ fun ScanScreen(onBack: () -> Unit, onScanned: (String) -> Boolean) {
                 androidx.compose.runtime.CompositionLocalProvider(
                     androidx.compose.material3.LocalContentColor provides Color.White,
                 ) {
-                    TopBar(title = "Scan QR di Mac", navigationIcon = AppIcons.Back, navigationLabel = "Kembali", onNavigate = onBack)
+                    TopBar(title = "Scan QR di komputer", navigationIcon = AppIcons.Back, navigationLabel = "Kembali", onNavigate = onBack)
                 }
             }
             Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
@@ -113,8 +113,8 @@ fun ScanScreen(onBack: () -> Unit, onScanned: (String) -> Boolean) {
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(6.dp),
             ) {
-                Text("Arahkan kamera ke QR di Mac", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
-                Text("Di Mac: ikon Cursor Controller di menu bar › Tambah perangkat", color = Color(0xFFD4D5CE), fontSize = 14.sp, textAlign = TextAlign.Center)
+                Text("Arahkan kamera ke QR di komputer", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
+                Text("Di komputer: menu Cursor Controller › Tambah perangkat", color = Color(0xFFD4D5CE), fontSize = 14.sp, textAlign = TextAlign.Center)
             }
         }
     }
@@ -171,7 +171,7 @@ private fun QrCameraPreview(onScanned: (String) -> Boolean, modifier: Modifier) 
     }
 }
 
-/** Mockup A2 (2): menunggu user klik Izinkan di Mac. */
+/** Mockup A2 (2): menunggu user klik Izinkan di komputer. */
 @Composable
 fun PairingWaitScreen(hostName: String, onCancel: () -> Unit) {
     Column(Modifier.fillMaxSize()) {
@@ -182,7 +182,7 @@ fun PairingWaitScreen(hostName: String, onCancel: () -> Unit) {
             verticalArrangement = Arrangement.spacedBy(16.dp, Alignment.CenterVertically),
         ) {
             CircularProgressIndicator(modifier = Modifier.size(64.dp), strokeWidth = 5.dp)
-            Text("Menunggu konfirmasi di Mac…", fontSize = 22.sp, fontWeight = FontWeight.SemiBold, textAlign = TextAlign.Center)
+            Text("Menunggu konfirmasi di komputer…", fontSize = 22.sp, fontWeight = FontWeight.SemiBold, textAlign = TextAlign.Center)
             Text(
                 "Klik Izinkan pada dialog yang muncul di $hostName.",
                 fontSize = 15.sp,
@@ -200,17 +200,17 @@ fun PairingFailedScreen(error: PairingError, onRetry: () -> Unit, onClose: () ->
     val colors = MaterialTheme.colorScheme
     val (title, body) = when (error) {
         PairingError.FINGERPRINT -> "Koneksi dibatalkan" to
-            "Sertifikat Mac tidak sama dengan yang ada di QR. Bisa jadi ada perangkat lain yang menyadap jaringan ini. Tidak ada data yang dikirim."
+            "Sertifikat komputer tidak sama dengan yang ada di QR. Bisa jadi ada perangkat lain yang menyadap jaringan ini. Tidak ada data yang dikirim."
         PairingError.EXPIRED -> "QR sudah kedaluwarsa" to
-            "QR hanya berlaku 120 detik dan sekali pakai. Buat QR baru di Mac, lalu scan lagi."
+            "QR hanya berlaku 120 detik dan sekali pakai. Buat QR baru di komputer, lalu scan lagi."
         PairingError.INVALID -> "QR sudah tidak berlaku" to
-            "QR ini sudah dipakai atau sudah diganti. Buat QR baru di Mac, lalu scan lagi."
+            "QR ini sudah dipakai atau sudah diganti. Buat QR baru di komputer, lalu scan lagi."
         PairingError.TOO_MANY -> "Terlalu banyak percobaan" to
-            "QR dibatalkan demi keamanan. Buat QR baru di Mac, lalu scan lagi."
-        PairingError.DENIED -> "Ditolak di Mac" to
-            "Permintaan pairing ditolak di Mac. Kalau itu tidak sengaja, buat QR baru dan coba lagi."
-        PairingError.NETWORK -> "Mac tidak bisa dihubungi" to
-            "Pastikan HP dan Mac ada di WiFi yang sama dan Cursor Controller berjalan di Mac."
+            "QR dibatalkan demi keamanan. Buat QR baru di komputer, lalu scan lagi."
+        PairingError.DENIED -> "Ditolak di komputer" to
+            "Permintaan pairing ditolak di komputer. Kalau itu tidak sengaja, buat QR baru dan coba lagi."
+        PairingError.NETWORK -> "Komputer tidak bisa dihubungi" to
+            "Pastikan HP dan komputer ada di WiFi yang sama dan Cursor Controller berjalan di komputer."
     }
     val warning = error == PairingError.EXPIRED || error == PairingError.INVALID || error == PairingError.TOO_MANY
     Column(Modifier.fillMaxSize()) {

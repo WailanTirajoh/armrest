@@ -78,6 +78,11 @@ class AgentConnection(
     var isAuthenticated = false
         private set
 
+    /** Platform komputer dari `auth_result`; agent lama selalu macOS. */
+    @Volatile
+    var platform: String = ProtocolConstants.PLATFORM_MACOS
+        private set
+
     /** Fitur opsional agent dari `auth_result`; kosong untuk agent lama. */
     @Volatile
     var features: Set<String> = emptySet()
@@ -155,6 +160,7 @@ class AgentConnection(
             is ControlMessage.AuthResult -> {
                 if (!message.ok) return fail(ClientFailure.AuthRejected(message.error ?: "unknown"))
                 features = message.features.toSet()
+                platform = message.platform ?: ProtocolConstants.PLATFORM_MACOS
                 isAuthenticated = true
                 listener.onAuthenticated()
             }

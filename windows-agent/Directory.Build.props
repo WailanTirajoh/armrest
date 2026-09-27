@@ -1,0 +1,17 @@
+<Project>
+  <!-- Versi dari file VERSION di root repo; nomor build dari run CI (GITHUB_RUN_NUMBER), 0 kalau build lokal. -->
+  <PropertyGroup>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <Version>$([System.IO.File]::ReadAllText('$(MSBuildThisFileDirectory)../VERSION').Trim())</Version>
+    <BuildNumber Condition="'$(GITHUB_RUN_NUMBER)' != ''">$(GITHUB_RUN_NUMBER)</BuildNumber>
+    <BuildNumber Condition="'$(BuildNumber)' == ''">0</BuildNumber>
+    <FileVersion>$(Version).$(BuildNumber)</FileVersion>
+    <InformationalVersion>$(Version) (build $(BuildNumber))</InformationalVersion>
+    <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
+    <Company>Cursor Controller</Company>
+    <Product>Cursor Controller</Product>
+  </PropertyGroup>
+</Project>

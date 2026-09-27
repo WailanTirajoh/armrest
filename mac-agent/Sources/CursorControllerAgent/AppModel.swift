@@ -75,7 +75,7 @@ final class AppModel: ObservableObject {
             let server = AgentServer(
                 configuration: .init(
                     port: profile.port, hostId: hostId, hostName: hostName, tlsIdentity: identity.identity, advertise: true,
-                    features: [AgentFeature.focus, AgentFeature.screen]
+                    features: [AgentFeature.focus, AgentFeature.screen], platform: AgentPlatform.macOS
                 ),
                 devices: store,
                 tokens: tokens

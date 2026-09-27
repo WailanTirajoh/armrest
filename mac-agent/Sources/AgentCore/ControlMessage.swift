@@ -17,8 +17,8 @@ public enum ControlMessage: Equatable, Sendable {
     case pairResult(PairResult)
     case challenge(nonce: String)
     case auth(sig: String)
-    /// `features`: fitur opsional agent (lihat `AgentFeature`), hanya saat ok.
-    case authResult(ok: Bool, error: String?, features: [String] = [])
+    /// Hanya saat ok: `features` = fitur opsional agent (lihat `AgentFeature`), `platform` = `macos` atau `windows`.
+    case authResult(ok: Bool, error: String?, features: [String] = [], platform: String? = nil)
     /// `focusUpdates`: HP ingin menerima pesan `focus`.
     case settings(sensitivity: Double, scrollSpeed: Double, focusUpdates: Bool)
     /// Apakah kolom teks sedang fokus di Mac, supaya HP bisa membuka keyboard sendiri.
@@ -47,10 +47,11 @@ public enum ControlMessage: Equatable, Sendable {
             object = ["t": "challenge", "nonce": nonce]
         case let .auth(sig):
             object = ["t": "auth", "sig": sig]
-        case let .authResult(ok, error, features):
+        case let .authResult(ok, error, features, platform):
             object = ["t": "auth_result", "ok": ok]
             if let error { object["error"] = error }
             if !features.isEmpty { object["features"] = features }
+            if let platform { object["platform"] = platform }
         case let .settings(sensitivity, scrollSpeed, focusUpdates):
             object = ["t": "settings", "sensitivity": sensitivity, "scrollSpeed": scrollSpeed, "focusUpdates": focusUpdates]
         case let .focus(text):
@@ -103,7 +104,7 @@ public enum ControlMessage: Equatable, Sendable {
             return string("sig").map { .auth(sig: $0) }
         case "auth_result":
             guard let ok = o["ok"] as? Bool else { return nil }
-            return .authResult(ok: ok, error: string("error"), features: o["features"] as? [String] ?? [])
+            return .authResult(ok: ok, error: string("error"), features: o["features"] as? [String] ?? [], platform: string("platform"))
         case "settings":
             guard let sensitivity = number("sensitivity")?.doubleValue,
                   let scrollSpeed = number("scrollSpeed")?.doubleValue else { return nil }

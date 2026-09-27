@@ -36,7 +36,7 @@ sealed interface Screen {
     data object Scan : Screen
     data class Pairing(val hostName: String) : Screen
     data class PairingFailed(val error: PairingError) : Screen
-    data class Touchpad(val hostId: String, val hostName: String) : Screen
+    data class Touchpad(val hostId: String, val hostName: String, val platform: String) : Screen
 }
 
 sealed interface Link {
@@ -146,7 +146,7 @@ class ControllerViewModel(application: Application) : AndroidViewModel(applicati
     fun connect(host: SavedHost) {
         closeConnection()
         attempt = 0
-        _state.update { it.copy(screen = Screen.Touchpad(host.hostId, host.name), link = Link.Connecting) }
+        _state.update { it.copy(screen = Screen.Touchpad(host.hostId, host.name, host.platform), link = Link.Connecting) }
         openAuth(host.hostId)
     }
 
@@ -203,12 +203,13 @@ class ControllerViewModel(application: Application) : AndroidViewModel(applicati
 
     private fun authenticated(hostId: String, address: String) {
         attempt = 0
-        val host = hostStore.find(hostId) ?: return
-        hostStore.upsert(host.copy(lastAddress = address, lastUsed = System.currentTimeMillis()))
+        val saved = hostStore.find(hostId) ?: return
+        val host = saved.copy(lastAddress = address, lastUsed = System.currentTimeMillis(), platform = connection?.platform ?: saved.platform)
+        hostStore.upsert(host)
         refreshHosts()
         _state.update {
             it.copy(
-                screen = Screen.Touchpad(host.hostId, host.name),
+                screen = Screen.Touchpad(host.hostId, host.name, host.platform),
                 link = Link.Connected,
                 showGestureHints = !settingsStore.gestureHintsSeen,
             )
@@ -228,10 +229,10 @@ class ControllerViewModel(application: Application) : AndroidViewModel(applicati
             is Screen.Touchpad -> when {
                 failure is ClientFailure.AuthRejected && failure.code == "unknown_device" -> {
                     hostStore.remove(hostId)
-                    backToHosts("Mac sudah mencabut akses HP ini. Pasangkan ulang lewat QR.")
+                    backToHosts("Komputer sudah mencabut akses HP ini. Pasangkan ulang lewat QR.")
                 }
                 failure is ClientFailure.FingerprintMismatch ->
-                    backToHosts("Sertifikat Mac berubah. Demi keamanan, pasangkan ulang lewat QR.")
+                    backToHosts("Sertifikat komputer berubah. Demi keamanan, pasangkan ulang lewat QR.")
                 else -> scheduleReconnect(screen.hostId)
             }
             else -> Unit

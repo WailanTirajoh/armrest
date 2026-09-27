@@ -1,5 +1,11 @@
 import Foundation
 
+/// Platform komputer di `auth_result` dan TXT Bonjour (`os`). HP lama dan agent lama menganggapnya macOS.
+public enum AgentPlatform {
+    public static let macOS = "macos"
+    public static let windows = "windows"
+}
+
 /// Nama fitur di `auth_result` untuk HP yang ingin tahu apakah agent bisa mengirim layar.
 public enum AgentFeature {
     public static let focus = "focus"

@@ -103,6 +103,7 @@ private fun App(viewModel: ControllerViewModel) {
             is Screen.PairingFailed -> PairingFailedScreen(screen.error, onRetry = viewModel::openScanner, onClose = { viewModel.backToHosts() })
             is Screen.Touchpad -> TouchpadScreen(
                 hostName = screen.hostName,
+                platform = screen.platform,
                 link = state.link,
                 keyboardOpen = state.keyboardOpen,
                 macScreen = state.macScreen,

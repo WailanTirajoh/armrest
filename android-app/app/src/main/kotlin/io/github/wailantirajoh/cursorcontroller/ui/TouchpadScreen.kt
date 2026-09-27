@@ -56,6 +56,7 @@ import io.github.wailantirajoh.cursorcontroller.core.GestureEngine
 import io.github.wailantirajoh.cursorcontroller.core.InputAction
 import io.github.wailantirajoh.cursorcontroller.core.KeyCode
 import io.github.wailantirajoh.cursorcontroller.core.MouseButton
+import io.github.wailantirajoh.cursorcontroller.core.ProtocolConstants
 import io.github.wailantirajoh.cursorcontroller.data.TouchSettings
 import java.util.Locale
 
@@ -64,6 +65,7 @@ import java.util.Locale
 @Composable
 fun TouchpadScreen(
     hostName: String,
+    platform: String,
     link: Link,
     keyboardOpen: Boolean,
     macScreen: ScreenUi,
@@ -113,7 +115,7 @@ fun TouchpadScreen(
                 IconButton(onClick = onToggleScreen, enabled = connected) {
                     Icon(
                         AppIcons.Monitor,
-                        contentDescription = if (settings.screenPreview) "Sembunyikan layar Mac" else "Tampilkan layar Mac",
+                        contentDescription = if (settings.screenPreview) "Sembunyikan layar komputer" else "Tampilkan layar komputer",
                         tint = if (settings.screenPreview) colors.primary else colors.onSurface,
                     )
                 }
@@ -188,10 +190,10 @@ fun TouchpadScreen(
                         }
                     },
             )
-            TouchpadMessage(connected, macScreen.state, onRetryScreen)
+            TouchpadMessage(connected, macScreen.state, platform, onRetryScreen)
         }
         if (keyboardOpen && connected) {
-            KeyboardPanel(onText = onText, onKey = onKey)
+            KeyboardPanel(onText = onText, onKey = onKey, platform = platform)
         } else if (settings.showButtons) {
             Row(
                 Modifier
@@ -241,14 +243,16 @@ private fun ScreenPreview(screen: ScreenUi, onSurface: (Surface?) -> Unit) {
 }
 
 @Composable
-private fun TouchpadMessage(connected: Boolean, state: ScreenState, onRetry: () -> Unit) {
+private fun TouchpadMessage(connected: Boolean, state: ScreenState, platform: String, onRetry: () -> Unit) {
     val text = when {
         !connected -> "Touchpad nonaktif sampai tersambung"
         state == ScreenState.SHOWING -> return
-        state == ScreenState.LOADING -> "Memuat layar Mac…"
-        state == ScreenState.DENIED -> "Mac belum mengizinkan Screen Recording. Izinkan lewat menu Cursor Controller di Mac."
-        state == ScreenState.FAILED -> "Layar Mac tidak bisa ditampilkan."
-        state == ScreenState.UNSUPPORTED -> "Perbarui Cursor Controller di Mac ke versi 0.5 atau lebih baru untuk melihat layar."
+        state == ScreenState.LOADING -> "Memuat layar komputer…"
+        state == ScreenState.DENIED && platform == ProtocolConstants.PLATFORM_MACOS ->
+            "Mac belum mengizinkan Screen Recording. Izinkan lewat menu Cursor Controller di Mac."
+        state == ScreenState.DENIED -> "Komputer menolak menampilkan layar."
+        state == ScreenState.FAILED -> "Layar komputer tidak bisa ditampilkan."
+        state == ScreenState.UNSUPPORTED -> "Perbarui Cursor Controller di komputer ke versi terbaru untuk melihat layar."
         else -> "Geser untuk menggerakkan kursor"
     }
     Column(
@@ -290,7 +294,7 @@ private fun SettingsSheet(settings: TouchSettings, onChange: (TouchSettings) -> 
         SliderRow("Kecepatan scroll", settings.scrollSpeed, 0.5f..4f) { onChange(settings.copy(scrollSpeed = it)) }
         SwitchRow("Tombol kiri/kanan", settings.showButtons) { onChange(settings.copy(showButtons = it)) }
         SwitchRow("Getar saat klik", settings.haptics) { onChange(settings.copy(haptics = it)) }
-        SwitchRow("Buka keyboard otomatis", settings.autoKeyboard, "Saat kolom teks di Mac aktif") {
+        SwitchRow("Buka keyboard otomatis", settings.autoKeyboard, "Saat kolom teks di komputer aktif") {
             onChange(settings.copy(autoKeyboard = it))
         }
     }

@@ -16,13 +16,15 @@ struct Profile {
 
     static let current: Profile = {
         let env = ProcessInfo.processInfo.environment
-        let name = env["CURSORCTL_PROFILE"].flatMap { $0.isEmpty ? nil : $0 }
+        let pairingFile = env["CURSORCTL_E2E_PAIRING_FILE"].map { URL(fileURLWithPath: $0) }
+        // Mode tanpa UI tidak pernah memakai data app normal: tanpa nama profil, dipakai profil "e2e".
+        let name = env["CURSORCTL_PROFILE"].flatMap { $0.isEmpty ? nil : $0 } ?? (pairingFile == nil ? nil : "e2e")
         return Profile(
             suffix: name.map { "-\($0)" } ?? "",
             port: env["CURSORCTL_PORT"].flatMap(UInt16.init) ?? AgentConstants.defaultPort,
             advertisedAddress: env["CURSORCTL_E2E_ADDRESS"],
             autoApprove: env["CURSORCTL_E2E_AUTO_APPROVE"] == "1",
-            pairingFile: env["CURSORCTL_E2E_PAIRING_FILE"].map { URL(fileURLWithPath: $0) },
+            pairingFile: pairingFile,
             logInput: env["CURSORCTL_E2E_LOG"] == "1",
             focusFile: env["CURSORCTL_E2E_FOCUS_FILE"].map { URL(fileURLWithPath: $0) }
         )

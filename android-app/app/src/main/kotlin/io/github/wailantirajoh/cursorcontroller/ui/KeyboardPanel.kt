@@ -44,18 +44,21 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import io.github.wailantirajoh.cursorcontroller.core.KeyCode
 import io.github.wailantirajoh.cursorcontroller.core.KeyModifiers
+import io.github.wailantirajoh.cursorcontroller.core.ProtocolConstants
 import io.github.wailantirajoh.cursorcontroller.core.TypingBuffer
 
 private const val SHORTCUT_MODIFIERS = KeyModifiers.COMMAND or KeyModifiers.CONTROL or KeyModifiers.OPTION
 
 /**
  * Panel ketik di atas keyboard HP: apa yang diketik langsung dikirim ke Mac (termasuk Backspace dan
- * koreksi otomatis), plus baris tombol khusus dan modifier ⌘ ⌃ ⌥ ⇧ yang berlaku untuk tombol berikutnya.
+ * koreksi otomatis), plus baris tombol khusus dan modifier yang berlaku untuk tombol berikutnya. Label modifier
+ * mengikuti komputernya: ⌘ ⌃ ⌥ ⇧ di Mac, Ctrl Win Alt Shift di Windows (bit protokolnya sama).
  */
 @Composable
 fun KeyboardPanel(
     onText: (String) -> Unit,
     onKey: (key: KeyCode, modifiers: Int, times: Int) -> Unit,
+    platform: String,
     modifier: Modifier = Modifier,
 ) {
     val colors = MaterialTheme.colorScheme
@@ -130,16 +133,17 @@ fun KeyboardPanel(
                     modifier = Modifier.semantics { contentDescription = key.name.lowercase() },
                 ) { Text(label, fontSize = 15.sp) }
             }
-            listOf(
-                "⌘" to KeyModifiers.COMMAND,
-                "⌃" to KeyModifiers.CONTROL,
-                "⌥" to KeyModifiers.OPTION,
-                "⇧" to KeyModifiers.SHIFT,
-            ).forEach { (label, bit) ->
+            val windows = platform == ProtocolConstants.PLATFORM_WINDOWS
+            val chips = if (windows) {
+                listOf("Ctrl" to KeyModifiers.CONTROL, "Win" to KeyModifiers.COMMAND, "Alt" to KeyModifiers.OPTION, "Shift" to KeyModifiers.SHIFT)
+            } else {
+                listOf("⌘" to KeyModifiers.COMMAND, "⌃" to KeyModifiers.CONTROL, "⌥" to KeyModifiers.OPTION, "⇧" to KeyModifiers.SHIFT)
+            }
+            chips.forEach { (label, bit) ->
                 FilterChip(
                     selected = modifiers and bit != 0,
                     onClick = { modifiers = modifiers xor bit },
-                    label = { Text(label, fontSize = 17.sp) },
+                    label = { Text(label, fontSize = if (windows) 14.sp else 17.sp) },
                     modifier = Modifier.align(Alignment.CenterVertically),
                 )
             }
@@ -174,11 +178,11 @@ fun KeyboardPanel(
                 modifier = Modifier
                     .fillMaxWidth()
                     .focusRequester(focusRequester)
-                    .semantics { contentDescription = "Ketik ke Mac" },
+                    .semantics { contentDescription = "Ketik ke komputer" },
                 decorationBox = { inner ->
                     if (buffer.typed.isEmpty()) {
                         Text(
-                            "Ketik di sini, langsung muncul di Mac",
+                            "Ketik di sini, langsung muncul di komputer",
                             color = colors.onSurfaceVariant,
                             fontSize = 16.sp,
                         )

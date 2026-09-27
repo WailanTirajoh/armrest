@@ -20,9 +20,12 @@ public final class AgentServer: SessionEnvironment {
         public var advertise: Bool
         /// Fitur opsional yang diumumkan ke HP (lihat `AgentFeature`).
         public var features: [String]
+        /// Platform yang diumumkan di `auth_result` dan TXT Bonjour (lihat `AgentPlatform`).
+        public var platform: String?
 
         public init(
-            port: UInt16, hostId: String, hostName: String, tlsIdentity: SecIdentity?, advertise: Bool, features: [String] = []
+            port: UInt16, hostId: String, hostName: String, tlsIdentity: SecIdentity?, advertise: Bool, features: [String] = [],
+            platform: String? = nil
         ) {
             self.port = port
             self.hostId = hostId
@@ -30,6 +33,7 @@ public final class AgentServer: SessionEnvironment {
             self.tlsIdentity = tlsIdentity
             self.advertise = advertise
             self.features = features
+            self.platform = platform
         }
     }
 
@@ -65,6 +69,7 @@ public final class AgentServer: SessionEnvironment {
     public var hostId: String { configuration.hostId }
     public var hostName: String { configuration.hostName }
     public var features: [String] { configuration.features }
+    public var platform: String? { configuration.platform }
 
     public init(configuration: Configuration, devices: TrustedDeviceStore, tokens: PairingTokens, queue: DispatchQueue = .main) {
         self.configuration = configuration
@@ -94,7 +99,8 @@ public final class AgentServer: SessionEnvironment {
         let port = NWEndpoint.Port(rawValue: configuration.port) ?? .any
         let listener = try NWListener(using: parameters, on: port)
         if configuration.advertise {
-            let txt = NWTXTRecord(["hostId": configuration.hostId, "v": String(AgentConstants.protocolVersion)])
+            var txt = NWTXTRecord(["hostId": configuration.hostId, "v": String(AgentConstants.protocolVersion)])
+            if let platform = configuration.platform { txt["os"] = platform }
             listener.service = NWListener.Service(
                 name: configuration.hostName, type: AgentConstants.bonjourServiceType, domain: nil, txtRecord: txt.data
             )

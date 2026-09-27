@@ -120,6 +120,7 @@ class ProtocolVectorTest {
             ControlMessage.AuthResult(true, null),
             ControlMessage.AuthResult(false, "bad_sig"),
             ControlMessage.AuthResult(true, null, listOf("focus", "screen")),
+            ControlMessage.AuthResult(true, null, listOf("focus"), ProtocolConstants.PLATFORM_WINDOWS),
             ControlMessage.Settings(1.5, 2.0),
             ControlMessage.Settings(1.5, 2.0, focusUpdates = true),
             ControlMessage.Focus(true),
@@ -150,6 +151,10 @@ class ProtocolVectorTest {
             ControlMessage.parse("""{"features":["focus","screen"],"ok":true,"t":"auth_result"}"""),
         )
         assertEquals(ControlMessage.AuthResult(true, null), ControlMessage.parse("""{"ok":true,"t":"auth_result"}"""))
+        assertEquals(
+            ControlMessage.AuthResult(true, null, platform = "windows"),
+            ControlMessage.parse("""{"ok":true,"platform":"windows","t":"auth_result"}"""),
+        )
         assertEquals(ControlMessage.ScreenStatus("streaming"), ControlMessage.parse("""{"state":"streaming","t":"screen_status"}"""))
         assertNull(ControlMessage.parse("""{"t":"nope"}"""))
         assertNull(ControlMessage.parse("bukan json"))

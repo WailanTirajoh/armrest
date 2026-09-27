@@ -1,4 +1,4 @@
-.PHONY: mac android test test-mac test-android clean
+.PHONY: mac android windows test test-mac test-android test-windows clean
 
 # Build Cursor Controller.app + DMG ke dist/
 mac:
@@ -8,7 +8,11 @@ mac:
 android:
 	cd android-app && ./gradlew :app:assembleDebug
 
-test: test-mac test-android
+# Build agent Windows (bisa dari macOS/Linux, tapi hanya jalan di Windows). Installer dibuat CI.
+windows:
+	cd windows-agent && dotnet build src/Agent.Windows -c Release
+
+test: test-mac test-android test-windows
 
 test-mac:
 	cd mac-agent && swift test
@@ -16,6 +20,10 @@ test-mac:
 test-android:
 	cd android-app && ./gradlew :core:test :app:testDebugUnitTest
 
+test-windows:
+	cd windows-agent && dotnet test tests/Agent.Tests
+
 clean:
-	rm -rf dist mac-agent/.build
+	rm -rf dist mac-agent/.build windows-agent/publish
+	cd windows-agent && dotnet clean --nologo -v quiet
 	cd android-app && ./gradlew clean

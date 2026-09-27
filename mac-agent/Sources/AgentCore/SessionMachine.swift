@@ -9,10 +9,13 @@ public protocol SessionEnvironment: AnyObject {
     func makeNonce() -> Data
     /// Fitur opsional yang diumumkan ke HP di `auth_result`.
     var features: [String] { get }
+    /// Platform yang diumumkan di `auth_result` (lihat `AgentPlatform`).
+    var platform: String? { get }
 }
 
 public extension SessionEnvironment {
     var features: [String] { [] }
+    var platform: String? { nil }
 }
 
 public struct PendingDevice: Equatable, Sendable {
@@ -107,7 +110,8 @@ public final class SessionMachine {
                 return close(.authResult(ok: false, error: "bad_sig"), reason: "bad_sig")
             }
             state = .authenticated(device)
-            return [.send(.authResult(ok: true, error: nil, features: environment.features)), .authenticated(device)]
+            let result = ControlMessage.authResult(ok: true, error: nil, features: environment.features, platform: environment.platform)
+            return [.send(result), .authenticated(device)]
 
         case let (.authenticated, .settings(sensitivity, scrollSpeed, focusUpdates)):
             return [.settings(
