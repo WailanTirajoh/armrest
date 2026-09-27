@@ -73,6 +73,7 @@ internal sealed class App : Application
             Input = profile.Headless ? null : new InputInjector(),
             FocusProbe = UiaFocusProbe.TextInputFocused,
             Screen = screenAvailable ? new WindowsScreenBackend() : null,
+            Volume = new CoreAudioVolume(),
             Advertiser = new DnsSdAdvertiser(),
         });
         if (!profile.Headless) BuildUi(host);

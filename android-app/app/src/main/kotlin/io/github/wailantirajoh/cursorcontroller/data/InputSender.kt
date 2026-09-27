@@ -33,6 +33,8 @@ class InputSender(private val connection: () -> AgentConnection?) : Choreographe
                     flush(force = true)
                     connection()?.sendInput(InputMessage.Button(action.button, action.down))
                 }
+                // Zoom tampilan di HP, tidak dikirim ke komputer.
+                is InputAction.Pinch -> Unit
             }
         }
         schedule()

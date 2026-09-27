@@ -18,8 +18,8 @@ public class StreamerTests
 
         public void Stop() => Stopped = true;
 
-        public void Frame(int width, int height) =>
-            Events!(new ScreenSourceEvent.Frame(new VideoFrame(width, height, new byte[width * height * 3 / 2])));
+        public void Frame(int width, int height, CursorPosition? cursor = null) =>
+            Events!(new ScreenSourceEvent.Frame(new VideoFrame(width, height, new byte[width * height * 3 / 2]), cursor));
     }
 
     /// <summary>Encoder tiruan: keluarannya langsung, dengan SPS/PPS palsu di setiap keyframe.</summary>
@@ -45,10 +45,11 @@ public class StreamerTests
         public ConcurrentQueue<ScreenPacket> Packets { get; } = new();
         public ConcurrentQueue<ScreenStatus> Statuses { get; } = new();
         public ConcurrentQueue<Exception> Errors { get; } = new();
+        public ConcurrentQueue<CursorPosition> Cursors { get; } = new();
         public List<FakeEncoder> Encoders { get; } = [];
         public ScreenStreamer Streamer { get; }
 
-        public Harness(Func<PixelSize, Action<EncodedFrame>, IVideoEncoder>? makeEncoder = null)
+        public Harness(Func<PixelSize, Action<EncodedFrame>, IVideoEncoder>? makeEncoder = null, bool cursor = false)
         {
             Streamer = new ScreenStreamer(
                 Source,
@@ -60,8 +61,9 @@ public class StreamerTests
                 }),
                 bytes => Packets.Enqueue(ScreenPacket.Decode(bytes)!),
                 Statuses.Enqueue,
-                Errors.Enqueue);
-            Streamer.Start(new ScreenRequest(1920, 1080));
+                Errors.Enqueue,
+                Cursors.Enqueue);
+            Streamer.Start(new ScreenRequest(1920, 1080, cursor));
             Eventually(() => Source.Events is not null);
             Source.Events!(new ScreenSourceEvent.Size(new PixelSize(640, 400)));
             Source.Events!(new ScreenSourceEvent.Started());
@@ -165,4 +167,35 @@ public class StreamerTests
         Assert.Same(failure, Assert.Single(h.Errors));
         Assert.True(h.Source.Stopped);
     }
+
+    [Fact]
+    public void CursorIsSentOnlyWhenRequestedAndChanged()
+    {
+        using (var without = new Harness())
+        {
+            without.Source.Frame(640, 400, new CursorPosition(0.5, 0.5));
+            Eventually(() => without.Packets.Count == 2);
+            Assert.Empty(without.Cursors);
+        }
+
+        using var h = new Harness(cursor: true);
+        h.Source.Frame(640, 400, new CursorPosition(0.123456, 0.5));
+        h.Source.Frame(640, 400, new CursorPosition(0.12346, 0.5)); // sama setelah dibulatkan ke 4 desimal
+        h.Source.Frame(640, 400, new CursorPosition(0.9, 0.1));
+        Eventually(() => h.Cursors.Count == 2);
+        Assert.Equal([new CursorPosition(0.1235, 0.5), new CursorPosition(0.9, 0.1)], h.Cursors);
+
+        // Permintaan ulang (tampilan HP dibuat ulang) mengirim lagi posisi terakhir, juga saat layar diam.
+        h.Streamer.Update(new ScreenRequest(1920, 1080, cursor: true));
+        Eventually(() => h.Cursors.Count == 3);
+        Assert.Equal(new CursorPosition(0.9, 0.1), h.Cursors.Last());
+    }
+
+    [Fact]
+    public void TestPatternCursorFollowsTheBar()
+    {
+        Assert.Equal(new CursorPosition(0.05, 0.725), TestPatternSource.Cursor(0));
+        Assert.Equal(0.5, TestPatternSource.Cursor(45).X, 6);
+    }
 }
+

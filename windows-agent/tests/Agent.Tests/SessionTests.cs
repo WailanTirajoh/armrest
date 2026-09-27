@@ -3,6 +3,7 @@ using System.Text;
 using CursorController.Agent.Hosting;
 using CursorController.Agent.Protocol;
 using CursorController.Agent.Session;
+using CursorController.Agent.Volume;
 
 namespace CursorController.Agent.Tests;
 
@@ -142,8 +143,11 @@ public class SessionTests
         var auth = machine.HandleText(Text(new ControlMessage.Auth(Sign(key, env))));
         Assert.Equal(new ControlMessage[] { new ControlMessage.AuthResult(true, null, ["focus", "screen"], "windows") }, Sent(auth));
         Assert.Equal(
-            new SessionAction[] { new SessionAction.Settings(5, 0.3, true) },
-            machine.HandleText(Text(new ControlMessage.Settings(99, 0, true))));
+            new SessionAction[] { new SessionAction.Settings(5, 0.3, true, true) },
+            machine.HandleText(Text(new ControlMessage.Settings(99, 0, true, true))));
+        Assert.Equal(
+            new SessionAction[] { new SessionAction.Volume(new VolumeCommand.Step(-1)) },
+            machine.HandleText(Text(new ControlMessage.VolumeMessage(new VolumeCommand.Step(-1)))));
         var request = new ScreenRequest(1920, 1080);
         Assert.Equal(new SessionAction[] { new SessionAction.Screen(request) }, machine.HandleText(Text(new ControlMessage.Screen(request))));
         Assert.Equal(new SessionAction[] { new SessionAction.ScreenAck(7) }, machine.HandleText(Text(new ControlMessage.ScreenAck(7))));

@@ -23,6 +23,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
@@ -64,7 +65,10 @@ fun TopBar(
             IconButton(onClick = onNavigate) { Icon(navigationIcon, contentDescription = navigationLabel) }
         }
         Column(modifier = Modifier.weight(1f)) {
-            Text(title, fontSize = if (subtitle == null) 22.sp else 16.sp, fontWeight = FontWeight.SemiBold)
+            Text(
+                title, fontSize = if (subtitle == null) 22.sp else 16.sp, fontWeight = FontWeight.SemiBold, maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
             subtitle?.invoke()
         }
         actions()

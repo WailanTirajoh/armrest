@@ -11,6 +11,8 @@ final class AgentConnection {
     private(set) var device: TrustedDevice?
     /// HP meminta status fokus kolom teks (`focusUpdates` di pesan settings).
     private(set) var wantsFocusUpdates = false
+    /// HP meminta status volume (`volumeUpdates` di pesan settings).
+    private(set) var wantsVolumeUpdates = false
     /// HP sedang meminta video layar.
     private(set) var screenRequested = false
     private let connection: NWConnection
@@ -104,12 +106,18 @@ final class AgentConnection {
                 server.connectionAuthenticated(self, device: device)
             case let .input(message):
                 if let device { server.onInput?(device.id, message) }
-            case let .settings(sensitivity, scrollSpeed, focusUpdates):
+            case let .settings(sensitivity, scrollSpeed, focusUpdates, volumeUpdates):
                 if let device { server.onSettings?(device.id, sensitivity, scrollSpeed) }
                 if focusUpdates != wantsFocusUpdates {
                     wantsFocusUpdates = focusUpdates
                     server.focusSubscriptionChanged(self)
                 }
+                if volumeUpdates != wantsVolumeUpdates {
+                    wantsVolumeUpdates = volumeUpdates
+                    server.volumeSubscriptionChanged(self)
+                }
+            case let .volume(command):
+                if let device { server.onVolume?(device.id, command) }
             case let .screen(request):
                 guard let device else { continue }
                 screenRequested = request != nil

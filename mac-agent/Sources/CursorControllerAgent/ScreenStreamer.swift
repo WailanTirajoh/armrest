@@ -9,6 +9,7 @@ final class ScreenStreamer {
     private let source: ScreenSource
     private let send: (Data) -> Void
     private let report: (ScreenStatus) -> Void
+    private let sendCursor: (CGPoint) -> Void
     private let queue = DispatchQueue(label: "io.github.wailantirajoh.cursorcontroller.screen", qos: .userInteractive)
 
     // Hanya diakses di `queue`.
@@ -21,16 +22,24 @@ final class ScreenStreamer {
     private var latestSent = true
     private var keyframeNeeded = true
     private var stopped = false
+    /// HP meminta posisi kursor (`cursor` di permintaan layar).
+    private var wantsCursor = false
+    private var lastCursor: CGPoint?
 
-    /// `send` dan `report` dipanggil di antrean internal streamer.
-    init(source: ScreenSource, send: @escaping (Data) -> Void, report: @escaping (ScreenStatus) -> Void) {
+    /// `send`, `report`, dan `sendCursor` dipanggil di antrean internal streamer.
+    init(
+        source: ScreenSource, send: @escaping (Data) -> Void, report: @escaping (ScreenStatus) -> Void,
+        sendCursor: @escaping (CGPoint) -> Void
+    ) {
         self.source = source
         self.send = send
         self.report = report
+        self.sendCursor = sendCursor
     }
 
     func start(_ request: ScreenRequest) {
         queue.async {
+            self.wantsCursor = request.cursor
             self.source.start(request, queue: self.queue) { [weak self] event in self?.handle(event) }
         }
     }
@@ -40,8 +49,11 @@ final class ScreenStreamer {
         queue.async {
             guard !self.stopped else { return }
             self.keyframeNeeded = true
+            self.wantsCursor = request.cursor
             self.source.update(request)
             self.encodeLatest()
+            // Tampilan HP dibuat ulang: kirim lagi posisi kursor, juga kalau layar sedang diam.
+            if self.wantsCursor, let cursor = self.lastCursor { self.sendCursor(cursor) }
         }
     }
 
@@ -77,14 +89,23 @@ final class ScreenStreamer {
             }
             keyframeNeeded = true
             encodeLatest()
-        case let .frame(buffer):
+        case let .frame(buffer, cursor):
             latest = buffer
             latestSent = false
             encodeLatest()
+            if let cursor { cursorMoved(cursor) }
         case let .stopped(error):
             shutdown()
             report(error?.isScreenRecordingDenied == true ? .denied : .failed)
         }
+    }
+
+    /// Posisi kursor dibulatkan ke 4 desimal (sama dengan pesan `screen_cursor`) dan hanya dikirim kalau berubah.
+    private func cursorMoved(_ position: CGPoint) {
+        let rounded = CGPoint(x: (position.x * 10_000).rounded() / 10_000, y: (position.y * 10_000).rounded() / 10_000)
+        guard wantsCursor, rounded != lastCursor else { return }
+        lastCursor = rounded
+        sendCursor(rounded)
     }
 
     private func encodeLatest() {

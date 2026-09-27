@@ -36,6 +36,8 @@ final class AppModel: ObservableObject {
     private let tokens = PairingTokens()
     private let injector = InputInjector()
     private lazy var focusMonitor = FocusMonitor(probe: makeFocusProbe())
+    // Profil uji memakai volume tiruan: tidak pernah mengubah volume sungguhan.
+    private lazy var volumeMonitor = VolumeMonitor(control: headless ? InMemoryVolume() : SystemVolume())
     private var streamers: [UUID: (deviceId: String, streamer: ScreenStreamer)] = [:]
     private var server: AgentServer?
     private var timer: Timer?
@@ -75,7 +77,7 @@ final class AppModel: ObservableObject {
             let server = AgentServer(
                 configuration: .init(
                     port: profile.port, hostId: hostId, hostName: hostName, tlsIdentity: identity.identity, advertise: true,
-                    features: [AgentFeature.focus, AgentFeature.screen], platform: AgentPlatform.macOS
+                    features: [AgentFeature.focus, AgentFeature.screen, AgentFeature.volume], platform: AgentPlatform.macOS
                 ),
                 devices: store,
                 tokens: tokens
@@ -132,6 +134,22 @@ final class AppModel: ObservableObject {
         focusMonitor.onChange = { [weak self, weak server] focused in
             self?.log("focus: \(focused)")
             server?.updateTextFocus(focused)
+        }
+        server.onVolumeInterestChanged = { [weak self] interested in
+            guard let self else { return }
+            if interested {
+                self.volumeMonitor.start()
+            } else {
+                self.volumeMonitor.stop()
+            }
+        }
+        volumeMonitor.onChange = { [weak server] state in
+            server?.updateVolume(state)
+        }
+        server.onVolume = { [weak self] _, command in
+            guard let self else { return }
+            self.log("volume: \(command)")
+            self.volumeMonitor.apply(command)
         }
         server.onScreenRequest = { [weak self] connection, device, request in
             self?.screenRequested(connection: connection, device: device, request: request)
@@ -195,6 +213,9 @@ final class AppModel: ObservableObject {
             },
             report: { [weak self] status in
                 DispatchQueue.main.async { self?.screenStatusChanged(status, connection: connection) }
+            },
+            sendCursor: { [weak self] cursor in
+                DispatchQueue.main.async { self?.server?.sendScreenCursor(x: cursor.x, y: cursor.y, to: connection) }
             }
         )
         streamers[connection] = (device.id, streamer)

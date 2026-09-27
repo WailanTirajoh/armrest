@@ -55,9 +55,12 @@ public sealed class TestPatternSource : IScreenSource
         {
             if (events is null) return;
             tick++;
-            events(new ScreenSourceEvent.Frame(Render(size, tick)));
+            events(new ScreenSourceEvent.Frame(Render(size, tick), Cursor(tick)));
         }
     }
+
+    /// <summary>Kursor tiruan di tengah balok yang bergerak (lihat protocol/E2E.md).</summary>
+    internal static CursorPosition Cursor(int tick) => new((tick % 90) / 90.0 * 0.9 + 0.05, 0.725);
 
     /// <summary>Latar gelap, papan catur untuk ketajaman, dan balok yang bergerak supaya setiap frame berubah.</summary>
     internal static VideoFrame Render(PixelSize size, int tick)

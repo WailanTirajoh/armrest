@@ -66,6 +66,8 @@ data class TouchSettings(
     val autoKeyboard: Boolean = true,
     /** Tampilkan layar Mac di area touchpad. */
     val screenPreview: Boolean = false,
+    /** Tombol volume HP mengatur volume komputer selama touchpad terbuka. */
+    val volumeKeys: Boolean = true,
 )
 
 class SettingsStore(context: Context) {
@@ -78,6 +80,7 @@ class SettingsStore(context: Context) {
         haptics = prefs.getBoolean("haptics", true),
         autoKeyboard = prefs.getBoolean("autoKeyboard", true),
         screenPreview = prefs.getBoolean("screenPreview", false),
+        volumeKeys = prefs.getBoolean("volumeKeys", true),
     )
 
     fun save(settings: TouchSettings) {
@@ -88,6 +91,7 @@ class SettingsStore(context: Context) {
             .putBoolean("haptics", settings.haptics)
             .putBoolean("autoKeyboard", settings.autoKeyboard)
             .putBoolean("screenPreview", settings.screenPreview)
+            .putBoolean("volumeKeys", settings.volumeKeys)
             .apply()
     }
 

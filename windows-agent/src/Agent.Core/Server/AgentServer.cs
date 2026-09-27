@@ -7,6 +7,7 @@ using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using CursorController.Agent.Protocol;
 using CursorController.Agent.Session;
+using CursorController.Agent.Volume;
 
 namespace CursorController.Agent.Server;
 
@@ -48,6 +49,8 @@ public sealed class AgentServer : ISessionEnvironment
     private TcpListener? listener;
     private bool focusInterest;
     private bool? textFocus;
+    private bool volumeInterest;
+    private VolumeState? volume;
 
     public AgentServer(Configuration configuration, TrustedDeviceStore devices, PairingTokens tokens, IDispatcher dispatcher)
     {
@@ -74,6 +77,10 @@ public sealed class AgentServer : ISessionEnvironment
     /// <summary>HP mulai (request) atau berhenti (null) melihat layar, per koneksi; null juga saat koneksinya putus.</summary>
     public Action<Guid, TrustedDevice, ScreenRequest?>? OnScreenRequest { get; set; }
     public Action<Guid, uint>? OnScreenAck { get; set; }
+    /// <summary>Perintah volume dari HP (id perangkat, perintah).</summary>
+    public Action<string, VolumeCommand>? OnVolume { get; set; }
+    /// <summary>true saat mulai ada HP yang meminta status volume, false saat tidak ada lagi.</summary>
+    public Action<bool>? OnVolumeInterestChanged { get; set; }
 
     public string HostId => configuration.HostId;
     public string HostName => configuration.HostName;
@@ -114,6 +121,7 @@ public sealed class AgentServer : ISessionEnvironment
         }
         connections.Clear();
         UpdateFocusInterest();
+        UpdateVolumeInterest();
     }
 
     /// <summary>Putus sesi aktif perangkat tanpa menghapusnya dari daftar terpercaya.</summary>
@@ -136,6 +144,20 @@ public sealed class AgentServer : ISessionEnvironment
         if (!focusInterest || focused == textFocus) return;
         textFocus = focused;
         foreach (var connection in connections.Values.Where(c => c.WantsFocusUpdates)) connection.Send(new ControlMessage.Focus(focused));
+    }
+
+    /// <summary>Status volume dari pemantau volume. Dikirim ke HP yang memintanya, hanya kalau berubah.</summary>
+    public void UpdateVolume(VolumeState state)
+    {
+        if (!volumeInterest || state == volume) return;
+        volume = state;
+        foreach (var connection in connections.Values.Where(c => c.WantsVolumeUpdates)) connection.Send(new ControlMessage.VolumeStatus(state));
+    }
+
+    /// <summary>Posisi kursor di video layar (0–1) untuk satu koneksi yang meminta <c>cursor</c>.</summary>
+    public void SendScreenCursor(double x, double y, Guid connection)
+    {
+        if (connections.TryGetValue(connection, out var target)) target.Send(new ControlMessage.ScreenCursor(x, y));
     }
 
     /// <summary>Kirim paket video layar ke satu koneksi. Diabaikan kalau koneksinya sudah tidak ada.</summary>
@@ -166,6 +188,7 @@ public sealed class AgentServer : ISessionEnvironment
         if (!connections.Remove(connection.Id)) return;
         EndScreen(connection);
         UpdateFocusInterest();
+        UpdateVolumeInterest();
         if (connection.Device is { } device)
         {
             OnSessionEnded?.Invoke(device.Id);
@@ -189,6 +212,13 @@ public sealed class AgentServer : ISessionEnvironment
         UpdateFocusInterest();
     }
 
+    internal void VolumeSubscriptionChanged(AgentConnection connection)
+    {
+        // HP yang baru meminta langsung menerima status saat ini, kalau sudah diketahui.
+        if (connection.WantsVolumeUpdates && volume is { } current) connection.Send(new ControlMessage.VolumeStatus(current));
+        UpdateVolumeInterest();
+    }
+
     internal void Trust(TrustedDevice device)
     {
         Devices.Upsert(device);
@@ -202,6 +232,15 @@ public sealed class AgentServer : ISessionEnvironment
         focusInterest = interested;
         if (!interested) textFocus = null;
         OnFocusInterestChanged?.Invoke(interested);
+    }
+
+    private void UpdateVolumeInterest()
+    {
+        var interested = connections.Values.Any(c => c.WantsVolumeUpdates);
+        if (interested == volumeInterest) return;
+        volumeInterest = interested;
+        if (!interested) volume = null;
+        OnVolumeInterestChanged?.Invoke(interested);
     }
 
     private void EndScreen(AgentConnection connection)

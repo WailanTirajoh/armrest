@@ -30,17 +30,20 @@ Versi protokol: **1** (field `v` di pesan `hello`). Agent menolak versi lain den
 | Mac → HP | `challenge` | `nonce` | Mode auth, atau langsung setelah `pair_result` ok |
 | HP → Mac | `auth` | `sig` | Balasan challenge |
 | Mac → HP | `auth_result` | `ok: true` dengan `features` dan `platform` (opsional), atau `ok: false`, `error` | Setelah verifikasi |
-| HP → Mac | `settings` | `sensitivity`, `scrollSpeed`, `focusUpdates` | Setelah `auth_result` ok, dan setiap kali diubah |
+| HP → Mac | `settings` | `sensitivity`, `scrollSpeed`, `focusUpdates`, `volumeUpdates` | Setelah `auth_result` ok, dan setiap kali diubah |
 | Mac → HP | `focus` | `text` (bool) | Setelah HP meminta lewat `focusUpdates`, lalu setiap kali berubah |
-| HP → Mac | `screen` | `on: true`, `maxWidth`, `maxHeight`, atau `on: false` | Mulai atau berhenti melihat layar Mac; permintaan ulang = minta keyframe |
+| HP → Mac | `screen` | `on: true`, `maxWidth`, `maxHeight`, `cursor` (opsional), atau `on: false` | Mulai atau berhenti melihat layar Mac; permintaan ulang = minta keyframe |
 | Mac → HP | `screen_status` | `state`: `streaming`, `denied`, `failed` | Setelah `screen` on, dan saat aliran berhenti karena error |
 | HP → Mac | `screen_ack` | `seq` | Setiap frame layar yang diterima |
+| Mac → HP | `screen_cursor` | `x`, `y` (0–1) | Selama layar tampil dan HP meminta `cursor`, setiap kali posisi kursor berubah |
+| HP → Mac | `volume` | tepat satu dari `step`, `level`, `muted` | Mengubah volume output komputer |
+| Mac → HP | `volume_status` | `level` (0–1, opsional), `muted` | Setelah HP meminta lewat `volumeUpdates`, lalu setiap kali berubah |
 | Dua arah | `ping` / `pong` | `ts` (ms) | Tiap 5 detik; koneksi ditutup kalau 15 detik tidak ada pesan masuk |
 | Mac → HP | `error` | `error` | Pesan tidak valid atau versi tidak didukung, lalu koneksi ditutup |
 
 "Mac" di tabel di atas berarti komputer yang menjalankan agent, termasuk Windows. Field opsional di `auth_result`:
 
-- `features`: fitur opsional agent, yaitu `focus` dan `screen`.
+- `features`: fitur opsional agent, yaitu `focus`, `screen`, dan `volume`.
 - `platform`: `macos` atau `windows`. HP memakainya untuk label modifier (⌘ ⌃ ⌥ ⇧ atau Ctrl Win Alt Shift), ikon, dan teks. Kalau tidak ada (agent sebelum v0.6), nilainya `macos`.
 
 Kode `error`:
@@ -108,6 +111,7 @@ HP bisa menampilkan layar Mac, misalnya di belakang area touchpad. Videonya H.26
 - **Izin**: kalau Mac belum memberi izin Screen Recording, agent membalas `screen_status` `denied` tanpa mengirim video. Kalau tangkapan gagal atau berhenti karena error, statusnya `failed`. Dalam dua kasus itu HP boleh mengirim `screen` lagi untuk mencoba ulang.
 - **Keyframe**: `screen` on yang dikirim lagi selama aliran berjalan berarti decoder HP butuh keyframe, misalnya setelah Surface dibuat ulang. Agent mengirim `screen_config` lalu keyframe dari gambar terakhir, juga saat layar sedang diam.
 - **Berhenti**: `screen` off, atau koneksi putus.
+- **Posisi kursor**: kalau `screen` membawa `cursor: true`, agent mengirim `{"t":"screen_cursor","x":0.4213,"y":0.25}` setiap kali posisi kursor di video berubah, paling banyak sekali per gambar yang ditangkap, dan sekali lagi setelah permintaan ulang. `x` dan `y` dihitung dari kiri atas video, 0–1, empat desimal. HP memakainya supaya tampilan yang di-zoom mengikuti kursor. Agent sebelum v0.7 mengabaikan `cursor`.
 
 Binary frame Mac → HP (little-endian, byte pertama = tipe):
 
@@ -124,6 +128,21 @@ Aturan video:
 - Layar yang diam tidak menghasilkan frame. Kursor ikut tergambar. Dengan beberapa monitor, agent mengikuti monitor tempat kursor berada; kalau ukurannya berubah, `screen_config` baru mendahului keyframe berikutnya.
 - **Kontrol aliran**: `seq` naik satu per frame. HP mengirim `screen_ack` untuk setiap frame yang diterima, dan konfirmasinya kumulatif. Agent menahan frame baru selama ada 4 frame yang belum dikonfirmasi, lalu mengirim gambar terbaru begitu ada konfirmasi. Jadi saat WiFi lambat gambar dilewati, bukan menumpuk.
 - HP menyalakan video hanya selama app terlihat, supaya WiFi dan baterai tidak terpakai sia-sia.
+
+## Volume
+
+Supaya HP bisa mengatur volume suara komputer, misalnya lewat tombol volume HP.
+
+- **Fitur**: agent yang mendukung mengirim `"volume"` di `features`. HP hanya mengirim `volume` kalau fitur ini ada, karena agent lama menutup koneksi saat menerima pesan yang tidak dikenal.
+- **Perintah** berisi tepat satu field:
+  - `{"t":"volume","step":1}` naik satu langkah, `-1` turun (paling banyak 16 langkah sekaligus). Satu langkah = 1/16, dan hasilnya selalu kelipatan 1/16 seperti tombol volume Mac: dari 0,53 naik ke 0,5625 atau turun ke 0,5.
+  - `{"t":"volume","level":0.4}` mengatur volume langsung (0–1).
+  - `{"t":"volume","muted":true}` membisukan, `false` menyalakan suara lagi.
+  - `step` dan `level` juga menyalakan suara yang sedang bisu, seperti tombol volume.
+- **Status**: HP meminta dengan `volumeUpdates: true` di `settings`. Agent langsung mengirim status saat ini, lalu mengirim ulang setiap kali berubah, termasuk kalau volume diubah di komputer: `{"t":"volume_status","level":0.5625,"muted":false}`.
+- Tanpa `level`, output komputer tidak bisa diatur volumenya (mis. monitor HDMI di Mac). Perintah `step` dan `level` lalu diabaikan.
+- Agent memeriksa volume setiap 250 ms, hanya selama ada HP yang meminta. Yang diatur adalah perangkat output default: lewat CoreAudio di Mac (tanpa izin tambahan), dan lewat Core Audio (`IAudioEndpointVolume`) di Windows.
+- HP sebelum v0.7 tidak mengirim `volumeUpdates`, jadi tidak pernah menerima `volume_status`.
 
 ## QR pairing
 

@@ -20,16 +20,33 @@ sealed interface ControlMessage {
         val features: List<String> = emptyList(),
         val platform: String? = null,
     ) : ControlMessage
-    /** `focusUpdates`: minta Mac mengirim [Focus] setiap kali fokus kolom teks berubah. */
-    data class Settings(val sensitivity: Double, val scrollSpeed: Double, val focusUpdates: Boolean = false) : ControlMessage
+    /**
+     * `focusUpdates`: minta Mac mengirim [Focus] setiap kali fokus kolom teks berubah. `volumeUpdates`: minta
+     * [VolumeStatus] setiap kali volume berubah.
+     */
+    data class Settings(
+        val sensitivity: Double,
+        val scrollSpeed: Double,
+        val focusUpdates: Boolean = false,
+        val volumeUpdates: Boolean = false,
+    ) : ControlMessage
     /** Apakah kolom teks sedang fokus di Mac. */
     data class Focus(val text: Boolean) : ControlMessage
-    /** Mulai (`on`) atau berhenti melihat layar Mac. Diminta lagi saat aktif = minta keyframe. Ukuran dalam piksel. */
-    data class Screen(val on: Boolean, val maxWidth: Int = 0, val maxHeight: Int = 0) : ControlMessage
+    /**
+     * Mulai (`on`) atau berhenti melihat layar Mac. Diminta lagi saat aktif = minta keyframe. Ukuran dalam piksel.
+     * `cursor`: minta posisi kursor ([ScreenCursor]) supaya tampilan yang di-zoom bisa mengikutinya.
+     */
+    data class Screen(val on: Boolean, val maxWidth: Int = 0, val maxHeight: Int = 0, val cursor: Boolean = false) : ControlMessage
     /** Frame layar sampai `seq` sudah diterima. */
     data class ScreenAck(val seq: Long) : ControlMessage
     /** [SCREEN_STREAMING], [SCREEN_DENIED], atau [SCREEN_FAILED]. */
     data class ScreenStatus(val state: String) : ControlMessage
+    /** Posisi kursor di video layar, 0–1 dari kiri atas. */
+    data class ScreenCursor(val x: Double, val y: Double) : ControlMessage
+    /** Perintah volume, berisi tepat satu: naik/turun `step` langkah 1/16, `level` 0–1, atau `muted`. */
+    data class Volume(val step: Int? = null, val level: Double? = null, val muted: Boolean? = null) : ControlMessage
+    /** Volume output komputer. `level` null = perangkat output tidak bisa diatur volumenya. */
+    data class VolumeStatus(val level: Double?, val muted: Boolean) : ControlMessage
     data class Ping(val ts: Long) : ControlMessage
     data class Pong(val ts: Long) : ControlMessage
     data class Error(val error: String) : ControlMessage
@@ -45,12 +62,16 @@ sealed interface ControlMessage {
             is AuthResult -> o.put("t", "auth_result").put("ok", ok).putOpt("error", error).putOpt("platform", platform)
                 .apply { if (features.isNotEmpty()) put("features", JSONArray(features)) }
             is Settings -> o.put("t", "settings").put("sensitivity", sensitivity).put("scrollSpeed", scrollSpeed)
-                .put("focusUpdates", focusUpdates)
+                .put("focusUpdates", focusUpdates).put("volumeUpdates", volumeUpdates)
             is Focus -> o.put("t", "focus").put("text", text)
             is Screen -> o.put("t", "screen").put("on", on)
                 .apply { if (on) put("maxWidth", maxWidth).put("maxHeight", maxHeight) }
+                .apply { if (on && cursor) put("cursor", true) }
             is ScreenAck -> o.put("t", "screen_ack").put("seq", seq)
             is ScreenStatus -> o.put("t", "screen_status").put("state", state)
+            is ScreenCursor -> o.put("t", "screen_cursor").put("x", x).put("y", y)
+            is Volume -> o.put("t", "volume").putOpt("step", step).putOpt("level", level).putOpt("muted", muted)
+            is VolumeStatus -> o.put("t", "volume_status").putOpt("level", level).put("muted", muted)
             is Ping -> o.put("t", "ping").put("ts", ts)
             is Pong -> o.put("t", "pong").put("ts", ts)
             is Error -> o.put("t", "error").put("error", error)
@@ -78,11 +99,18 @@ sealed interface ControlMessage {
                 "auth_result" -> AuthResult(
                     o.getBoolean("ok"), o.optStringOrNull("error"), o.optStrings("features"), o.optStringOrNull("platform"),
                 )
-                "settings" -> Settings(o.getDouble("sensitivity"), o.getDouble("scrollSpeed"), o.optBoolean("focusUpdates", false))
+                "settings" -> Settings(
+                    o.getDouble("sensitivity"), o.getDouble("scrollSpeed"), o.optBoolean("focusUpdates", false),
+                    o.optBoolean("volumeUpdates", false),
+                )
                 "focus" -> Focus(o.getBoolean("text"))
-                "screen" -> if (o.getBoolean("on")) Screen(true, o.getInt("maxWidth"), o.getInt("maxHeight")) else Screen(false)
+                "screen" ->
+                    if (o.getBoolean("on")) Screen(true, o.getInt("maxWidth"), o.getInt("maxHeight"), o.optBoolean("cursor", false)) else Screen(false)
                 "screen_ack" -> ScreenAck(o.getLong("seq"))
                 "screen_status" -> ScreenStatus(o.getString("state"))
+                "screen_cursor" -> ScreenCursor(o.getDouble("x"), o.getDouble("y"))
+                "volume" -> Volume(o.optIntOrNull("step"), o.optDoubleOrNull("level"), if (o.has("muted")) o.getBoolean("muted") else null)
+                "volume_status" -> VolumeStatus(o.optDoubleOrNull("level"), o.getBoolean("muted"))
                 "ping" -> Ping(o.getLong("ts"))
                 "pong" -> Pong(o.getLong("ts"))
                 "error" -> Error(o.optString("error", "unknown"))
@@ -93,6 +121,10 @@ sealed interface ControlMessage {
         }
 
         private fun JSONObject.optStringOrNull(key: String): String? = if (has(key) && !isNull(key)) getString(key) else null
+
+        private fun JSONObject.optDoubleOrNull(key: String): Double? = if (has(key) && !isNull(key)) getDouble(key) else null
+
+        private fun JSONObject.optIntOrNull(key: String): Int? = if (has(key) && !isNull(key)) getInt(key) else null
 
         private fun JSONObject.optStrings(key: String): List<String> =
             optJSONArray(key)?.let { array -> List(array.length()) { array.getString(it) } } ?: emptyList()

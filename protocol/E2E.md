@@ -15,7 +15,7 @@ penolakan (fingerprint salah, token dipakai ulang, perangkat tidak dikenal).
 | `CURSORCTL_E2E_AUTO_APPROVE=1` | Permintaan pairing langsung diizinkan. |
 | `CURSORCTL_E2E_PAIRING_FILE` | Agent menulis URI QR ke file ini begitu server siap. Variabel ini juga menyalakan mode tanpa UI. |
 | `CURSORCTL_E2E_FOCUS_FILE` | Status fokus kolom teks dibaca dari file ini: `1` = kolom teks fokus. |
-| `CURSORCTL_E2E_LOG=1` | Log ke stderr: `server: …`, `features: …`, `input: …`, `focus: …`, `screen: …`. |
+| `CURSORCTL_E2E_LOG=1` | Log ke stderr: `server: …`, `features: …`, `input: …`, `focus: …`, `screen: …`, `volume: …`. |
 
 ## Perilaku mode tanpa UI
 
@@ -23,6 +23,8 @@ penolakan (fingerprint salah, token dipakai ulang, perangkat tidak dikenal).
 - **Fokus kolom teks**: dari file di atas, atau selalu "bukan kolom teks" kalau tidak di-set. Tidak pernah membaca app lain.
 - **Layar**: pola uji bergerak, seolah layar 1440 × 900, lewat encoder H.264 sungguhan. Tidak pernah menangkap layar asli.
   - HP uji meminta 1920 × 1080, jadi `screen_config` harus berukuran 1440 × 900.
+  - Posisi kursor (`screen_cursor`) tiruan: di tengah balok yang bergerak, `y` = 0,725.
+- **Volume**: tiruan di memori, mulai dari `level` 0,5 dan tidak bisu. Tidak pernah mengubah volume sungguhan.
 - **Fitur `screen`** hanya diumumkan kalau encoder tersedia.
   - Agent tanpa encoder: host C# di macOS/Linux, atau Windows Server tanpa Media Foundation.
   - Untuk agent seperti itu, jalankan klien dengan `CURSORCTL_E2E_EXPECT_SCREEN=0`.

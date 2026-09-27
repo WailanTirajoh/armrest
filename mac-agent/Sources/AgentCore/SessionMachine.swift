@@ -31,8 +31,9 @@ public enum SessionAction: Equatable, Sendable {
     case trustDevice(TrustedDevice)
     case authenticated(TrustedDevice)
     case input(InputMessage)
-    case settings(sensitivity: Double, scrollSpeed: Double, focusUpdates: Bool)
+    case settings(sensitivity: Double, scrollSpeed: Double, focusUpdates: Bool, volumeUpdates: Bool)
     case screen(ScreenRequest?)
+    case volume(VolumeCommand)
     case screenAck(UInt32)
     case close(reason: String)
 }
@@ -113,10 +114,14 @@ public final class SessionMachine {
             let result = ControlMessage.authResult(ok: true, error: nil, features: environment.features, platform: environment.platform)
             return [.send(result), .authenticated(device)]
 
-        case let (.authenticated, .settings(sensitivity, scrollSpeed, focusUpdates)):
+        case let (.authenticated, .settings(sensitivity, scrollSpeed, focusUpdates, volumeUpdates)):
             return [.settings(
-                sensitivity: min(max(sensitivity, 0.3), 5), scrollSpeed: min(max(scrollSpeed, 0.3), 8), focusUpdates: focusUpdates
+                sensitivity: min(max(sensitivity, 0.3), 5), scrollSpeed: min(max(scrollSpeed, 0.3), 8), focusUpdates: focusUpdates,
+                volumeUpdates: volumeUpdates
             )]
+
+        case let (.authenticated, .volume(command)):
+            return [.volume(command)]
 
         case let (.authenticated, .screen(request)):
             return [.screen(request)]

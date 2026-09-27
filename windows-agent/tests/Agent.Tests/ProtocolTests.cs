@@ -1,5 +1,6 @@
 using System.Text;
 using CursorController.Agent.Protocol;
+using CursorController.Agent.Volume;
 
 namespace CursorController.Agent.Tests;
 
@@ -106,11 +107,20 @@ public class ProtocolTests
             new ControlMessage.AuthResult(false, "bad_sig"),
             new ControlMessage.AuthResult(true, null, ["focus", "screen"], AgentPlatform.Windows),
             new ControlMessage.Settings(1.5, 2, true),
+            new ControlMessage.Settings(1.5, 2, true, true),
             new ControlMessage.Focus(true),
             new ControlMessage.Screen(new ScreenRequest(2712, 1220)),
+            new ControlMessage.Screen(new ScreenRequest(2712, 1220, cursor: true)),
             new ControlMessage.Screen(null),
             new ControlMessage.ScreenAck(4_294_967_295),
             new ControlMessage.ScreenStatusMessage(ScreenStatus.Denied),
+            new ControlMessage.ScreenCursor(0.4213, 1),
+            new ControlMessage.VolumeMessage(new VolumeCommand.Step(1)),
+            new ControlMessage.VolumeMessage(new VolumeCommand.Step(-3)),
+            new ControlMessage.VolumeMessage(new VolumeCommand.Level(0.25)),
+            new ControlMessage.VolumeMessage(new VolumeCommand.Muted(true)),
+            new ControlMessage.VolumeStatus(new VolumeState(0.5625, false)),
+            new ControlMessage.VolumeStatus(new VolumeState(null, true)),
             new ControlMessage.Ping(1_790_000_000_000),
             new ControlMessage.Pong(42),
             new ControlMessage.ErrorMessage("bad_message"),
@@ -130,6 +140,12 @@ public class ProtocolTests
         Assert.Equal(new ControlMessage.Settings(1.5, 2, false), Decode("""{"t":"settings","sensitivity":1.5,"scrollSpeed":2.0}"""));
         Assert.Equal(new ControlMessage.Screen(new ScreenRequest(2712, 1220)), Decode("""{"t":"screen","on":true,"maxWidth":2712,"maxHeight":1220}"""));
         Assert.Equal(new ControlMessage.ScreenAck(42), Decode("""{"t":"screen_ack","seq":42}"""));
+        Assert.Equal(
+            new ControlMessage.Screen(new ScreenRequest(2712, 1220, cursor: true)),
+            Decode("""{"t":"screen","on":true,"maxWidth":2712,"maxHeight":1220,"cursor":true}"""));
+        Assert.Equal(
+            new ControlMessage.Settings(1.5, 2, false, true),
+            Decode("""{"t":"settings","sensitivity":1.5,"scrollSpeed":2.0,"focusUpdates":false,"volumeUpdates":true}"""));
         Assert.Null(Decode("""{"t":"nope"}"""));
         Assert.Null(Decode("bukan json"));
         Assert.Null(Decode("""{"t":"hello","v":1,"deviceId":"x","mode":"lain"}"""));
@@ -146,5 +162,24 @@ public class ProtocolTests
         Assert.False(TextChunker.IsAllowed("a\0b"));
         Assert.False(TextChunker.IsAllowed("a\rb"));
         Assert.False(TextChunker.IsAllowed("a\u007f"));
+    }
+
+    [Fact]
+    public void VolumeMessagesFromPhonesAreStrict()
+    {
+        ControlMessage? Decode(string json) => ControlMessage.Decode(Encoding.UTF8.GetBytes(json));
+        Assert.Equal(new ControlMessage.VolumeMessage(new VolumeCommand.Step(1)), Decode("""{"t":"volume","step":1}"""));
+        Assert.Equal(new ControlMessage.VolumeMessage(new VolumeCommand.Step(-16)), Decode("""{"t":"volume","step":-40}"""));
+        Assert.Equal(new ControlMessage.VolumeMessage(new VolumeCommand.Level(0.4)), Decode("""{"t":"volume","level":0.4}"""));
+        Assert.Equal(new ControlMessage.VolumeMessage(new VolumeCommand.Level(1)), Decode("""{"t":"volume","level":7}"""));
+        Assert.Equal(new ControlMessage.VolumeMessage(new VolumeCommand.Muted(true)), Decode("""{"t":"volume","muted":true}"""));
+        // Bool JSON bukan angka, dan langkah harus bilangan bulat.
+        Assert.Null(Decode("""{"t":"volume","step":true}"""));
+        Assert.Null(Decode("""{"t":"volume","step":1.5}"""));
+        Assert.Null(Decode("""{"t":"volume","muted":1}"""));
+        Assert.Null(Decode("""{"t":"volume"}"""));
+        Assert.Equal(new ControlMessage.VolumeStatus(new VolumeState(null, false)), Decode("""{"t":"volume_status","muted":false}"""));
+        // Empat desimal, sama dengan agent Mac.
+        Assert.Equal("""{"t":"screen_cursor","x":0.4213,"y":0.1}""", Encoding.UTF8.GetString(new ControlMessage.ScreenCursor(0.42131234, 0.1).Encode()));
     }
 }

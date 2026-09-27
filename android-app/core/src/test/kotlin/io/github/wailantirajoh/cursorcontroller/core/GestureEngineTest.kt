@@ -97,4 +97,66 @@ class GestureEngineTest {
         engine.move(1, 130f, 100f, 240)
         assertEquals(listOf(InputAction.Button(MouseButton.LEFT, down = false)), engine.cancel())
     }
+
+    private fun zoomEngine() = GestureEngine().apply { zoomEnabled = true }
+
+    @Test
+    fun pinchApartZoomsInsteadOfScrolling() {
+        val engine = zoomEngine()
+        val out = mutableListOf<InputAction>()
+        out.addAll(
+            engine.down(1, 100f, 100f, 0),
+            engine.down(2, 200f, 100f, 10),
+            engine.move(1, 90f, 100f, 30),
+            engine.move(2, 210f, 100f, 30),
+            engine.move(1, 60f, 100f, 50),
+            engine.move(2, 240f, 100f, 50),
+        )
+        assertTrue(out.isNotEmpty() && out.all { it is InputAction.Pinch })
+        // Jarak antar jari dari 100 menjadi 180 dp: total skala 1,8 di sekitar titik tengah yang sama.
+        val scale = out.filterIsInstance<InputAction.Pinch>().fold(1f) { total, pinch -> total * pinch.scale }
+        assertEquals(1.8f, scale, 0.001f)
+        // Jari diproses satu per satu, jadi titik tengah bergeser sedikit di antaranya lalu kembali ke 150.
+        val pinches = out.filterIsInstance<InputAction.Pinch>()
+        assertTrue(pinches.all { it.focusY == 100f })
+        assertEquals(150f, pinches.last().focusX)
+        assertEquals(0f, pinches.sumOf { it.panX.toDouble() }.toFloat(), 0.001f)
+        // Cubit bukan klik kanan.
+        assertTrue(engine.up(1, 100).isEmpty())
+        assertTrue(engine.up(2, 110).isEmpty())
+    }
+
+    @Test
+    fun oneFingerStretchIsStillAPinch() {
+        val engine = zoomEngine()
+        engine.down(1, 100f, 100f, 0)
+        engine.down(2, 200f, 100f, 10)
+        // Jari 1 diam, jari 2 menjauh: titik tengah ikut bergeser, tapi jaraknya berubah dua kali lebih jauh.
+        val out = engine.move(2, 212f, 100f, 30)
+        val pinch = out.single() as InputAction.Pinch
+        assertEquals(1.12f, pinch.scale, 0.001f)
+        assertEquals(6f, pinch.panX, 0.001f)
+    }
+
+    @Test
+    fun parallelTwoFingerSlideStillScrollsWhenZoomIsEnabled() {
+        val engine = zoomEngine()
+        val out = mutableListOf<InputAction>()
+        out.addAll(
+            engine.down(1, 100f, 100f, 0),
+            engine.down(2, 160f, 100f, 10),
+            engine.move(1, 100f, 110f, 30),
+            engine.move(2, 160f, 110f, 30),
+        )
+        assertEquals(listOf(InputAction.Scroll(0f, 5f)), out)
+    }
+
+    @Test
+    fun pinchIsScrollWhenZoomIsDisabled() {
+        engine.down(1, 100f, 100f, 0)
+        engine.down(2, 200f, 100f, 10)
+        engine.move(1, 90f, 100f, 30)
+        assertEquals(listOf(InputAction.Scroll(-5f, 0f)), engine.move(1, 80f, 100f, 40))
+    }
 }
+

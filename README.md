@@ -1,6 +1,6 @@
 # Cursor Controller
 
-Pakai HP Android sebagai touchpad dan keyboard untuk Mac atau PC Windows lewat WiFi yang sama: gerak kursor, klik, klik ganda, klik kanan, scroll, drag, dan mengetik. Layar komputer juga bisa ditampilkan di HP. HP cukup dipasangkan sekali lewat QR, lalu tersambung ulang otomatis.
+Pakai HP Android sebagai touchpad dan keyboard untuk Mac atau PC Windows lewat WiFi yang sama: gerak kursor, klik, klik ganda, klik kanan, scroll, drag, dan mengetik. Volume komputer bisa diatur dari tombol volume HP, dan layar komputer bisa ditampilkan di HP, lengkap dengan zoom dan layar penuh. HP cukup dipasangkan sekali lewat QR, lalu tersambung ulang otomatis.
 
 | Folder | Isi |
 | --- | --- |
@@ -33,6 +33,7 @@ Pakai HP Android sebagai touchpad dan keyboard untuk Mac atau PC Windows lewat W
 | Tap 2 jari | Klik kanan |
 | Geser 2 jari | Scroll dengan arah natural seperti touchpad. Di Mac mengikuti setelan natural scrolling. |
 | Tap, lalu tahan dan geser | Drag |
+| Cubit 2 jari (saat layar komputer tampil) | Zoom layar komputer di HP |
 
 ### Keyboard
 
@@ -46,14 +47,24 @@ Keyboard juga terbuka sendiri saat kolom teks di komputer aktif, misalnya setela
 
 Ketuk ikon monitor di kanan atas layar touchpad. Layar komputer, termasuk kursornya, tampil di area touchpad, dan semua gesture tetap berfungsi di atasnya. Jadi kamu bisa melihat posisi kursor tanpa melihat ke komputer. Dengan beberapa monitor, yang tampil adalah monitor tempat kursor berada. Miringkan HP untuk gambar yang lebih besar.
 
+- **Zoom**: cubit dengan 2 jari untuk memperbesar sampai 4×, dan geser sambil mencubit untuk berpindah bagian. Selama di-zoom, tampilan mengikuti kursor, jadi kursor tidak pernah keluar dari layar HP. Geser 2 jari tanpa mencubit tetap scroll. Ketuk label zoom (mis. `2,0×`) di kiri atas untuk kembali ke tampilan penuh.
+- **Layar penuh**: ketuk tombol ⛶ di pojok kanan atas gambar. Bar atas dan bar sistem HP disembunyikan, dan tombol keyboard, volume, serta keluar pindah ke pojok layar. Tombol Back juga keluar dari layar penuh.
+
 - **Mac**: pertama kali dipakai, Mac meminta izin **Screen Recording**. Nyalakan Cursor Controller di System Settings, lalu pilih **Quit & Reopen**. Selama layar tampil di HP, macOS menampilkan indikator perekaman layar di menu bar.
 - **Windows**: tidak perlu izin.
 
 Panel Cursor Controller menulis "melihat layar" di sesi HP yang sedang menampilkan layar. Video hanya dikirim selama app di HP terbuka; ketuk ikon monitor lagi untuk berhenti.
 
+### Volume komputer
+
+Selama touchpad terbuka, tombol volume HP mengatur volume komputer, bukan volume HP, dan indikator volume muncul sebentar di layar HP. Ikon speaker di kanan atas membuka panel volume: slider, bisukan, dan tombol pelankan/keraskan. Satu langkah = 1/16, sama dengan tombol volume Mac.
+
+- Yang diatur adalah perangkat output default komputer. Di Mac, output HDMI/DisplayPort ke monitor biasanya tidak bisa diatur volumenya (panel menulis "Tidak bisa diatur"); atur di monitornya.
+- Matikan lewat **Tombol volume HP mengatur komputer** di pengaturan touchpad kalau ingin tombol volume HP bekerja seperti biasa.
+
 ### Pengaturan
 
-Sensitivitas, kecepatan scroll, tombol Kiri/Kanan, getar saat klik, dan keyboard otomatis diatur lewat ikon pengaturan di layar touchpad. Akses HP bisa dicabut kapan saja lewat **Cabut…** di panel Cursor Controller di komputer.
+Sensitivitas, kecepatan scroll, tombol Kiri/Kanan, getar saat klik, keyboard otomatis, dan tombol volume diatur lewat ikon pengaturan di layar touchpad. Akses HP bisa dicabut kapan saja lewat **Cabut…** di panel Cursor Controller di komputer.
 
 ### Kalau ada masalah
 
@@ -97,7 +108,7 @@ make android   # APK debug
 make windows   # agent Windows (installer dibuat CI)
 ```
 
-Uji end-to-end menjalankan agent sungguhan dengan profil uji terpisah, lalu klien Android di JVM melakukan pairing, auth, input, fokus, layar, sambung ulang, dan skenario penolakan. Semua data uji dihapus di akhir; kontraknya ada di [protocol/E2E.md](protocol/E2E.md).
+Uji end-to-end menjalankan agent sungguhan dengan profil uji terpisah, lalu klien Android di JVM melakukan pairing, auth, input, fokus, volume (tiruan), layar, sambung ulang, dan skenario penolakan. Semua data uji dihapus di akhir; kontraknya ada di [protocol/E2E.md](protocol/E2E.md).
 
 ```bash
 ./scripts/e2e-local.sh      # agent Mac, lalu inti agent Windows (C#) tanpa layar

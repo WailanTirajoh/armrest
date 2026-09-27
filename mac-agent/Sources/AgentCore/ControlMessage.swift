@@ -19,8 +19,8 @@ public enum ControlMessage: Equatable, Sendable {
     case auth(sig: String)
     /// Hanya saat ok: `features` = fitur opsional agent (lihat `AgentFeature`), `platform` = `macos` atau `windows`.
     case authResult(ok: Bool, error: String?, features: [String] = [], platform: String? = nil)
-    /// `focusUpdates`: HP ingin menerima pesan `focus`.
-    case settings(sensitivity: Double, scrollSpeed: Double, focusUpdates: Bool)
+    /// `focusUpdates`: HP ingin menerima pesan `focus`. `volumeUpdates`: HP ingin menerima pesan `volume_status`.
+    case settings(sensitivity: Double, scrollSpeed: Double, focusUpdates: Bool, volumeUpdates: Bool = false)
     /// Apakah kolom teks sedang fokus di Mac, supaya HP bisa membuka keyboard sendiri.
     case focus(text: Bool)
     /// HP mulai (request) atau berhenti (nil) melihat layar. Permintaan ulang saat aktif = minta keyframe.
@@ -28,6 +28,12 @@ public enum ControlMessage: Equatable, Sendable {
     /// HP sudah menerima frame layar sampai `seq`.
     case screenAck(seq: UInt32)
     case screenStatus(ScreenStatus)
+    /// Posisi kursor di video layar, 0–1 dari kiri atas. Hanya untuk HP yang meminta `cursor`.
+    case screenCursor(x: Double, y: Double)
+    /// Perintah volume dari HP.
+    case volume(VolumeCommand)
+    /// Volume output komputer, untuk HP yang meminta `volumeUpdates`.
+    case volumeStatus(VolumeState)
     case ping(ts: Int64)
     case pong(ts: Int64)
     case error(String)
@@ -52,8 +58,11 @@ public enum ControlMessage: Equatable, Sendable {
             if let error { object["error"] = error }
             if !features.isEmpty { object["features"] = features }
             if let platform { object["platform"] = platform }
-        case let .settings(sensitivity, scrollSpeed, focusUpdates):
-            object = ["t": "settings", "sensitivity": sensitivity, "scrollSpeed": scrollSpeed, "focusUpdates": focusUpdates]
+        case let .settings(sensitivity, scrollSpeed, focusUpdates, volumeUpdates):
+            object = [
+                "t": "settings", "sensitivity": sensitivity, "scrollSpeed": scrollSpeed, "focusUpdates": focusUpdates,
+                "volumeUpdates": volumeUpdates,
+            ]
         case let .focus(text):
             object = ["t": "focus", "text": text]
         case let .screen(request):
@@ -61,11 +70,23 @@ public enum ControlMessage: Equatable, Sendable {
             if let request {
                 object["maxWidth"] = request.maxWidth
                 object["maxHeight"] = request.maxHeight
+                if request.cursor { object["cursor"] = true }
             }
         case let .screenAck(seq):
             object = ["t": "screen_ack", "seq": seq]
         case let .screenStatus(status):
             object = ["t": "screen_status", "state": status.rawValue]
+        case let .screenCursor(x, y):
+            object = ["t": "screen_cursor", "x": Self.decimal(x), "y": Self.decimal(y)]
+        case let .volume(.step(count)):
+            object = ["t": "volume", "step": count]
+        case let .volume(.level(level)):
+            object = ["t": "volume", "level": Self.decimal(level)]
+        case let .volume(.muted(muted)):
+            object = ["t": "volume", "muted": muted]
+        case let .volumeStatus(state):
+            object = ["t": "volume_status", "muted": state.muted]
+            if let level = state.level { object["level"] = Self.decimal(level) }
         case let .ping(ts):
             object = ["t": "ping", "ts": ts]
         case let .pong(ts):
@@ -77,11 +98,19 @@ public enum ControlMessage: Equatable, Sendable {
         return (try? JSONSerialization.data(withJSONObject: object, options: [.sortedKeys])) ?? Data()
     }
 
+    /// Empat desimal. Double biasa ditulis JSONSerialization dengan 17 digit (0.42130000000000001).
+    private static func decimal(_ value: Double) -> NSDecimalNumber {
+        NSDecimalNumber(string: String(format: "%.4f", locale: Locale(identifier: "en_US_POSIX"), value))
+    }
+
     public static func decode(_ data: Data) -> ControlMessage? {
         guard let o = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any],
               let type = o["t"] as? String else { return nil }
         func string(_ key: String) -> String? { o[key] as? String }
         func number(_ key: String) -> NSNumber? { o[key] as? NSNumber }
+        // JSONSerialization memberi NSNumber juga untuk true/false; di sini hanya angka sungguhan.
+        func isBoolean(_ value: NSNumber) -> Bool { CFGetTypeID(value) == CFBooleanGetTypeID() }
+        func numeric(_ key: String) -> Double? { number(key).flatMap { isBoolean($0) ? nil : $0.doubleValue } }
 
         switch type {
         case "hello":
@@ -108,19 +137,39 @@ public enum ControlMessage: Equatable, Sendable {
         case "settings":
             guard let sensitivity = number("sensitivity")?.doubleValue,
                   let scrollSpeed = number("scrollSpeed")?.doubleValue else { return nil }
-            // HP v0.3 belum mengirim focusUpdates.
-            return .settings(sensitivity: sensitivity, scrollSpeed: scrollSpeed, focusUpdates: o["focusUpdates"] as? Bool ?? false)
+            // HP v0.3 belum mengirim focusUpdates, dan HP sebelum v0.7 belum mengirim volumeUpdates.
+            return .settings(
+                sensitivity: sensitivity, scrollSpeed: scrollSpeed, focusUpdates: o["focusUpdates"] as? Bool ?? false,
+                volumeUpdates: o["volumeUpdates"] as? Bool ?? false
+            )
         case "focus":
             return (o["text"] as? Bool).map { .focus(text: $0) }
         case "screen":
             guard let on = o["on"] as? Bool else { return nil }
             guard on else { return .screen(nil) }
             guard let width = number("maxWidth")?.intValue, let height = number("maxHeight")?.intValue else { return nil }
-            return .screen(ScreenRequest(maxWidth: width, maxHeight: height))
+            return .screen(ScreenRequest(maxWidth: width, maxHeight: height, cursor: o["cursor"] as? Bool ?? false))
         case "screen_ack":
             return number("seq").map { .screenAck(seq: $0.uint32Value) }
         case "screen_status":
             return string("state").flatMap(ScreenStatus.init(rawValue:)).map { .screenStatus($0) }
+        case "screen_cursor":
+            guard let x = number("x")?.doubleValue, let y = number("y")?.doubleValue else { return nil }
+            return .screenCursor(x: x, y: y)
+        case "volume":
+            // Tepat satu field. `step` harus bilangan bulat.
+            if let step = numeric("step") {
+                guard step == step.rounded() else { return nil }
+                return .volume(.step(Int(min(max(step, -Double(VolumeMath.steps)), Double(VolumeMath.steps)))))
+            }
+            if let level = numeric("level") {
+                return .volume(.level(min(max(level, 0), 1)))
+            }
+            guard let muted = o["muted"] as? NSNumber, isBoolean(muted) else { return nil }
+            return .volume(.muted(muted.boolValue))
+        case "volume_status":
+            guard let muted = o["muted"] as? Bool else { return nil }
+            return .volumeStatus(VolumeState(level: number("level")?.doubleValue, muted: muted))
         case "ping":
             return number("ts").map { .ping(ts: $0.int64Value) }
         case "pong":

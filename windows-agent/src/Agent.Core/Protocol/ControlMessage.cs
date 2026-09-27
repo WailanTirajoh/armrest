@@ -1,4 +1,5 @@
 using System.Text.Json;
+using CursorController.Agent.Volume;
 
 namespace CursorController.Agent.Protocol;
 
@@ -32,8 +33,8 @@ public abstract record ControlMessage
         public override int GetHashCode() => HashCode.Combine(Ok, Error, Platform, Features.Count);
     }
 
-    /// <summary><c>FocusUpdates</c>: HP ingin menerima pesan <c>focus</c>.</summary>
-    public sealed record Settings(double Sensitivity, double ScrollSpeed, bool FocusUpdates) : ControlMessage;
+    /// <summary><c>FocusUpdates</c>: HP ingin menerima pesan <c>focus</c>. <c>VolumeUpdates</c>: pesan <c>volume_status</c>.</summary>
+    public sealed record Settings(double Sensitivity, double ScrollSpeed, bool FocusUpdates, bool VolumeUpdates = false) : ControlMessage;
 
     /// <summary>Apakah kolom teks sedang fokus di komputer.</summary>
     public sealed record Focus(bool Text) : ControlMessage;
@@ -44,6 +45,15 @@ public abstract record ControlMessage
     public sealed record ScreenAck(uint Seq) : ControlMessage;
 
     public sealed record ScreenStatusMessage(ScreenStatus Status) : ControlMessage;
+
+    /// <summary>Posisi kursor di video layar, 0–1 dari kiri atas. Hanya untuk HP yang meminta <c>cursor</c>.</summary>
+    public sealed record ScreenCursor(double X, double Y) : ControlMessage;
+
+    /// <summary>Perintah volume dari HP.</summary>
+    public sealed record VolumeMessage(VolumeCommand Command) : ControlMessage;
+
+    /// <summary>Volume output komputer, untuk HP yang meminta <c>volumeUpdates</c>.</summary>
+    public sealed record VolumeStatus(VolumeState State) : ControlMessage;
 
     public sealed record Ping(long Ts) : ControlMessage;
 
@@ -109,6 +119,7 @@ public abstract record ControlMessage
                     w.WriteNumber("sensitivity", m.Sensitivity);
                     w.WriteNumber("scrollSpeed", m.ScrollSpeed);
                     w.WriteBoolean("focusUpdates", m.FocusUpdates);
+                    w.WriteBoolean("volumeUpdates", m.VolumeUpdates);
                     break;
                 case Focus m:
                     w.WriteString("t", "focus");
@@ -121,6 +132,7 @@ public abstract record ControlMessage
                     {
                         w.WriteNumber("maxWidth", request.MaxWidth);
                         w.WriteNumber("maxHeight", request.MaxHeight);
+                        if (request.Cursor) w.WriteBoolean("cursor", true);
                     }
                     break;
                 case ScreenAck m:
@@ -130,6 +142,31 @@ public abstract record ControlMessage
                 case ScreenStatusMessage m:
                     w.WriteString("t", "screen_status");
                     w.WriteString("state", m.Status.WireName());
+                    break;
+                case ScreenCursor m:
+                    w.WriteString("t", "screen_cursor");
+                    w.WriteNumber("x", Math.Round(m.X, 4));
+                    w.WriteNumber("y", Math.Round(m.Y, 4));
+                    break;
+                case VolumeMessage m:
+                    w.WriteString("t", "volume");
+                    switch (m.Command)
+                    {
+                        case VolumeCommand.Step step:
+                            w.WriteNumber("step", step.Count);
+                            break;
+                        case VolumeCommand.Level level:
+                            w.WriteNumber("level", Math.Round(level.Value, 4));
+                            break;
+                        case VolumeCommand.Muted muted:
+                            w.WriteBoolean("muted", muted.Value);
+                            break;
+                    }
+                    break;
+                case VolumeStatus m:
+                    w.WriteString("t", "volume_status");
+                    if (m.State.Level is { } stateLevel) w.WriteNumber("level", Math.Round(stateLevel, 4));
+                    w.WriteBoolean("muted", m.State.Muted);
                     break;
                 case Ping m:
                     w.WriteString("t", "ping");
@@ -186,20 +223,35 @@ public abstract record ControlMessage
                     return new AuthResult(authOk, Str("error"), features, Str("platform"));
                 case "settings":
                     if (Num("sensitivity") is not { } sensitivity || Num("scrollSpeed") is not { } scrollSpeed) return null;
-                    // HP v0.3 belum mengirim focusUpdates.
-                    return new Settings(sensitivity.GetDouble(), scrollSpeed.GetDouble(), Bool("focusUpdates") ?? false);
+                    // HP v0.3 belum mengirim focusUpdates, dan HP sebelum v0.7 belum mengirim volumeUpdates.
+                    return new Settings(sensitivity.GetDouble(), scrollSpeed.GetDouble(), Bool("focusUpdates") ?? false, Bool("volumeUpdates") ?? false);
                 case "focus":
                     return Bool("text") is { } text ? new Focus(text) : null;
                 case "screen":
                     if (Bool("on") is not { } on) return null;
                     if (!on) return new Screen(null);
                     return Num("maxWidth") is { } width && width.TryGetInt32(out var w) && Num("maxHeight") is { } height && height.TryGetInt32(out var h)
-                        ? new Screen(new ScreenRequest(w, h))
+                        ? new Screen(new ScreenRequest(w, h, Bool("cursor") ?? false))
                         : null;
                 case "screen_ack":
                     return Num("seq") is { } seq && seq.TryGetUInt32(out var s) ? new ScreenAck(s) : null;
                 case "screen_status":
                     return ScreenStatusExtensions.FromWireName(Str("state")) is { } status ? new ScreenStatusMessage(status) : null;
+                case "screen_cursor":
+                    return Num("x") is { } x && Num("y") is { } y ? new ScreenCursor(x.GetDouble(), y.GetDouble()) : null;
+                case "volume":
+                    // Tepat satu field. Langkah harus bilangan bulat.
+                    if (Num("step") is { } stepValue)
+                    {
+                        var step = stepValue.GetDouble();
+                        return step == Math.Round(step)
+                            ? new VolumeMessage(new VolumeCommand.Step((int)Math.Clamp(step, -VolumeMath.Steps, VolumeMath.Steps)))
+                            : null;
+                    }
+                    if (Num("level") is { } levelValue) return new VolumeMessage(new VolumeCommand.Level(Math.Clamp(levelValue.GetDouble(), 0, 1)));
+                    return Bool("muted") is { } muted ? new VolumeMessage(new VolumeCommand.Muted(muted)) : null;
+                case "volume_status":
+                    return Bool("muted") is { } statusMuted ? new VolumeStatus(new VolumeState(Num("level")?.GetDouble(), statusMuted)) : null;
                 case "ping":
                     return Num("ts") is { } ping && ping.TryGetInt64(out var pingTs) ? new Ping(pingTs) : null;
                 case "pong":

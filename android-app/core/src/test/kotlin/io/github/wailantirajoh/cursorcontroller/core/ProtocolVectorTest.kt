@@ -3,6 +3,7 @@ package io.github.wailantirajoh.cursorcontroller.core
 import org.json.JSONObject
 import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Assert.fail
@@ -185,4 +186,26 @@ class ProtocolVectorTest {
     fun reconnectBackoffMatchesSpec() {
         assertArrayEquals(longArrayOf(500, 1_000, 2_000, 5_000, 5_000), LongArray(5) { ReconnectPolicy.delayMs(it) })
     }
+
+    @Test
+    fun volumeAndCursorMessagesRoundTrip() {
+        listOf(
+            ControlMessage.Settings(1.5, 2.0, focusUpdates = true, volumeUpdates = true),
+            ControlMessage.Screen(true, 2712, 1220, cursor = true),
+            ControlMessage.ScreenCursor(0.4213, 1.0),
+            ControlMessage.Volume(step = 1),
+            ControlMessage.Volume(step = -3),
+            ControlMessage.Volume(level = 0.25),
+            ControlMessage.Volume(muted = true),
+            ControlMessage.VolumeStatus(0.5625, false),
+            ControlMessage.VolumeStatus(null, true),
+        ).forEach { assertEquals(it, ControlMessage.parse(it.toJson())) }
+        // Bentuk dari agent (Mac dan Windows).
+        assertEquals(ControlMessage.ScreenCursor(0.4213, 0.725), ControlMessage.parse("""{"t":"screen_cursor","x":0.4213,"y":0.725}"""))
+        assertEquals(ControlMessage.VolumeStatus(1.0, false), ControlMessage.parse("""{"level":1,"muted":false,"t":"volume_status"}"""))
+        assertEquals(ControlMessage.VolumeStatus(null, false), ControlMessage.parse("""{"muted":false,"t":"volume_status"}"""))
+        // Tanpa permintaan kursor, field-nya tidak dikirim sama sekali.
+        assertFalse(JSONObject(ControlMessage.Screen(true, 2712, 1220).toJson()).has("cursor"))
+    }
 }
+

@@ -1,6 +1,7 @@
 package io.github.wailantirajoh.cursorcontroller
 
 import android.app.Application
+import android.view.KeyEvent
 import android.view.Surface
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
@@ -52,12 +53,26 @@ enum class ScreenState { OFF, UNSUPPORTED, LOADING, SHOWING, DENIED, FAILED }
 /** Preview layar Mac di area touchpad. `width` dan `height` = ukuran video, untuk rasio tampilan. */
 data class ScreenUi(val state: ScreenState = ScreenState.OFF, val width: Int = 16, val height: Int = 10)
 
+/**
+ * Volume komputer. `supported`: agent bisa mengatur volume. `known`: status pertama sudah datang. `level` null
+ * setelah diketahui = perangkat output komputer tidak bisa diatur volumenya.
+ */
+data class VolumeUi(val supported: Boolean = false, val known: Boolean = false, val level: Float? = null, val muted: Boolean = false)
+
+/** Posisi kursor di video layar, 0–1 dari kiri atas. */
+data class CursorPoint(val x: Float, val y: Float)
+
 data class UiState(
     val screen: Screen = Screen.Hosts,
     val hosts: List<HostUi> = emptyList(),
     val link: Link = Link.Connecting,
     val keyboardOpen: Boolean = false,
     val macScreen: ScreenUi = ScreenUi(),
+    /** Layar komputer memenuhi layar HP, tanpa bar atas dan bar sistem. */
+    val fullscreen: Boolean = false,
+    val volume: VolumeUi = VolumeUi(),
+    /** Naik setiap tombol volume HP ditekan, untuk menampilkan indikator volume sebentar. */
+    val volumeHud: Int = 0,
     val settings: TouchSettings = TouchSettings(),
     val showGestureHints: Boolean = false,
     val manualAddressFor: SavedHost? = null,
@@ -79,6 +94,10 @@ class ControllerViewModel(application: Application) : AndroidViewModel(applicati
     private val _state = MutableStateFlow(UiState(settings = settingsStore.load()))
     val state: StateFlow<UiState> = _state
 
+    // Terpisah dari UiState karena bisa berubah 30 kali per detik; hanya tampilan zoom yang membacanya.
+    private val _screenCursor = MutableStateFlow<CursorPoint?>(null)
+    val screenCursor: StateFlow<CursorPoint?> = _screenCursor
+
     @Volatile private var connection: AgentConnection? = null
     // Dibaca juga dari thread OkHttp untuk membuang paket layar dari koneksi lama.
     @Volatile private var generation = 0
@@ -89,6 +108,9 @@ class ControllerViewModel(application: Application) : AndroidViewModel(applicati
     private var foreground = false
     /** Layar Mac sudah diminta di koneksi ini. */
     private var screenStreaming = false
+    /** Nilai slider volume yang belum terkirim; dikirim paling cepat tiap [VOLUME_SEND_MS]. */
+    private var pendingVolume: Double? = null
+    private var volumeJob: Job? = null
     /** Ukuran maksimum video = layar HP dalam posisi mendatar, jadi putar layar tidak perlu ukuran baru. */
     private val screenBox = application.resources.displayMetrics.let {
         maxOf(it.widthPixels, it.heightPixels) to minOf(it.widthPixels, it.heightPixels)
@@ -192,6 +214,14 @@ class ControllerViewModel(application: Application) : AndroidViewModel(applicati
 
             override fun onScreenStatus(state: String) = onMain(gen) { screenStatusChanged(state) }
 
+            override fun onScreenCursor(x: Double, y: Double) {
+                if (gen == generation) _screenCursor.value = CursorPoint(x.toFloat(), y.toFloat())
+            }
+
+            override fun onVolumeStatus(level: Double?, muted: Boolean) = onMain(gen) {
+                _state.update { it.copy(volume = it.volume.copy(known = true, level = level?.toFloat(), muted = muted)) }
+            }
+
             // Langsung ke decoder tanpa lewat main thread, supaya jeda tetap kecil.
             override fun onScreenPacket(packet: ScreenPacket) {
                 if (gen == generation) screenDecoder.submit(packet)
@@ -212,6 +242,7 @@ class ControllerViewModel(application: Application) : AndroidViewModel(applicati
                 screen = Screen.Touchpad(host.hostId, host.name, host.platform),
                 link = Link.Connected,
                 showGestureHints = !settingsStore.gestureHintsSeen,
+                volume = VolumeUi(supported = ProtocolConstants.FEATURE_VOLUME in (connection?.features ?: emptySet())),
             )
         }
         sendSettings()
@@ -224,6 +255,7 @@ class ControllerViewModel(application: Application) : AndroidViewModel(applicati
         keyboardPanel.onTextFocus(null, auto = false)
         screenStreaming = false
         screenDecoder.reset()
+        forgetConnectionState()
         when (val screen = _state.value.screen) {
             is Screen.Pairing -> _state.update { it.copy(screen = Screen.PairingFailed(pairingError(failure))) }
             is Screen.Touchpad -> when {
@@ -260,6 +292,15 @@ class ControllerViewModel(application: Application) : AndroidViewModel(applicati
         syncKeyboard()
         screenStreaming = false
         screenDecoder.reset()
+        forgetConnectionState()
+    }
+
+    /** Status volume dan posisi kursor hanya berlaku untuk satu koneksi. */
+    private fun forgetConnectionState() {
+        _screenCursor.value = null
+        pendingVolume = null
+        volumeJob?.cancel()
+        _state.update { it.copy(volume = VolumeUi()) }
     }
 
     private fun pairingError(failure: ClientFailure?): PairingError = when (failure) {
@@ -281,7 +322,8 @@ class ControllerViewModel(application: Application) : AndroidViewModel(applicati
         settingsStore.save(settings)
         // Mode otomatis dimatikan: lupakan fokus terakhir supaya status baru dari Mac berlaku saat dinyalakan lagi.
         if (!settings.autoKeyboard) keyboardPanel.onTextFocus(null, auto = false)
-        _state.update { it.copy(settings = settings) }
+        // Layar komputer disembunyikan: fullscreen tidak ada gunanya lagi.
+        _state.update { it.copy(settings = settings, fullscreen = it.fullscreen && settings.screenPreview) }
         sendSettings()
         syncScreen()
     }
@@ -299,6 +341,58 @@ class ControllerViewModel(application: Application) : AndroidViewModel(applicati
     private fun syncKeyboard() = _state.update { it.copy(keyboardOpen = keyboardPanel.isOpen) }
 
     fun toggleScreen() = updateSettings(_state.value.settings.let { it.copy(screenPreview = !it.screenPreview) })
+
+    fun toggleFullscreen() = _state.update { it.copy(fullscreen = !it.fullscreen && it.settings.screenPreview) }
+
+    // region Volume
+
+    fun changeVolume(steps: Int) {
+        connection?.takeIf { it.isAuthenticated }?.changeVolume(steps)
+    }
+
+    fun toggleMute() {
+        val volume = _state.value.volume
+        if (volume.known) connection?.takeIf { it.isAuthenticated }?.setMuted(!volume.muted)
+    }
+
+    /** Dari slider: nilai pertama langsung dikirim, lalu paling cepat tiap [VOLUME_SEND_MS], dan nilai terakhir selalu terkirim. */
+    fun setVolume(level: Float) {
+        pendingVolume = level.toDouble()
+        if (volumeJob?.isActive == true) return
+        volumeJob = viewModelScope.launch {
+            while (true) {
+                val next = pendingVolume ?: break
+                pendingVolume = null
+                connection?.takeIf { it.isAuthenticated }?.setVolume(next)
+                delay(VOLUME_SEND_MS)
+            }
+        }
+    }
+
+    /**
+     * Tombol volume HP mengatur volume komputer selama touchpad tersambung, kalau setelannya menyala. true = event
+     * sudah dipakai (termasuk saat tombol dilepas), jadi volume HP sendiri tidak ikut berubah.
+     */
+    fun onVolumeKey(keyCode: Int, down: Boolean, repeatCount: Int): Boolean {
+        val steps = when (keyCode) {
+            KeyEvent.KEYCODE_VOLUME_UP -> 1
+            KeyEvent.KEYCODE_VOLUME_DOWN -> -1
+            KeyEvent.KEYCODE_VOLUME_MUTE -> 0
+            else -> return false
+        }
+        val state = _state.value
+        if (state.screen !is Screen.Touchpad || state.link != Link.Connected || !state.volume.supported || !state.settings.volumeKeys) {
+            return false
+        }
+        if (down) {
+            // Tombol yang ditahan berulang, jadi volume terus naik atau turun; bisu hanya sekali per tekan.
+            if (steps != 0) changeVolume(steps) else if (repeatCount == 0) toggleMute()
+            _state.update { it.copy(volumeHud = it.volumeHud + 1) }
+        }
+        return true
+    }
+
+    // endregion
 
     /** Coba lagi setelah Mac menolak atau gagal menampilkan layar. */
     fun retryScreen() {
@@ -350,11 +444,16 @@ class ControllerViewModel(application: Application) : AndroidViewModel(applicati
     fun consumeMessage() = _state.update { it.copy(message = null) }
 
     fun backToHosts(message: String? = null) =
-        _state.update { it.copy(screen = Screen.Hosts, message = message ?: it.message, manualAddressFor = null) }
+        _state.update { it.copy(screen = Screen.Hosts, message = message ?: it.message, manualAddressFor = null, fullscreen = false) }
 
     private fun sendSettings() {
         val settings = _state.value.settings
-        connection?.sendSettings(settings.sensitivity.toDouble(), settings.scrollSpeed.toDouble(), focusUpdates = settings.autoKeyboard)
+        val active = connection ?: return
+        active.sendSettings(
+            settings.sensitivity.toDouble(), settings.scrollSpeed.toDouble(), focusUpdates = settings.autoKeyboard,
+            // Status volume selalu diminta kalau agent mendukungnya: dipakai panel volume dan indikator tombol volume.
+            volumeUpdates = ProtocolConstants.FEATURE_VOLUME in active.features,
+        )
     }
 
     private fun refreshHosts() {
@@ -373,4 +472,8 @@ class ControllerViewModel(application: Application) : AndroidViewModel(applicati
     }
 
     // endregion
+
+    private companion object {
+        const val VOLUME_SEND_MS = 60L
+    }
 }

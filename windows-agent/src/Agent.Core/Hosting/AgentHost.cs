@@ -6,6 +6,7 @@ using CursorController.Agent.Protocol;
 using CursorController.Agent.Server;
 using CursorController.Agent.Session;
 using CursorController.Agent.Streaming;
+using CursorController.Agent.Volume;
 
 namespace CursorController.Agent.Hosting;
 
@@ -42,6 +43,8 @@ public sealed class AgentHostOptions
     public Func<bool>? FocusProbe { get; init; }
     /// <summary>Tangkapan layar dan encoder; null = fitur layar tidak diumumkan.</summary>
     public IScreenBackend? Screen { get; init; }
+    /// <summary>Volume output; null = fitur volume tidak diumumkan. Profil uji selalu memakai volume tiruan.</summary>
+    public IVolumeControl? Volume { get; init; }
     public IServiceAdvertiser? Advertiser { get; init; }
 }
 
@@ -57,6 +60,7 @@ public sealed class AgentHost
     private readonly PairingTokens tokens = new();
     private readonly TrustedDeviceStore store;
     private readonly FocusMonitor? focusMonitor;
+    private readonly VolumeMonitor? volumeMonitor;
     private readonly Dictionary<Guid, (string DeviceId, ScreenStreamer Streamer)> streamers = [];
     private AgentServer? server;
     private Timer? ticker;
@@ -71,6 +75,8 @@ public sealed class AgentHost
         store = new TrustedDeviceStore(Path.Combine(profile.SupportDirectory, "trusted-devices.json"));
         Fingerprint = AuthCrypto.Fingerprint(options.Certificate.RawData);
         if (FocusProbeFor(options) is { } probe) focusMonitor = new FocusMonitor(probe, options.Dispatcher.Post);
+        // Profil uji tidak pernah mengubah volume sungguhan.
+        if ((profile.Headless ? new InMemoryVolume() : options.Volume) is { } volume) volumeMonitor = new VolumeMonitor(volume, options.Dispatcher.Post);
     }
 
     public string HostId { get; }
@@ -103,6 +109,7 @@ public sealed class AgentHost
         var features = new List<string>();
         if (focusMonitor is not null) features.Add(AgentFeature.Focus);
         if (options.Screen is not null) features.Add(AgentFeature.Screen);
+        if (volumeMonitor is not null) features.Add(AgentFeature.Volume);
         log.Write($"features: {string.Join(", ", features)}");
         var server = new AgentServer(
             new AgentServer.Configuration(profile.Port, HostId, HostName, options.Certificate, features, options.Platform),
@@ -119,6 +126,7 @@ public sealed class AgentHost
     {
         ticker?.Dispose();
         focusMonitor?.Stop();
+        volumeMonitor?.Stop();
         server?.Stop();
         options.Advertiser?.Dispose();
     }
@@ -211,6 +219,17 @@ public sealed class AgentHost
                 server.UpdateTextFocus(focused);
             };
         }
+        server.OnVolumeInterestChanged = interested =>
+        {
+            if (interested) volumeMonitor?.Start();
+            else volumeMonitor?.Stop();
+        };
+        if (volumeMonitor is not null) volumeMonitor.OnChange = server.UpdateVolume;
+        server.OnVolume = (_, command) =>
+        {
+            log.Write($"volume: {command}");
+            volumeMonitor?.Apply(command);
+        };
         server.OnScreenRequest = ScreenRequested;
         server.OnScreenAck = (connection, seq) =>
         {
@@ -261,7 +280,8 @@ public sealed class AgentHost
             backend.CreateEncoder,
             packet => dispatcher.Post(() => server?.SendScreen(packet, connection)),
             status => dispatcher.Post(() => ScreenStatusChanged(status, connection)),
-            error => log.Write($"screen: error {error}"));
+            error => log.Write($"screen: error {error}"),
+            cursor => dispatcher.Post(() => server?.SendScreenCursor(cursor.X, cursor.Y, connection)));
         streamers[connection] = (device.Id, streamer);
         streamer.Start(request);
         UpdateScreenViewers();

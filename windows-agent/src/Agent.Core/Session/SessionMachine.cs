@@ -1,5 +1,6 @@
 using System.Globalization;
 using CursorController.Agent.Protocol;
+using CursorController.Agent.Volume;
 
 namespace CursorController.Agent.Session;
 
@@ -32,9 +33,11 @@ public abstract record SessionAction
 
     public sealed record Input(InputMessage Message) : SessionAction;
 
-    public sealed record Settings(double Sensitivity, double ScrollSpeed, bool FocusUpdates) : SessionAction;
+    public sealed record Settings(double Sensitivity, double ScrollSpeed, bool FocusUpdates, bool VolumeUpdates = false) : SessionAction;
 
     public sealed record Screen(ScreenRequest? Request) : SessionAction;
+
+    public sealed record Volume(VolumeCommand Command) : SessionAction;
 
     public sealed record ScreenAck(uint Seq) : SessionAction;
 
@@ -114,7 +117,10 @@ public sealed class SessionMachine(ISessionEnvironment environment, Func<DateTim
 
             case (State.Authenticated, ControlMessage.Settings settings):
                 return [new SessionAction.Settings(
-                    Math.Clamp(settings.Sensitivity, 0.3, 5), Math.Clamp(settings.ScrollSpeed, 0.3, 8), settings.FocusUpdates)];
+                    Math.Clamp(settings.Sensitivity, 0.3, 5), Math.Clamp(settings.ScrollSpeed, 0.3, 8), settings.FocusUpdates, settings.VolumeUpdates)];
+
+            case (State.Authenticated, ControlMessage.VolumeMessage volume):
+                return [new SessionAction.Volume(volume.Command)];
 
             case (State.Authenticated, ControlMessage.Screen screen):
                 return [new SessionAction.Screen(screen.Request)];

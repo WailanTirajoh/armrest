@@ -10,16 +10,20 @@ public enum AgentPlatform {
 public enum AgentFeature {
     public static let focus = "focus"
     public static let screen = "screen"
+    public static let volume = "volume"
 }
 
 /// Permintaan HP untuk melihat layar: ukuran video maksimum dalam piksel, biasanya ukuran layar HP.
 public struct ScreenRequest: Equatable, Sendable {
     public let maxWidth: Int
     public let maxHeight: Int
+    /// HP ingin menerima posisi kursor (`screen_cursor`), supaya tampilan yang di-zoom bisa mengikutinya.
+    public let cursor: Bool
 
-    public init(maxWidth: Int, maxHeight: Int) {
+    public init(maxWidth: Int, maxHeight: Int, cursor: Bool = false) {
         self.maxWidth = min(max(maxWidth, 64), 8192)
         self.maxHeight = min(max(maxHeight, 64), 8192)
+        self.cursor = cursor
     }
 }
 

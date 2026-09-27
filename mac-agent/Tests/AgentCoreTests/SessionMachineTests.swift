@@ -126,9 +126,10 @@ private func sign(_ key: P256.Signing.PrivateKey, nonce: Data, env: FakeEnvironm
     _ = machine.handleText(text(.hello(version: 1, deviceId: deviceId, mode: .auth)))
     _ = machine.handleText(text(.auth(sig: try sign(key, nonce: env.nonce, env: env))))
     #expect(
-        machine.handleText(text(.settings(sensitivity: 99, scrollSpeed: 0, focusUpdates: true)))
-            == [.settings(sensitivity: 5, scrollSpeed: 0.3, focusUpdates: true)]
+        machine.handleText(text(.settings(sensitivity: 99, scrollSpeed: 0, focusUpdates: true, volumeUpdates: true)))
+            == [.settings(sensitivity: 5, scrollSpeed: 0.3, focusUpdates: true, volumeUpdates: true)]
     )
+    #expect(machine.handleText(text(.volume(.step(-1)))) == [.volume(.step(-1))])
 }
 
 @Test func screenRequestsOnlyAfterAuthenticationAndFeaturesAreAnnounced() throws {

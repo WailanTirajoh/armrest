@@ -16,6 +16,7 @@ import java.util.concurrent.ScheduledFuture
 import java.util.concurrent.TimeUnit
 import javax.net.ssl.SSLContext
 import javax.net.ssl.X509TrustManager
+import kotlin.math.roundToLong
 
 /** Identitas HP: deviceId + kunci ECDSA P-256 (Android Keystore di app, kunci biasa di test). */
 interface DeviceCredentials {
@@ -70,6 +71,10 @@ class AgentConnection(
         fun onScreenStatus(state: String) {}
         /** Paket video layar. Frame sudah dikonfirmasi ke Mac sebelum callback ini. */
         fun onScreenPacket(packet: ScreenPacket) {}
+        /** Posisi kursor di video layar, 0–1 dari kiri atas. */
+        fun onScreenCursor(x: Double, y: Double) {}
+        /** Volume output komputer; `level` null = tidak bisa diatur. Hanya setelah diminta lewat [sendSettings]. */
+        fun onVolumeStatus(level: Double?, muted: Boolean) {}
         /** Koneksi selesai. `failure` null kalau ditutup normal. */
         fun onEnded(failure: ClientFailure?) {}
     }
@@ -115,13 +120,29 @@ class AgentConnection(
     fun sendInput(message: InputMessage): Boolean =
         isAuthenticated && webSocket.send(message.encode().toByteString())
 
-    fun sendSettings(sensitivity: Double, scrollSpeed: Double, focusUpdates: Boolean) {
-        if (isAuthenticated) send(ControlMessage.Settings(sensitivity, scrollSpeed, focusUpdates))
+    fun sendSettings(sensitivity: Double, scrollSpeed: Double, focusUpdates: Boolean, volumeUpdates: Boolean = false) {
+        if (isAuthenticated) send(ControlMessage.Settings(sensitivity, scrollSpeed, focusUpdates, volumeUpdates))
     }
 
-    /** Minta video layar Mac, atau minta keyframe kalau sudah berjalan. Ukuran maksimum dalam piksel. */
+    /**
+     * Minta video layar Mac, atau minta keyframe kalau sudah berjalan. Ukuran maksimum dalam piksel. Posisi kursor
+     * selalu diminta; agent sebelum v0.7 mengabaikannya.
+     */
     fun requestScreen(maxWidth: Int, maxHeight: Int) {
-        if (isAuthenticated) send(ControlMessage.Screen(true, maxWidth, maxHeight))
+        if (isAuthenticated) send(ControlMessage.Screen(true, maxWidth, maxHeight, cursor = true))
+    }
+
+    /** Naik (positif) atau turun sekian langkah 1/16. Diabaikan kalau agent tidak mendukung volume. */
+    fun changeVolume(steps: Int) = sendVolume(ControlMessage.Volume(step = steps))
+
+    /** Dibulatkan ke 4 desimal: nilai slider (Float) kalau tidak menjadi 0.2489316165447235. */
+    fun setVolume(level: Double) = sendVolume(ControlMessage.Volume(level = (level.coerceIn(0.0, 1.0) * 10_000).roundToLong() / 10_000.0))
+
+    fun setMuted(muted: Boolean) = sendVolume(ControlMessage.Volume(muted = muted))
+
+    // Agent lama menutup koneksi saat menerima pesan yang tidak dikenal, jadi hanya dikirim kalau fiturnya ada.
+    private fun sendVolume(message: ControlMessage.Volume) {
+        if (isAuthenticated && ProtocolConstants.FEATURE_VOLUME in features) send(message)
     }
 
     fun stopScreen() {
@@ -166,6 +187,8 @@ class AgentConnection(
             }
             is ControlMessage.Focus -> if (isAuthenticated) listener.onTextFocus(message.text)
             is ControlMessage.ScreenStatus -> if (isAuthenticated) listener.onScreenStatus(message.state)
+            is ControlMessage.ScreenCursor -> if (isAuthenticated) listener.onScreenCursor(message.x, message.y)
+            is ControlMessage.VolumeStatus -> if (isAuthenticated) listener.onVolumeStatus(message.level, message.muted)
             is ControlMessage.Ping -> send(ControlMessage.Pong(message.ts))
             is ControlMessage.Error -> fail(ClientFailure.Protocol(message.error))
             else -> Unit

@@ -104,14 +104,23 @@ extension Data {
         .authResult(ok: true, error: nil, features: ["focus", "screen"], platform: "windows"),
         .settings(sensitivity: 1.5, scrollSpeed: 2, focusUpdates: true),
         .settings(sensitivity: 1.5, scrollSpeed: 2, focusUpdates: false),
+        .settings(sensitivity: 1.5, scrollSpeed: 2, focusUpdates: true, volumeUpdates: true),
         .focus(text: true),
         .focus(text: false),
         .screen(ScreenRequest(maxWidth: 2712, maxHeight: 1220)),
+        .screen(ScreenRequest(maxWidth: 2712, maxHeight: 1220, cursor: true)),
         .screen(nil),
         .screenAck(seq: 4_294_967_295),
         .screenStatus(.streaming),
         .screenStatus(.denied),
         .screenStatus(.failed),
+        .screenCursor(x: 0.4213, y: 1),
+        .volume(.step(1)),
+        .volume(.step(-3)),
+        .volume(.level(0.25)),
+        .volume(.muted(true)),
+        .volumeStatus(VolumeState(level: 0.5625, muted: false)),
+        .volumeStatus(VolumeState(level: nil, muted: true)),
         .ping(ts: 1_790_000_000_000),
         .pong(ts: 42),
         .error("bad_message"),
@@ -133,6 +142,12 @@ extension Data {
     #expect(ControlMessage.decode(Data(screen.utf8)) == .screen(ScreenRequest(maxWidth: 2712, maxHeight: 1220)))
     #expect(ControlMessage.decode(Data(#"{"on":false,"t":"screen"}"#.utf8)) == .screen(nil))
     #expect(ControlMessage.decode(Data(#"{"seq":42,"t":"screen_ack"}"#.utf8)) == .screenAck(seq: 42))
+    let cursorScreen = #"{"cursor":true,"maxHeight":1220,"maxWidth":2712,"on":true,"t":"screen"}"#
+    #expect(ControlMessage.decode(Data(cursorScreen.utf8)) == .screen(ScreenRequest(maxWidth: 2712, maxHeight: 1220, cursor: true)))
+    let volumeSettings = #"{"focusUpdates":false,"scrollSpeed":2.0,"sensitivity":1.5,"t":"settings","volumeUpdates":true}"#
+    #expect(
+        ControlMessage.decode(Data(volumeSettings.utf8)) == .settings(sensitivity: 1.5, scrollSpeed: 2, focusUpdates: false, volumeUpdates: true)
+    )
     // Agent lama tidak mengirim features; HP lama mengabaikannya.
     #expect(ControlMessage.decode(Data(#"{"ok":true,"t":"auth_result"}"#.utf8)) == .authResult(ok: true, error: nil))
     #expect(ControlMessage.decode(Data(#"{"t":"nope"}"#.utf8)) == nil)
@@ -144,4 +159,21 @@ extension Data {
     let encoded = data.base64URLEncodedString()
     #expect(!encoded.contains("+") && !encoded.contains("/") && !encoded.contains("="))
     #expect(Data(base64URLEncoded: encoded) == data)
+}
+
+@Test func volumeMessagesFromAndroidAreStrict() {
+    func decode(_ json: String) -> ControlMessage? { ControlMessage.decode(Data(json.utf8)) }
+    #expect(decode(#"{"step":1,"t":"volume"}"#) == .volume(.step(1)))
+    #expect(decode(#"{"step":-40,"t":"volume"}"#) == .volume(.step(-16)))
+    #expect(decode(#"{"level":0.4,"t":"volume"}"#) == .volume(.level(0.4)))
+    #expect(decode(#"{"level":7,"t":"volume"}"#) == .volume(.level(1)))
+    #expect(decode(#"{"muted":true,"t":"volume"}"#) == .volume(.muted(true)))
+    // Bool JSON bukan angka, dan langkah harus bilangan bulat.
+    #expect(decode(#"{"step":true,"t":"volume"}"#) == nil)
+    #expect(decode(#"{"step":1.5,"t":"volume"}"#) == nil)
+    #expect(decode(#"{"muted":1,"t":"volume"}"#) == nil)
+    #expect(decode(#"{"t":"volume"}"#) == nil)
+    #expect(decode(#"{"muted":false,"t":"volume_status"}"#) == .volumeStatus(VolumeState(level: nil, muted: false)))
+    // Empat desimal, bukan 17 digit dari JSONSerialization.
+    #expect(String(decoding: ControlMessage.screenCursor(x: 0.42131234, y: 0.1).encoded(), as: UTF8.self) == #"{"t":"screen_cursor","x":0.4213,"y":0.1}"#)
 }

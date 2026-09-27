@@ -91,7 +91,12 @@ internal sealed class GdiScreenSource : IScreenSource
                     if (previous is null || !pixels.SequenceEqual(previous))
                     {
                         previous = pixels.ToArray();
-                        Emit(new ScreenSourceEvent.Frame(new VideoFrame(size.Width, size.Height, Nv12.FromBgra(previous, size.Width, size.Height, size.Width * 4))));
+                        // Dengan DPI PerMonitorV2, posisi kursor dan batas monitor sama-sama dalam piksel fisik.
+                        var position = new CursorPosition(
+                            Math.Clamp((cursor.X - bounds.X) / (double)bounds.Width, 0, 1),
+                            Math.Clamp((cursor.Y - bounds.Y) / (double)bounds.Height, 0, 1));
+                        Emit(new ScreenSourceEvent.Frame(
+                            new VideoFrame(size.Width, size.Height, Nv12.FromBgra(previous, size.Width, size.Height, size.Width * 4)), position));
                     }
                 }
                 var rest = interval - tick.Elapsed;

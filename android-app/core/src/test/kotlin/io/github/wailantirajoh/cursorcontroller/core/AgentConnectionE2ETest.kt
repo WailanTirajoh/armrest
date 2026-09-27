@@ -33,11 +33,15 @@ class AgentConnectionE2ETest {
 
     private val events = LinkedBlockingQueue<String>()
     private val packets = LinkedBlockingQueue<ScreenPacket>()
+    // Terpisah dari `events`: posisi kursor datang terus selama layar tampil, di sela event lain.
+    private val cursors = LinkedBlockingQueue<Pair<Double, Double>>()
     private val listener = object : AgentConnection.Listener {
         override fun onPaired(host: PairedHost) { events.add("paired") }
         override fun onAuthenticated() { events.add("authenticated") }
         override fun onTextFocus(focused: Boolean) { events.add("focus:$focused") }
         override fun onScreenStatus(state: String) { events.add("screen:$state") }
+        override fun onScreenCursor(x: Double, y: Double) { cursors.add(x to y) }
+        override fun onVolumeStatus(level: Double?, muted: Boolean) { events.add("volume:$level:$muted") }
         override fun onScreenPacket(packet: ScreenPacket) { packets.add(packet) }
         override fun onEnded(failure: ClientFailure?) { events.add("ended:$failure") }
     }
@@ -77,6 +81,18 @@ class AgentConnectionE2ETest {
         focusFile.writeText("0")
         assertEquals("focus:false", next())
 
+        // Volume: status saat ini begitu diminta, lalu setiap kali berubah. Agent uji memakai volume tiruan mulai 0,5.
+        assertTrue(ProtocolConstants.FEATURE_VOLUME in pairing.features)
+        pairing.sendSettings(1.5, 2.0, focusUpdates = true, volumeUpdates = true)
+        assertEquals("volume:0.5:false", next())
+        pairing.changeVolume(1)
+        assertEquals("volume:0.5625:false", next())
+        pairing.setMuted(true)
+        assertEquals("volume:0.5625:true", next())
+        // Mengatur level juga menyalakan suara lagi, seperti tombol volume.
+        pairing.setVolume(0.25)
+        assertEquals("volume:0.25:false", next())
+
         // Layar: config (SPS + PPS) lalu keyframe IDR, lalu frame terus mengalir karena setiap frame dikonfirmasi.
         val expectScreen = System.getenv("CURSORCTL_E2E_EXPECT_SCREEN") != "0"
         assertEquals(expectScreen, ProtocolConstants.FEATURE_SCREEN in pairing.features)
@@ -112,6 +128,7 @@ class AgentConnectionE2ETest {
         val first = nextPacket() as ScreenPacket.Frame
         assertTrue(first.keyframe && AnnexB.NAL_IDR in nalTypes(first.data))
         var seq = first.seq
+        cursors.clear()
         repeat(20) {
             var packet = nextPacket()
             // Encoder dengan keyframe berkala (mis. Media Foundation) mengirim screen_config sebelum setiap keyframe.
@@ -121,6 +138,9 @@ class AgentConnectionE2ETest {
             assertTrue(frame.seq > seq && (frame.keyframe || !afterConfig))
             seq = frame.seq
         }
+        // Posisi kursor ikut dikirim karena HP memintanya: pola uji menaruh kursor tiruan di tengah balok (y = 0,725).
+        val cursor = cursors.poll(5, TimeUnit.SECONDS)
+        assertTrue("posisi kursor tidak datang", cursor != null && cursor.first in 0.0..1.0 && cursor.second == 0.725)
         // Permintaan ulang (mis. decoder HP dibuat ulang) menghasilkan config dan keyframe baru.
         connection.requestScreen(1920, 1080)
         var packet = nextPacket()

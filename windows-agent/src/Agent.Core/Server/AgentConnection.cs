@@ -42,6 +42,8 @@ internal sealed class AgentConnection
     public TrustedDevice? Device { get; private set; }
     /// <summary>HP meminta status fokus kolom teks (<c>focusUpdates</c> di pesan settings).</summary>
     public bool WantsFocusUpdates { get; private set; }
+    /// <summary>HP meminta status volume (<c>volumeUpdates</c> di pesan settings).</summary>
+    public bool WantsVolumeUpdates { get; private set; }
     /// <summary>HP sedang meminta video layar.</summary>
     public bool ScreenRequested { get; private set; }
 
@@ -118,6 +120,14 @@ internal sealed class AgentConnection
                         WantsFocusUpdates = settings.FocusUpdates;
                         server.FocusSubscriptionChanged(this);
                     }
+                    if (settings.VolumeUpdates != WantsVolumeUpdates)
+                    {
+                        WantsVolumeUpdates = settings.VolumeUpdates;
+                        server.VolumeSubscriptionChanged(this);
+                    }
+                    break;
+                case SessionAction.Volume volume:
+                    if (Device is not null) server.OnVolume?.Invoke(Device.Id, volume.Command);
                     break;
                 case SessionAction.Screen screen:
                     if (Device is null) break;

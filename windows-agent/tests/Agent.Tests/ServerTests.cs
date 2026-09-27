@@ -3,6 +3,7 @@ using System.Net.WebSockets;
 using CursorController.Agent.Protocol;
 using CursorController.Agent.Server;
 using CursorController.Agent.Session;
+using CursorController.Agent.Volume;
 
 namespace CursorController.Agent.Tests;
 
@@ -24,12 +25,16 @@ internal sealed class ServerHarness : IDisposable
         Server.OnFocusInterestChanged = FocusInterest.Add;
         Server.OnScreenRequest = (connection, _, request) => Screen.Add((connection, request, null));
         Server.OnScreenAck = (connection, seq) => Screen.Add((connection, null, seq));
+        Server.OnVolume = (_, command) => VolumeCommands.Add(command);
+        Server.OnVolumeInterestChanged = VolumeInterest.Add;
     }
 
     public AgentServer Server { get; }
     public BlockingCollection<InputMessage> Inputs { get; } = [];
     public BlockingCollection<bool> FocusInterest { get; } = [];
     public BlockingCollection<(Guid Connection, ScreenRequest? Request, uint? Ack)> Screen { get; } = [];
+    public BlockingCollection<VolumeCommand> VolumeCommands { get; } = [];
+    public BlockingCollection<bool> VolumeInterest { get; } = [];
 
     public int Start()
     {
@@ -208,4 +213,43 @@ public class ServerTests
         await phone.CloseAsync(WebSocketCloseStatus.NormalClosure, null, cancel.Token);
         Assert.Equal(WebSocketCloseStatus.NormalClosure, phone.CloseStatus);
     }
+
+    [Fact]
+    public async Task VolumeCommandsReachAppAndStatusReachesPhonesThatAskForIt()
+    {
+        using var harness = new ServerHarness(approve: true, ["volume"]);
+        var port = harness.Start();
+        using var phone = await PairPhone(harness, port, ["volume"]);
+        await SendJson(phone, new ControlMessage.VolumeMessage(new VolumeCommand.Step(1)));
+        Assert.True(harness.VolumeCommands.TryTake(out var command, Timeout));
+        Assert.Equal(new VolumeCommand.Step(1), command);
+
+        await SendJson(phone, new ControlMessage.Settings(1, 1, false, true));
+        Assert.True(harness.VolumeInterest.TryTake(out var interested, Timeout) && interested);
+        harness.Run(() =>
+        {
+            harness.Server.UpdateVolume(new VolumeState(0.5, false));
+            harness.Server.UpdateVolume(new VolumeState(0.5, false)); // tidak berubah, jadi tidak dikirim ulang
+            harness.Server.UpdateVolume(new VolumeState(0.5625, true));
+        });
+        Assert.Equal(new ControlMessage.VolumeStatus(new VolumeState(0.5, false)), await ReceiveJson(phone));
+        Assert.Equal(new ControlMessage.VolumeStatus(new VolumeState(0.5625, true)), await ReceiveJson(phone));
+
+        await SendJson(phone, new ControlMessage.Settings(1, 1, false, false));
+        Assert.True(harness.VolumeInterest.TryTake(out var stillInterested, Timeout) && !stillInterested);
+    }
+
+    [Fact]
+    public async Task ScreenCursorReachesThePhone()
+    {
+        using var harness = new ServerHarness(approve: true, ["screen"]);
+        var port = harness.Start();
+        using var phone = await PairPhone(harness, port, ["screen"]);
+        await SendJson(phone, new ControlMessage.Screen(new ScreenRequest(1920, 1080, cursor: true)));
+        Assert.True(harness.Screen.TryTake(out var request, Timeout));
+        Assert.True(request.Request!.Cursor);
+        harness.Run(() => harness.Server.SendScreenCursor(0.25, 0.725, request.Connection));
+        Assert.Equal(new ControlMessage.ScreenCursor(0.25, 0.725), await ReceiveJson(phone));
+    }
 }
+

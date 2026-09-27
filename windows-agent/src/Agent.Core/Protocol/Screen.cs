@@ -5,14 +5,17 @@ namespace CursorController.Agent.Protocol;
 /// <summary>Permintaan HP untuk melihat layar: ukuran video maksimum dalam piksel, biasanya ukuran layar HP.</summary>
 public sealed record ScreenRequest
 {
-    public ScreenRequest(int maxWidth, int maxHeight)
+    public ScreenRequest(int maxWidth, int maxHeight, bool cursor = false)
     {
         MaxWidth = Math.Clamp(maxWidth, 64, 8192);
         MaxHeight = Math.Clamp(maxHeight, 64, 8192);
+        Cursor = cursor;
     }
 
     public int MaxWidth { get; }
     public int MaxHeight { get; }
+    /// <summary>HP ingin menerima posisi kursor (<c>screen_cursor</c>), supaya tampilan yang di-zoom bisa mengikutinya.</summary>
+    public bool Cursor { get; }
 }
 
 /// <summary>Status aliran layar yang dikirim ke HP (pesan <c>screen_status</c>).</summary>

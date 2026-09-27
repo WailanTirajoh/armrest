@@ -38,6 +38,11 @@ object AppIcons {
         "M4.5 4h15A1.5 1.5 0 0 1 21 5.5v10a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 15.5v-10A1.5 1.5 0 0 1 4.5 4z",
         "M8 21h8M12 17v4",
     )
+    val Volume = stroke("volume", "M4 9.5h3L11.5 6v12L7 14.5H4z", "M15 9.5a3.5 3.5 0 0 1 0 5M17.5 7a7 7 0 0 1 0 10")
+    val VolumeOff = stroke("volume-off", "M4 9.5h3L11.5 6v12L7 14.5H4z", "M15.5 9.5l5 5M20.5 9.5l-5 5")
+    val Minus = stroke("minus", "M5 12h14")
+    val Fullscreen = stroke("fullscreen", "M4 9V5h5M15 5h5v4M20 15v4h-5M9 19H4v-4")
+    val FullscreenExit = stroke("fullscreen-exit", "M9 4v5H4M20 9h-5V4M15 20v-5h5M4 15h5v5")
     val Keyboard = stroke(
         "keyboard",
         "M4.5 5h15A1.5 1.5 0 0 1 21 6.5v11a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 17.5v-11A1.5 1.5 0 0 1 4.5 5z",

@@ -58,6 +58,11 @@ public final class AgentServer: SessionEnvironment {
     public var onScreenRequest: ((UUID, TrustedDevice, ScreenRequest?) -> Void)?
     /// HP sudah menerima frame layar sampai nomor ini.
     public var onScreenAck: ((UUID, UInt32) -> Void)?
+    /// Perintah volume dari HP (id perangkat, perintah).
+    public var onVolume: ((String, VolumeCommand) -> Void)?
+    /// true saat mulai ada HP yang meminta status volume, false saat tidak ada lagi.
+    /// App menyalakan atau mematikan pemantauan volume mengikuti ini.
+    public var onVolumeInterestChanged: ((Bool) -> Void)?
 
     public private(set) var state: ServerState = .starting
     private var listener: NWListener?
@@ -65,6 +70,9 @@ public final class AgentServer: SessionEnvironment {
     private var focusInterest = false
     /// Status fokus terakhir yang dikirim ke HP; nil selama tidak ada yang meminta.
     private var textFocus: Bool?
+    private var volumeInterest = false
+    /// Status volume terakhir yang dikirim ke HP; nil selama tidak ada yang meminta.
+    private var volume: VolumeState?
 
     public var hostId: String { configuration.hostId }
     public var hostName: String { configuration.hostName }
@@ -132,6 +140,7 @@ public final class AgentServer: SessionEnvironment {
         }
         connections.removeAll()
         updateFocusInterest()
+        updateVolumeInterest()
     }
 
     /// Perangkat yang sesinya sedang aktif (sudah terautentikasi).
@@ -159,6 +168,20 @@ public final class AgentServer: SessionEnvironment {
         for connection in connections.values where connection.wantsFocusUpdates {
             connection.send(.focus(text: focused))
         }
+    }
+
+    /// Status volume dari pemantau volume. Dikirim ke HP yang memintanya, hanya kalau berubah.
+    public func updateVolume(_ state: VolumeState) {
+        guard volumeInterest, state != volume else { return }
+        volume = state
+        for connection in connections.values where connection.wantsVolumeUpdates {
+            connection.send(.volumeStatus(state))
+        }
+    }
+
+    /// Posisi kursor di video layar (0–1) untuk satu koneksi yang meminta `cursor`.
+    public func sendScreenCursor(x: Double, y: Double, to connection: UUID) {
+        connections[connection]?.send(.screenCursor(x: x, y: y))
     }
 
     /// Kirim paket video layar (`ScreenPacket`) ke satu koneksi. Diabaikan kalau koneksinya sudah tidak ada.
@@ -196,6 +219,7 @@ public final class AgentServer: SessionEnvironment {
         guard connections.removeValue(forKey: connection.id) != nil else { return }
         endScreen(of: connection)
         updateFocusInterest()
+        updateVolumeInterest()
         if let device = connection.device {
             onSessionEnded?(device.id)
             onSessionsChanged?(activeDevices)
@@ -218,6 +242,22 @@ public final class AgentServer: SessionEnvironment {
             connection.send(.focus(text: textFocus))
         }
         updateFocusInterest()
+    }
+
+    func volumeSubscriptionChanged(_ connection: AgentConnection) {
+        // HP yang baru meminta langsung menerima status saat ini, kalau sudah diketahui.
+        if connection.wantsVolumeUpdates, let volume {
+            connection.send(.volumeStatus(volume))
+        }
+        updateVolumeInterest()
+    }
+
+    private func updateVolumeInterest() {
+        let interested = connections.values.contains { $0.wantsVolumeUpdates }
+        guard interested != volumeInterest else { return }
+        volumeInterest = interested
+        if !interested { volume = nil }
+        onVolumeInterestChanged?(interested)
     }
 
     private func updateFocusInterest() {

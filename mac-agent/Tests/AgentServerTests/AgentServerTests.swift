@@ -15,6 +15,8 @@ final class ServerHarness {
     let server: AgentServer
     let inputs: AsyncStream<InputMessage>
     let focusInterest: AsyncStream<Bool>
+    let volumeInterest: AsyncStream<Bool>
+    let volumeCommands: AsyncStream<VolumeCommand>
     let screenEvents: AsyncStream<ScreenEvent>
     private let inputContinuation: AsyncStream<InputMessage>.Continuation
 
@@ -32,6 +34,12 @@ final class ServerHarness {
         server.onApprovalRequest = { _, decide in decide(approve) }
         server.onInput = { [inputContinuation] _, message in inputContinuation.yield(message) }
         server.onFocusInterestChanged = { focusContinuation.yield($0) }
+        let (volumeInterest, volumeInterestContinuation) = AsyncStream.makeStream(of: Bool.self)
+        self.volumeInterest = volumeInterest
+        server.onVolumeInterestChanged = { volumeInterestContinuation.yield($0) }
+        let (volumeCommands, volumeCommandContinuation) = AsyncStream.makeStream(of: VolumeCommand.self)
+        self.volumeCommands = volumeCommands
+        server.onVolume = { _, command in volumeCommandContinuation.yield(command) }
         let (screenEvents, screenContinuation) = AsyncStream.makeStream(of: ScreenEvent.self)
         self.screenEvents = screenEvents
         server.onScreenRequest = { connection, _, request in screenContinuation.yield(.request(connection, request)) }
@@ -72,6 +80,14 @@ final class ServerHarness {
 
     func updateTextFocus(_ focused: Bool) {
         queue.sync { server.updateTextFocus(focused) }
+    }
+
+    func updateVolume(_ state: VolumeState) {
+        queue.sync { server.updateVolume(state) }
+    }
+
+    func sendScreenCursor(x: Double, y: Double, to connection: UUID) {
+        queue.sync { server.sendScreenCursor(x: x, y: y, to: connection) }
     }
 
     func stop() {
@@ -176,6 +192,30 @@ private func pairPhone(
     // Pemantauan berhenti setelah tidak ada lagi HP yang meminta.
     try await sendJSON(first.task, .settings(sensitivity: 1, scrollSpeed: 1, focusUpdates: false))
     try await sendJSON(second.task, .settings(sensitivity: 1, scrollSpeed: 1, focusUpdates: false))
+    #expect(await interest.next() == false)
+}
+
+@Test func volumeCommandsReachAppAndStatusReachesPhonesThatAskForIt() async throws {
+    let harness = ServerHarness(approve: true, features: ["volume"])
+    let port = try await harness.start()
+    defer { harness.stop() }
+    var interest = harness.volumeInterest.makeAsyncIterator()
+    var commands = harness.volumeCommands.makeAsyncIterator()
+
+    let phone = try await pairPhone(harness, port: port, features: ["volume"])
+    defer { phone.task.cancel(with: .normalClosure, reason: nil) }
+    try await sendJSON(phone.task, .volume(.step(1)))
+    #expect(await commands.next() == .step(1))
+
+    try await sendJSON(phone.task, .settings(sensitivity: 1, scrollSpeed: 1, focusUpdates: false, volumeUpdates: true))
+    #expect(await interest.next() == true)
+    harness.updateVolume(VolumeState(level: 0.5, muted: false))
+    harness.updateVolume(VolumeState(level: 0.5, muted: false)) // tidak berubah, jadi tidak dikirim ulang
+    harness.updateVolume(VolumeState(level: 0.5625, muted: true))
+    #expect(try await receiveJSON(phone.task) == .volumeStatus(VolumeState(level: 0.5, muted: false)))
+    #expect(try await receiveJSON(phone.task) == .volumeStatus(VolumeState(level: 0.5625, muted: true)))
+
+    try await sendJSON(phone.task, .settings(sensitivity: 1, scrollSpeed: 1, focusUpdates: false, volumeUpdates: false))
     #expect(await interest.next() == false)
 }
 

@@ -10,8 +10,9 @@ enum ScreenSourceEvent {
     case started
     /// Ukuran video: sekali di awal, lalu setiap berubah (mis. kursor pindah ke monitor lain).
     case size(PixelSize)
-    /// Gambar baru. Layar yang diam tidak menghasilkan gambar.
-    case frame(CVPixelBuffer)
+    /// Gambar baru, dengan posisi kursor 0–1 dari kiri atas gambar (nil kalau tidak diketahui).
+    /// Layar yang diam tidak menghasilkan gambar.
+    case frame(CVPixelBuffer, cursor: CGPoint?)
     /// Berhenti sendiri karena error, termasuk gagal mulai. Tidak ada event lain sesudahnya.
     case stopped(Error?)
 }
@@ -163,7 +164,7 @@ final class DisplayCapture: NSObject, ScreenSource, SCStreamOutput, SCStreamDele
                 as? [[SCStreamFrameInfo: Any]],
               let status = (attachments.first?[.status] as? Int).flatMap(SCFrameStatus.init(rawValue:)), status == .complete,
               let buffer = sampleBuffer.imageBuffer else { return }
-        events?(.frame(buffer))
+        events?(.frame(buffer, cursor: displayID.flatMap(Self.cursorPosition(on:))))
     }
 
     func stream(_ stream: SCStream, didStopWithError error: Error) {
@@ -171,6 +172,17 @@ final class DisplayCapture: NSObject, ScreenSource, SCStreamOutput, SCStreamDele
     }
 
     // MARK: Bantuan
+
+    /// Posisi kursor relatif terhadap monitor yang ditangkap, 0–1 dari kiri atas. Koordinat CGEvent dan
+    /// CGDisplayBounds sama-sama global dalam point, dengan titik nol di kiri atas monitor utama.
+    private static func cursorPosition(on display: CGDirectDisplayID) -> CGPoint? {
+        guard let location = CGEvent(source: nil)?.location else { return nil }
+        let bounds = CGDisplayBounds(display)
+        guard bounds.width > 0, bounds.height > 0 else { return nil }
+        return CGPoint(
+            x: min(max((location.x - bounds.minX) / bounds.width, 0), 1), y: min(max((location.y - bounds.minY) / bounds.height, 0), 1)
+        )
+    }
 
     private static func displayUnderCursor() -> CGDirectDisplayID? {
         guard let location = CGEvent(source: nil)?.location else { return nil }
@@ -274,8 +286,10 @@ final class TestPatternSource: ScreenSource {
             }
         }
         let bar = width * 0.1
+        let barX = CGFloat(tick % 90) / 90 * (width - bar)
         context.setFillColor(CGColor(red: 1, green: 0.62, blue: 0.2, alpha: 1))
-        context.fill(CGRect(x: CGFloat(tick % 90) / 90 * (width - bar), y: height * 0.15, width: bar, height: height * 0.25))
-        events?(.frame(buffer))
+        context.fill(CGRect(x: barX, y: height * 0.15, width: bar, height: height * 0.25))
+        // Kursor tiruan di tengah balok. CGContext menghitung y dari bawah, jadi dari atas gambar y = 1 − 0,275.
+        events?(.frame(buffer, cursor: CGPoint(x: (barX + bar / 2) / width, y: 0.725)))
     }
 }
