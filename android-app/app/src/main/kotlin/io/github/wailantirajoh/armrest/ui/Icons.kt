@@ -41,6 +41,9 @@ object AppIcons {
     val Volume = stroke("volume", "M4 9.5h3L11.5 6v12L7 14.5H4z", "M15 9.5a3.5 3.5 0 0 1 0 5M17.5 7a7 7 0 0 1 0 10")
     val VolumeOff = stroke("volume-off", "M4 9.5h3L11.5 6v12L7 14.5H4z", "M15.5 9.5l5 5M20.5 9.5l-5 5")
     val Minus = stroke("minus", "M5 12h14")
+    val PlayPause = stroke("play-pause", "M4 6.5v11l7.5-5.5zM15.5 6.5v11M20 6.5v11")
+    val SkipNext = stroke("skip-next", "M6 6.5v11l8.5-5.5zM18 6.5v11")
+    val SkipPrevious = stroke("skip-previous", "M18 6.5v11l-8.5-5.5zM6 6.5v11")
     val Fullscreen = stroke("fullscreen", "M4 9V5h5M15 5h5v4M20 15v4h-5M9 19H4v-4")
     val FullscreenExit = stroke("fullscreen-exit", "M9 4v5H4M20 9h-5V4M15 20v-5h5M4 15h5v5")
     val Keyboard = stroke(

@@ -71,6 +71,9 @@ class AgentConnectionE2ETest {
         assertTrue(pairing.sendInput(InputMessage.Text("Halo dunia \uD83D\uDC4B\n")))
         assertTrue(pairing.sendInput(InputMessage.Key(KeyCode.RETURN)))
         assertTrue(pairing.sendInput(InputMessage.Key(KeyCode.C, KeyModifiers.COMMAND)))
+        // Tombol media: agent uji hanya mencatat, tidak pernah memutar atau menjeda apa pun.
+        assertTrue(ProtocolConstants.FEATURE_MEDIA in pairing.features)
+        listOf(KeyCode.PLAY_PAUSE, KeyCode.NEXT_TRACK, KeyCode.PREVIOUS_TRACK).forEach { assertTrue(pairing.sendInput(InputMessage.Key(it))) }
 
         // Fokus kolom teks: status awal dikirim begitu diminta, lalu setiap kali berubah.
         focusFile.writeText("0")

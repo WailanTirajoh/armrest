@@ -43,7 +43,7 @@ Versi protokol: **1** (field `v` di pesan `hello`). Agent menolak versi lain den
 
 "Mac" di tabel di atas berarti komputer yang menjalankan agent, termasuk Windows. Field opsional di `auth_result`:
 
-- `features`: fitur opsional agent, yaitu `focus`, `screen`, dan `volume`.
+- `features`: fitur opsional agent, yaitu `focus`, `screen`, `volume`, dan `media` (tombol media `0x60`–`0x62`; HP hanya menampilkan tombolnya kalau fitur ini ada).
 - `platform`: `macos` atau `windows`. HP memakainya untuk label modifier (⌘ ⌃ ⌥ ⇧ atau Ctrl Win Alt Shift), ikon, dan teks. Kalau tidak ada (agent sebelum v0.6), nilainya `macos`.
 
 Kode `error`:
@@ -80,6 +80,7 @@ Kode `key`:
 | `0x20`–`0x39` | A–Z |
 | `0x40`–`0x49` | 0–9 |
 | `0x50`–`0x5A` | `-` `=` `[` `]` `\` `;` `'` `,` `.` `/` `` ` `` |
+| `0x60`–`0x62` | Putar/jeda, lagu berikutnya, lagu sebelumnya (tombol media sistem, modifier diabaikan) |
 
 Bit `modifiers`: `0x01` Shift, `0x02` Control, `0x04` Option, `0x08` Command. Bit lain harus 0. Huruf dan tanda baca memakai posisi tombol ANSI, jadi ⌘C selalu tombol di posisi C.
 

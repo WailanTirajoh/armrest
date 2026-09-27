@@ -10,10 +10,23 @@ public enum KeyCode: UInt8, CaseIterable, Sendable {
     case a = 0x20, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, q, r, s, t, u, v, w, x, y, z
     case digit0 = 0x40, digit1, digit2, digit3, digit4, digit5, digit6, digit7, digit8, digit9
     case minus = 0x50, equal, leftBracket, rightBracket, backslash, semicolon, quote, comma, period, slash, grave
+    /// Tombol media sistem; modifier diabaikan.
+    case playPause = 0x60, nextTrack, previousTrack
 
-    /// Nilai kVK_* dari Carbon (HIToolbox/Events.h).
-    public var virtualKey: CGKeyCode {
+    /// Tombol media dikirim sebagai event sistem NX_KEYTYPE_* (IOKit ev_keymap.h), bukan virtual key.
+    public var mediaKeyType: Int32? {
         switch self {
+        case .playPause: return 16 // NX_KEYTYPE_PLAY
+        case .nextTrack: return 17 // NX_KEYTYPE_NEXT
+        case .previousTrack: return 18 // NX_KEYTYPE_PREVIOUS
+        default: return nil
+        }
+    }
+
+    /// Nilai kVK_* dari Carbon (HIToolbox/Events.h). nil untuk tombol media.
+    public var virtualKey: CGKeyCode? {
+        switch self {
+        case .playPause, .nextTrack, .previousTrack: return nil
         case .returnKey: return 0x24
         case .backspace: return 0x33
         case .tab: return 0x30

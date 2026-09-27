@@ -92,6 +92,7 @@ fun TouchpadScreen(
     fullscreen: Boolean,
     screenCursor: StateFlow<CursorPoint?>,
     volume: VolumeUi,
+    media: Boolean,
     volumeHud: Int,
     settings: TouchSettings,
     showGestureHints: Boolean,
@@ -104,6 +105,7 @@ fun TouchpadScreen(
     onVolumeStep: (Int) -> Unit,
     onVolumeLevel: (Float) -> Unit,
     onToggleMute: () -> Unit,
+    onMediaKey: (KeyCode) -> Unit,
     onRetryScreen: () -> Unit,
     onScreenSurface: (Surface?) -> Unit,
     onSettingsChange: (TouchSettings) -> Unit,
@@ -116,6 +118,8 @@ fun TouchpadScreen(
     var showVolume by remember { mutableStateOf(false) }
     val connected = link == Link.Connected
     val showingScreen = connected && macScreen.state == ScreenState.SHOWING
+    // Satu panel untuk volume dan tombol media; muncul kalau agent mendukung salah satunya.
+    val soundPanel = volume.supported || media
 
     // Zoom layar komputer: cubit memperbesar, lalu tampilan mengikuti kursor. Satuan dp, sama dengan GestureEngine.
     var viewport by remember { mutableStateOf(ScreenViewport()) }
@@ -173,9 +177,9 @@ fun TouchpadScreen(
                             tint = if (settings.screenPreview) colors.primary else colors.onSurface,
                         )
                     }
-                    if (volume.supported) {
+                    if (soundPanel) {
                         IconButton(onClick = { showVolume = true }, enabled = connected) {
-                            Icon(volumeIcon(volume), contentDescription = "Volume komputer")
+                            Icon(volumeIcon(volume), contentDescription = "Volume & media")
                         }
                     }
                     IconButton(onClick = onToggleKeyboard, enabled = connected) {
@@ -275,7 +279,7 @@ fun TouchpadScreen(
                 ) {
                     if (fullscreen) {
                         OverlayButton(AppIcons.Keyboard, if (keyboardOpen) "Tutup keyboard" else "Buka keyboard", onToggleKeyboard, enabled = connected)
-                        if (volume.supported) OverlayButton(volumeIcon(volume), "Volume komputer", { showVolume = true }, enabled = connected)
+                        if (soundPanel) OverlayButton(volumeIcon(volume), "Volume & media", { showVolume = true }, enabled = connected)
                         OverlayButton(AppIcons.FullscreenExit, "Keluar dari layar penuh", onToggleFullscreen)
                     } else {
                         OverlayButton(AppIcons.Fullscreen, "Layar penuh", onToggleFullscreen)
@@ -312,9 +316,9 @@ fun TouchpadScreen(
             SettingsSheet(settings, onSettingsChange)
         }
     }
-    if (showVolume && volume.supported) {
+    if (showVolume && soundPanel) {
         ModalBottomSheet(onDismissRequest = { showVolume = false }) {
-            VolumeSheet(hostName, volume, settings.volumeKeys, onVolumeStep, onVolumeLevel, onToggleMute)
+            VolumeSheet(hostName, volume, media, settings.volumeKeys, onVolumeStep, onVolumeLevel, onToggleMute, onMediaKey)
         }
     }
     if (showGestureHints && connected) {
@@ -434,10 +438,12 @@ private fun VolumeHud(tick: Int, volume: VolumeUi, modifier: Modifier) {
 private fun VolumeSheet(
     hostName: String,
     volume: VolumeUi,
+    media: Boolean,
     volumeKeys: Boolean,
     onStep: (Int) -> Unit,
     onLevel: (Float) -> Unit,
     onToggleMute: () -> Unit,
+    onMediaKey: (KeyCode) -> Unit,
 ) {
     val colors = MaterialTheme.colorScheme
     // Selama slider digeser, tampilkan posisi jari, bukan status dari komputer yang datang sedikit terlambat.
@@ -448,9 +454,11 @@ private fun VolumeSheet(
             .padding(start = 24.dp, end = 24.dp, bottom = 32.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        Text("Volume $hostName", fontSize = 22.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        Text(hostName, fontSize = 22.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        if (media) MediaButtons(onMediaKey)
         val level = volume.level
         when {
+            !volume.supported -> Unit
             !volume.known -> Text("Membaca volume komputer…", fontSize = 15.sp, color = colors.onSurfaceVariant)
             level == null -> Text(
                 "Perangkat audio komputer ini tidak bisa diatur volumenya dari HP, misalnya monitor HDMI di Mac. " +
@@ -495,8 +503,35 @@ private fun VolumeSheet(
                 }
             }
         }
-        if (volumeKeys) {
+        if (volumeKeys && volume.supported) {
             Text("Tombol volume HP juga mengatur volume komputer selama touchpad terbuka.", fontSize = 13.sp, color = colors.onSurfaceVariant)
+        }
+    }
+}
+
+/** Sebelumnya, putar/jeda, berikutnya: tombol media sistem, jadi berlaku untuk pemutar yang sedang aktif di komputer. */
+@Composable
+private fun MediaButtons(onMediaKey: (KeyCode) -> Unit) {
+    val view = LocalView.current
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+        listOf(
+            Triple(KeyCode.PREVIOUS_TRACK, AppIcons.SkipPrevious, "Sebelumnya"),
+            Triple(KeyCode.PLAY_PAUSE, AppIcons.PlayPause, "Putar atau jeda"),
+            Triple(KeyCode.NEXT_TRACK, AppIcons.SkipNext, "Berikutnya"),
+        ).forEach { (key, icon, label) ->
+            OutlinedButton(
+                onClick = {
+                    view.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
+                    onMediaKey(key)
+                },
+                shape = RoundedCornerShape(20.dp),
+                modifier = Modifier
+                    .weight(1f)
+                    .height(64.dp)
+                    .semantics { contentDescription = label },
+            ) {
+                Icon(icon, contentDescription = null, modifier = Modifier.size(28.dp))
+            }
         }
     }
 }

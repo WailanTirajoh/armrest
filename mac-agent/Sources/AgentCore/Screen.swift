@@ -11,6 +11,7 @@ public enum AgentFeature {
     public static let focus = "focus"
     public static let screen = "screen"
     public static let volume = "volume"
+    public static let media = "media"
 }
 
 /// Permintaan HP untuk melihat layar: ukuran video maksimum dalam piksel, biasanya ukuran layar HP.

@@ -36,6 +36,10 @@ public static class WindowsKeys
         KeyCode.PageUp => Vk(0x21, extended: true),
         KeyCode.PageDown => Vk(0x22, extended: true),
         >= KeyCode.F1 and <= KeyCode.F12 => Vk((ushort)(0x70 + (key - KeyCode.F1))),
+        // Tombol media diterima pemutar yang sedang aktif lewat System Media Transport Controls.
+        KeyCode.PlayPause => Vk(0xB3, extended: true),    // VK_MEDIA_PLAY_PAUSE
+        KeyCode.NextTrack => Vk(0xB0, extended: true),    // VK_MEDIA_NEXT_TRACK
+        KeyCode.PreviousTrack => Vk(0xB1, extended: true), // VK_MEDIA_PREV_TRACK
         _ => new WindowsKey(0, ScanCodes[key], false),
     };
 

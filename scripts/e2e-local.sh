@@ -79,6 +79,7 @@ echo "== Log agent"
 cat "$LOG"
 expect_log "$LOG" "input: move" "input: click" "input: scroll" 'input: text("Halo dunia' \
   "input: key(AgentCore.KeyCode.returnKey" "input: key(AgentCore.KeyCode.c" "focus: true" "focus: false" \
+  "input: key(AgentCore.KeyCode.playPause" "input: key(AgentCore.KeyCode.nextTrack" "input: key(AgentCore.KeyCode.previousTrack" \
   "volume: step(1)" "volume: muted(true)" "volume: level(0.25)" \
   "screen: start" "screen: streaming" "screen: stop"
 echo "E2E Mac OK"
@@ -115,5 +116,6 @@ cat "$WIN_LOG"
 # Baris yang sama dengan yang dicek scripts/e2e-windows.ps1.
 expect_log "$WIN_LOG" "input: move(dx: 120, dy: -40)" "input: click(left, count: 1)" "input: scroll(dx: 0, dy: -60)" \
   'input: text("Halo dunia' "input: key(return, modifiers: 0)" "input: key(c, modifiers: 8)" "focus: true" "focus: false" \
+  "input: key(playpause, modifiers: 0)" "input: key(nexttrack, modifiers: 0)" "input: key(previoustrack, modifiers: 0)" \
   "volume: step(1)" "volume: muted(true)" "volume: level(0.25)"
 echo "E2E OK"

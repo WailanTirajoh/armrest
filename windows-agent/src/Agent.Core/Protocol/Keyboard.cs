@@ -12,6 +12,9 @@ public enum KeyCode : byte
     A = 0x20, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S, T, U, V, W, X, Y, Z,
     Digit0 = 0x40, Digit1, Digit2, Digit3, Digit4, Digit5, Digit6, Digit7, Digit8, Digit9,
     Minus = 0x50, Equal, LeftBracket, RightBracket, Backslash, Semicolon, Quote, Comma, Period, Slash, Grave,
+
+    // Tombol media sistem; modifier diabaikan.
+    PlayPause = 0x60, NextTrack, PreviousTrack,
 }
 
 /// <summary>Bit modifier. Di Windows: Control = Ctrl, Option = Alt, Command = tombol Windows.</summary>

@@ -9,6 +9,8 @@ object ProtocolConstants {
     const val FEATURE_SCREEN = "screen"
     /** Fitur opsional di `auth_result`: agent bisa mengatur volume output komputer. */
     const val FEATURE_VOLUME = "volume"
+    /** Fitur opsional di `auth_result`: agent bisa menekan tombol media (putar/jeda, berikutnya, sebelumnya). */
+    const val FEATURE_MEDIA = "media"
     /** Platform komputer di `auth_result`. Agent lama tidak mengirimnya dan selalu macOS. */
     const val PLATFORM_MACOS = "macos"
     const val PLATFORM_WINDOWS = "windows"

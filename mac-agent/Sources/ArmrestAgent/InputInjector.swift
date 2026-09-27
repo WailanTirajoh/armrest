@@ -1,4 +1,5 @@
 import AgentCore
+import AppKit
 import CoreGraphics
 import Foundation
 
@@ -28,7 +29,11 @@ final class InputInjector {
         case let .text(text):
             type(text)
         case let .key(key, modifiers):
-            press(key, modifiers: modifiers)
+            if let media = key.mediaKeyType {
+                pressMediaKey(media)
+            } else {
+                press(key, modifiers: modifiers)
+            }
         }
     }
 
@@ -102,16 +107,29 @@ final class InputInjector {
     /// Modifier ditekan sebagai tombol tersendiri dulu (supaya ⌘Tab dan app Electron ikut membaca),
     /// lalu tombol utama dengan flag lengkap, lalu modifier dilepas dengan urutan terbalik.
     private func press(_ key: KeyCode, modifiers: KeyModifiers) {
+        guard let virtualKey = key.virtualKey else { return }
         var held: CGEventFlags = []
         for modifier in modifiers.keys {
             held.insert(modifier.flag)
             postKey(modifier.virtualKey, down: true, flags: held)
         }
-        postKey(key.virtualKey, down: true, flags: held)
-        postKey(key.virtualKey, down: false, flags: held)
+        postKey(virtualKey, down: true, flags: held)
+        postKey(virtualKey, down: false, flags: held)
         for modifier in modifiers.keys.reversed() {
             held.remove(modifier.flag)
             postKey(modifier.virtualKey, down: false, flags: held)
+        }
+    }
+
+    /// Tombol media seperti di keyboard Mac: event sistem (subtype 8) turun lalu naik, diterima pemutar yang sedang aktif.
+    private func pressMediaKey(_ type: Int32) {
+        for down in [true, false] {
+            let state = down ? 0xA : 0xB
+            guard let event = NSEvent.otherEvent(
+                with: .systemDefined, location: .zero, modifierFlags: NSEvent.ModifierFlags(rawValue: UInt(state) << 8),
+                timestamp: 0, windowNumber: 0, context: nil, subtype: 8, data1: Int(type) << 16 | state << 8, data2: -1
+            ) else { continue }
+            event.cgEvent?.post(tap: .cghidEventTap)
         }
     }
 

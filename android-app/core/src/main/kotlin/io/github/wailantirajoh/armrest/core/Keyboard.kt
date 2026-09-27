@@ -12,7 +12,9 @@ enum class KeyCode(val code: Int) {
     DIGIT_0(0x40), DIGIT_1(0x41), DIGIT_2(0x42), DIGIT_3(0x43), DIGIT_4(0x44),
     DIGIT_5(0x45), DIGIT_6(0x46), DIGIT_7(0x47), DIGIT_8(0x48), DIGIT_9(0x49),
     MINUS(0x50), EQUAL(0x51), LEFT_BRACKET(0x52), RIGHT_BRACKET(0x53), BACKSLASH(0x54),
-    SEMICOLON(0x55), QUOTE(0x56), COMMA(0x57), PERIOD(0x58), SLASH(0x59), GRAVE(0x5A);
+    SEMICOLON(0x55), QUOTE(0x56), COMMA(0x57), PERIOD(0x58), SLASH(0x59), GRAVE(0x5A),
+    // Tombol media sistem: modifier diabaikan agent.
+    PLAY_PAUSE(0x60), NEXT_TRACK(0x61), PREVIOUS_TRACK(0x62);
 
     companion object {
         fun fromCode(code: Int): KeyCode? = entries.firstOrNull { it.code == code }

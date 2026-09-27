@@ -9,6 +9,7 @@ import io.github.wailantirajoh.armrest.core.AgentConnection
 import io.github.wailantirajoh.armrest.core.ClientFailure
 import io.github.wailantirajoh.armrest.core.ConnectTarget
 import io.github.wailantirajoh.armrest.core.ControlMessage
+import io.github.wailantirajoh.armrest.core.KeyCode
 import io.github.wailantirajoh.armrest.core.KeyboardPanelState
 import io.github.wailantirajoh.armrest.core.PairedHost
 import io.github.wailantirajoh.armrest.core.PairingUri
@@ -71,6 +72,8 @@ data class UiState(
     /** Layar komputer memenuhi layar HP, tanpa bar atas dan bar sistem. */
     val fullscreen: Boolean = false,
     val volume: VolumeUi = VolumeUi(),
+    /** Agent bisa menekan tombol media (putar/jeda, berikutnya, sebelumnya). */
+    val media: Boolean = false,
     /** Naik setiap tombol volume HP ditekan, untuk menampilkan indikator volume sebentar. */
     val volumeHud: Int = 0,
     val settings: TouchSettings = TouchSettings(),
@@ -243,6 +246,7 @@ class ControllerViewModel(application: Application) : AndroidViewModel(applicati
                 link = Link.Connected,
                 showGestureHints = !settingsStore.gestureHintsSeen,
                 volume = VolumeUi(supported = ProtocolConstants.FEATURE_VOLUME in (connection?.features ?: emptySet())),
+                media = ProtocolConstants.FEATURE_MEDIA in (connection?.features ?: emptySet()),
             )
         }
         sendSettings()
@@ -300,7 +304,7 @@ class ControllerViewModel(application: Application) : AndroidViewModel(applicati
         _screenCursor.value = null
         pendingVolume = null
         volumeJob?.cancel()
-        _state.update { it.copy(volume = VolumeUi()) }
+        _state.update { it.copy(volume = VolumeUi(), media = false) }
     }
 
     private fun pairingError(failure: ClientFailure?): PairingError = when (failure) {
@@ -348,6 +352,11 @@ class ControllerViewModel(application: Application) : AndroidViewModel(applicati
 
     fun changeVolume(steps: Int) {
         connection?.takeIf { it.isAuthenticated }?.changeVolume(steps)
+    }
+
+    /** Putar/jeda, berikutnya, atau sebelumnya: dikirim sebagai tombol media biasa. */
+    fun sendMediaKey(key: KeyCode) {
+        if (_state.value.media) sender.sendKey(key)
     }
 
     fun toggleMute() {

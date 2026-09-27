@@ -110,6 +110,8 @@ public sealed class AgentHost
         if (focusMonitor is not null) features.Add(AgentFeature.Focus);
         if (options.Screen is not null) features.Add(AgentFeature.Screen);
         if (volumeMonitor is not null) features.Add(AgentFeature.Volume);
+        // Tombol media lewat jalur input biasa; profil uji hanya mencatatnya.
+        features.Add(AgentFeature.Media);
         log.Write($"features: {string.Join(", ", features)}");
         var server = new AgentServer(
             new AgentServer.Configuration(profile.Port, HostId, HostName, options.Certificate, features, options.Platform),

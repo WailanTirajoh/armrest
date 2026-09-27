@@ -43,7 +43,11 @@ import Testing
     #expect(KeyCode.f12.virtualKey == 0x6F)
     #expect(KeyCode.grave.rawValue == 0x5A)
     // Setiap tombol punya virtual key sendiri.
-    #expect(Set(KeyCode.allCases.map(\.virtualKey)).count == KeyCode.allCases.count)
+    // Setiap tombol biasa punya virtual key sendiri; tombol media memakai event sistem.
+    let virtualKeys = KeyCode.allCases.compactMap(\.virtualKey)
+    #expect(Set(virtualKeys).count == KeyCode.allCases.count - 3)
+    #expect([KeyCode.playPause, .nextTrack, .previousTrack].map(\.mediaKeyType) == [16, 17, 18])
+    #expect(KeyCode.c.mediaKeyType == nil)
 }
 
 @Test func modifiersPressCommandFirstAndCombineFlags() {

@@ -70,4 +70,13 @@ public class WindowsLogicTests
         Assert.Equal(1440 * 900 * 3 / 2, frame.Nv12.Length);
         Assert.NotEqual(TestPatternSource.Render(new PixelSize(1440, 900), 2).Nv12, frame.Nv12);
     }
+
+    [Fact]
+    public void MediaKeysUseMediaVirtualKeys()
+    {
+        Assert.Equal(new WindowsKey(0xB3, 0, true), WindowsKeys.For(KeyCode.PlayPause));
+        Assert.Equal(new WindowsKey(0xB0, 0, true), WindowsKeys.For(KeyCode.NextTrack));
+        Assert.Equal(new WindowsKey(0xB1, 0, true), WindowsKeys.For(KeyCode.PreviousTrack));
+    }
 }
+

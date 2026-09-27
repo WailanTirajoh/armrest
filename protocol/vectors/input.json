@@ -12,10 +12,10 @@
     { "message": "key", "key": 1, "modifiers": 0, "hex": "060100" },
     { "message": "key", "key": 34, "modifiers": 8, "hex": "062208" },
     { "message": "key", "key": 57, "modifiers": 9, "hex": "063909" },
-    { "message": "key", "key": 27, "modifiers": 0, "hex": "061b00" }
+    { "message": "key", "key": 27, "modifiers": 0, "hex": "061b00" },
+    { "message": "key", "key": 96, "modifiers": 0, "hex": "066000" },
+    { "message": "key", "key": 97, "modifiers": 0, "hex": "066100" },
+    { "message": "key", "key": 98, "modifiers": 0, "hex": "066200" }
   ],
-  "invalid_hex": [
-    "", "01", "010a00fd", "05000000", "0302", "03000300",
-    "05", "05ff", "05c3", "060f00", "060110", "0601", "06010000"
-  ]
+  "invalid_hex": ["", "01", "010a00fd", "05000000", "0302", "03000300", "05", "05ff", "05c3", "060f00", "060110", "0601", "06010000", "066300"]
 }
