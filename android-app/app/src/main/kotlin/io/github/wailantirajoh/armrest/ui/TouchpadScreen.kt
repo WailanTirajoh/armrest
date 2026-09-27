@@ -647,9 +647,16 @@ private fun GestureHints(onDismiss: () -> Unit) {
         text = {
             Column {
                 rows.forEachIndexed { index, (gesture, action) ->
-                    Row(Modifier.fillMaxWidth().padding(vertical = 10.dp), horizontalArrangement = Arrangement.SpaceBetween) {
-                        Text(stringResource(gesture), fontSize = 15.sp)
-                        Text(stringResource(action), fontSize = 15.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    // Aksi selebar teksnya, gesture mengisi sisanya dan boleh turun baris (teks Inggris lebih panjang).
+                    Row(Modifier.fillMaxWidth().padding(vertical = 10.dp)) {
+                        Text(stringResource(gesture), Modifier.weight(1f), fontSize = 15.sp)
+                        Text(
+                            stringResource(action),
+                            Modifier.padding(start = 16.dp),
+                            fontSize = 15.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            textAlign = TextAlign.End,
+                        )
                     }
                     if (index < rows.lastIndex) HorizontalDivider()
                 }
