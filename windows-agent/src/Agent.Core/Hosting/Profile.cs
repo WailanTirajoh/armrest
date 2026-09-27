@@ -1,4 +1,5 @@
 using System.Collections;
+using System.Text;
 using CursorController.Agent.Protocol;
 
 namespace CursorController.Agent.Hosting;
@@ -46,8 +47,12 @@ public sealed record Profile(
 /// <summary>Log ke stderr, hanya untuk profil uji (CURSORCTL_E2E_LOG=1).</summary>
 public sealed class AgentLog(bool enabled)
 {
+    // Selalu UTF-8: di Windows, Console.Error memakai code page konsol, jadi emoji di log input menjadi "??".
+    private static readonly Lazy<TextWriter> Writer = new(() =>
+        TextWriter.Synchronized(new StreamWriter(Console.OpenStandardError(), new UTF8Encoding(false)) { AutoFlush = true }));
+
     public void Write(string text)
     {
-        if (enabled) Console.Error.WriteLine(text);
+        if (enabled) Writer.Value.WriteLine(text);
     }
 }

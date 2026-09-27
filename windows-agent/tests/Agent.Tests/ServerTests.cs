@@ -188,4 +188,24 @@ public class ServerTests
         Assert.True(harness.Screen.TryTake(out var ended, Timeout));
         Assert.Equal((request.Connection, (ScreenRequest?)null, (uint?)null), ended);
     }
+
+    [Fact]
+    public async Task PhoneCloseIsAnsweredWithCloseFrameWhileFramesAreQueued()
+    {
+        using var harness = new ServerHarness(approve: true, ["screen"]);
+        var port = harness.Start();
+        using var phone = await PairPhone(harness, port, ["screen"]);
+        await SendJson(phone, new ControlMessage.Screen(new ScreenRequest(1920, 1080)));
+        Assert.True(harness.Screen.TryTake(out var request, Timeout));
+
+        // Antrean kirim agent masih berisi frame video saat HP menutup koneksi.
+        var packet = new ScreenPacket.Frame(1, false, new byte[256 * 1024]).Encode();
+        harness.Run(() =>
+        {
+            for (var i = 0; i < 40; i++) harness.Server.SendScreen(packet, request.Connection);
+        });
+        using var cancel = new CancellationTokenSource(Timeout);
+        await phone.CloseAsync(WebSocketCloseStatus.NormalClosure, null, cancel.Token);
+        Assert.Equal(WebSocketCloseStatus.NormalClosure, phone.CloseStatus);
+    }
 }

@@ -22,6 +22,9 @@ internal sealed class AgentConnection
     private readonly SessionMachine machine;
     private readonly Channel<Outgoing> outgoing = Channel.CreateUnbounded<Outgoing>(new UnboundedChannelOptions { SingleReader = true });
     private readonly CancellationTokenSource cancellation = new();
+    // Selesai saat send loop berakhir, termasuk setelah close frame terkirim.
+    private readonly TaskCompletionSource sendLoopDone = new(TaskCreationOptions.RunContinuationsAsynchronously);
+    private volatile bool peerClosed;
     private DateTime lastReceived = DateTime.UtcNow;
     private bool closing;
     private bool finished;
@@ -142,7 +145,10 @@ internal sealed class AgentConnection
                 var result = await socket.ReceiveAsync(buffer, cancellation.Token);
                 if (result.MessageType == WebSocketMessageType.Close)
                 {
+                    // HP menutup: close frame balasan harus terkirim sebelum Finish memutus koneksi.
+                    peerClosed = true;
                     server.Post(Close);
+                    await Task.WhenAny(sendLoopDone.Task, Task.Delay(TimeSpan.FromSeconds(2))).ConfigureAwait(false);
                     break;
                 }
                 message.Write(buffer, 0, result.Count);
@@ -175,13 +181,20 @@ internal sealed class AgentConnection
                     await socket.CloseOutputAsync(WebSocketCloseStatus.NormalClosure, null, timeout.Token);
                     break;
                 }
+                // HP sudah menutup: sisa antrean (mis. frame video) tidak berguna lagi, langsung ke close frame.
+                if (peerClosed) continue;
                 await socket.SendAsync(item.Data, item.Type, endOfMessage: true, cancellation.Token);
             }
         }
         catch (Exception e) when (e is WebSocketException or OperationCanceledException or IOException or ObjectDisposedException)
         {
         }
-        // Beri waktu HP membalas close frame, lalu putuskan.
+        finally
+        {
+            sendLoopDone.TrySetResult();
+        }
+        // Agent yang menutup: beri waktu HP membalas close frame, lalu putuskan. Kalau HP yang menutup, Finish sudah
+        // memutus koneksi begitu balasannya terkirim.
         await Task.Delay(TimeSpan.FromSeconds(2)).ConfigureAwait(false);
         Abort();
     }
