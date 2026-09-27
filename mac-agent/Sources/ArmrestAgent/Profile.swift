@@ -13,6 +13,8 @@ struct Profile {
     let logInput: Bool
     /// Profil uji tidak membaca fokus app lain; status fokus kolom teks diambil dari file ini ("1" = fokus).
     let focusFile: URL?
+    /// Nama komputer yang diumumkan, mis. untuk screenshot tanpa nama Mac asli. Hanya untuk profil uji.
+    let hostName: String?
 
     static let current: Profile = {
         let env = ProcessInfo.processInfo.environment
@@ -26,7 +28,8 @@ struct Profile {
             autoApprove: env["ARMREST_E2E_AUTO_APPROVE"] == "1",
             pairingFile: pairingFile,
             logInput: env["ARMREST_E2E_LOG"] == "1",
-            focusFile: env["ARMREST_E2E_FOCUS_FILE"].map { URL(fileURLWithPath: $0) }
+            focusFile: env["ARMREST_E2E_FOCUS_FILE"].map { URL(fileURLWithPath: $0) },
+            hostName: pairingFile == nil ? nil : env["ARMREST_E2E_HOST_NAME"].flatMap { $0.isEmpty ? nil : $0 }
         )
     }()
 

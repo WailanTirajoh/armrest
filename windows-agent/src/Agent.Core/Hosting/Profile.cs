@@ -15,7 +15,8 @@ public sealed record Profile(
     bool AutoApprove,
     string? PairingFile,
     bool LogInput,
-    string? FocusFile)
+    string? FocusFile,
+    string? HostName = null)
 {
     public static Profile Current { get; } = FromEnvironment(Environment.GetEnvironmentVariables());
 
@@ -31,7 +32,9 @@ public sealed record Profile(
             AutoApprove: Get("ARMREST_E2E_AUTO_APPROVE") == "1",
             PairingFile: Get("ARMREST_E2E_PAIRING_FILE"),
             LogInput: Get("ARMREST_E2E_LOG") == "1",
-            FocusFile: Get("ARMREST_E2E_FOCUS_FILE"));
+            FocusFile: Get("ARMREST_E2E_FOCUS_FILE"),
+            // Nama komputer pengganti (mis. untuk screenshot), hanya di mode tanpa UI.
+            HostName: Get("ARMREST_E2E_PAIRING_FILE") is null ? null : Get("ARMREST_E2E_HOST_NAME"));
     }
 
     /// <summary>Profil uji berjalan tanpa jendela dan tidak pernah menyuntikkan input sungguhan.</summary>

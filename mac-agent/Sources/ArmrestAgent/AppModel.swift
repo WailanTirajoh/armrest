@@ -28,7 +28,7 @@ final class AppModel: ObservableObject {
 
     let version = AppVersion(infoDictionary: Bundle.main.infoDictionary)
     let hostId: String
-    let hostName = LocalNetwork.computerName
+    let hostName: String
     private(set) var fingerprint = ""
 
     private let profile = Profile.current
@@ -51,6 +51,7 @@ final class AppModel: ObservableObject {
             hostId = UUID().uuidString.lowercased()
             defaults.set(hostId, forKey: "hostId")
         }
+        hostName = profile.hostName ?? LocalNetwork.computerName
         store = TrustedDeviceStore(fileURL: profile.supportDirectory.appendingPathComponent("trusted-devices.json"))
         devices = store.devices
         windows.onUserClose = { [weak self] kind in self?.windowClosedByUser(kind) }

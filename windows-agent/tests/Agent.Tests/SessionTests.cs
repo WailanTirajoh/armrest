@@ -203,5 +203,8 @@ public class SessionTests
         Assert.True(headless.Headless);
         Assert.Equal("-e2e", headless.Suffix);
         Assert.Equal("-e2e-core", Profile.FromEnvironment(new Hashtable { ["ARMREST_PROFILE"] = "e2e-core", ["ARMREST_E2E_PAIRING_FILE"] = "qr.txt" }).Suffix);
+        // Nama pengganti hanya berlaku di mode tanpa UI.
+        Assert.Equal("Living Room PC", Profile.FromEnvironment(new Hashtable { ["ARMREST_E2E_PAIRING_FILE"] = "qr.txt", ["ARMREST_E2E_HOST_NAME"] = "Living Room PC" }).HostName);
+        Assert.Null(Profile.FromEnvironment(new Hashtable { ["ARMREST_E2E_HOST_NAME"] = "Living Room PC" }).HostName);
     }
 }

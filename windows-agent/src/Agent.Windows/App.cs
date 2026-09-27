@@ -69,7 +69,7 @@ internal sealed class App : Application
             Dispatcher = dispatcher,
             // Profil uji memakai sertifikat sementara supaya tidak meninggalkan apa pun di certificate store.
             Certificate = profile.Headless ? LocalNetwork.EphemeralCertificate(profile.IdentityName) : IdentityStore.LoadOrCreate(profile.IdentityName),
-            HostName = Dns.GetHostName(),
+            HostName = profile.HostName ?? Dns.GetHostName(),
             Platform = AgentPlatform.Windows,
             Input = profile.Headless ? null : new InputInjector(),
             FocusProbe = UiaFocusProbe.TextInputFocused,

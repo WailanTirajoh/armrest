@@ -27,7 +27,7 @@ var host = queue.Invoke(() =>
         Profile = profile,
         Dispatcher = queue,
         Certificate = LocalNetwork.EphemeralCertificate(profile.IdentityName),
-        HostName = Environment.MachineName,
+        HostName = profile.HostName ?? Environment.MachineName,
         Platform = AgentPlatform.Windows,
     });
     agent.Start();
