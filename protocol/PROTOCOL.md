@@ -1,77 +1,79 @@
-# Protokol Armrest
+# Armrest protocol
 
-Versi protokol: **1** (field `v` di pesan `hello`). Agent menolak versi lain dengan `error` `unsupported_version`, lalu menutup koneksi.
+Protocol version: **1** (field `v` in the `hello` message). The agent rejects any other version with an `error` of `unsupported_version`, then closes the connection.
+
+"Phone" is the Armrest app; "agent" is the computer running the Armrest agent (macOS or Windows).
 
 ## Transport
 
-- WebSocket di atas TLS (`wss://`) di jaringan lokal, port default **47810**, dengan `TCP_NODELAY`.
-- Sertifikat agent self-signed (ECDSA P-256). HP tidak memakai CA: HP mencocokkan **fingerprint** = base64url tanpa padding dari SHA-256 sertifikat (DER). Fingerprint dibawa lewat QR saat pairing, lalu disimpan.
-- Agent mengiklankan diri lewat Bonjour dengan tipe `_armrest._tcp`. TXT record berisi `hostId`, `v`, dan `os` (`macos` atau `windows`).
-- Pesan kontrol memakai **text frame JSON**. Event input (HP → Mac) dan video layar (Mac → HP) memakai **binary frame**.
+- WebSocket over TLS (`wss://`) on the local network, default port **47810**, with `TCP_NODELAY`.
+- The agent's certificate is self-signed (ECDSA P-256). The phone uses no CA: it checks the **fingerprint**, the unpadded base64url SHA-256 of the certificate (DER). The fingerprint arrives in the pairing QR code and is stored.
+- The agent advertises itself over Bonjour as `_armrest._tcp`. The TXT record holds `hostId`, `v`, and `os` (`macos` or `windows`).
+- Control messages are **JSON text frames**. Input events (phone → agent) and screen video (agent → phone) are **binary frames**.
 
-## Format nilai
+## Value formats
 
-| Nilai | Format |
+| Value | Format |
 | --- | --- |
-| `hostId`, `deviceId` | UUID huruf kecil, dibuat sekali dan disimpan |
-| `token` | 32 byte acak, base64url tanpa padding |
-| `nonce` | 32 byte acak, base64 standar |
-| `publicKey` | kunci publik P-256 dalam DER X.509 SubjectPublicKeyInfo, base64 standar |
-| `sig` | ECDSA P-256 dengan SHA-256, encoding DER, base64 standar |
-| Payload `auth` | `nonce (32 byte) ‖ UTF-8(hostId) ‖ UTF-8(deviceId)` |
+| `hostId`, `deviceId` | Lowercase UUID, created once and stored |
+| `token` | 32 random bytes, unpadded base64url |
+| `nonce` | 32 random bytes, standard base64 |
+| `publicKey` | P-256 public key as DER X.509 SubjectPublicKeyInfo, standard base64 |
+| `sig` | ECDSA P-256 with SHA-256, DER encoded, standard base64 |
+| `auth` payload | `nonce (32 bytes) ‖ UTF-8(hostId) ‖ UTF-8(deviceId)` |
 
-## Pesan kontrol (JSON, field `t` = tipe)
+## Control messages (JSON, field `t` = type)
 
-| Arah | `t` | Isi | Kapan |
+| Direction | `t` | Fields | When |
 | --- | --- | --- | --- |
-| HP → Mac | `hello` | `v`, `deviceId`, `mode` (`pair` / `auth`) | Pertama setelah WebSocket terbuka |
-| HP → Mac | `pair_request` | `token`, `deviceName`, `publicKey` | Mode pair |
-| Mac → HP | `pair_result` | `ok: true`, `hostId`, `hostName`, atau `ok: false`, `error` | Setelah user klik Izinkan/Tolak, atau token ditolak |
-| Mac → HP | `challenge` | `nonce` | Mode auth, atau langsung setelah `pair_result` ok |
-| HP → Mac | `auth` | `sig` | Balasan challenge |
-| Mac → HP | `auth_result` | `ok: true` dengan `features` dan `platform` (opsional), atau `ok: false`, `error` | Setelah verifikasi |
-| HP → Mac | `settings` | `sensitivity`, `scrollSpeed`, `focusUpdates`, `volumeUpdates` | Setelah `auth_result` ok, dan setiap kali diubah |
-| Mac → HP | `focus` | `text` (bool) | Setelah HP meminta lewat `focusUpdates`, lalu setiap kali berubah |
-| HP → Mac | `screen` | `on: true`, `maxWidth`, `maxHeight`, `cursor` (opsional), atau `on: false` | Mulai atau berhenti melihat layar Mac; permintaan ulang = minta keyframe |
-| Mac → HP | `screen_status` | `state`: `streaming`, `denied`, `failed` | Setelah `screen` on, dan saat aliran berhenti karena error |
-| HP → Mac | `screen_ack` | `seq` | Setiap frame layar yang diterima |
-| Mac → HP | `screen_cursor` | `x`, `y` (0–1) | Selama layar tampil dan HP meminta `cursor`, setiap kali posisi kursor berubah |
-| HP → Mac | `volume` | tepat satu dari `step`, `level`, `muted` | Mengubah volume output komputer |
-| Mac → HP | `volume_status` | `level` (0–1, opsional), `muted` | Setelah HP meminta lewat `volumeUpdates`, lalu setiap kali berubah |
-| Dua arah | `ping` / `pong` | `ts` (ms) | Tiap 5 detik; koneksi ditutup kalau 15 detik tidak ada pesan masuk |
-| Mac → HP | `error` | `error` | Pesan tidak valid atau versi tidak didukung, lalu koneksi ditutup |
+| Phone → agent | `hello` | `v`, `deviceId`, `mode` (`pair` / `auth`) | First, once the WebSocket is open |
+| Phone → agent | `pair_request` | `token`, `deviceName`, `publicKey` | Pair mode |
+| Agent → phone | `pair_result` | `ok: true`, `hostId`, `hostName`, or `ok: false`, `error` | After the user clicks Allow or Deny, or when the token is rejected |
+| Agent → phone | `challenge` | `nonce` | Auth mode, or right after a successful `pair_result` |
+| Phone → agent | `auth` | `sig` | Reply to the challenge |
+| Agent → phone | `auth_result` | `ok: true` with `features` and `platform` (optional), or `ok: false`, `error` | After verification |
+| Phone → agent | `settings` | `sensitivity`, `scrollSpeed`, `focusUpdates`, `volumeUpdates` | After a successful `auth_result`, and whenever they change |
+| Agent → phone | `focus` | `text` (bool) | Once the phone asks with `focusUpdates`, then on every change |
+| Phone → agent | `screen` | `on: true`, `maxWidth`, `maxHeight`, `cursor` (optional), or `on: false` | Start or stop viewing the screen; repeating it asks for a keyframe |
+| Agent → phone | `screen_status` | `state`: `streaming`, `denied`, `failed` | After `screen` on, and when the stream stops on an error |
+| Phone → agent | `screen_ack` | `seq` | For every screen frame received |
+| Agent → phone | `screen_cursor` | `x`, `y` (0–1) | While the screen is shown and the phone asked for `cursor`, whenever the cursor moves |
+| Phone → agent | `volume` | Exactly one of `step`, `level`, `muted` | Change the computer's output volume |
+| Agent → phone | `volume_status` | `level` (0–1, optional), `muted` | Once the phone asks with `volumeUpdates`, then on every change |
+| Both | `ping` / `pong` | `ts` (ms) | Every 5 seconds; the connection is closed after 15 seconds without incoming messages |
+| Agent → phone | `error` | `error` | Invalid message or unsupported version, then the connection is closed |
 
-"Mac" di tabel di atas berarti komputer yang menjalankan agent, termasuk Windows. Field opsional di `auth_result`:
+Optional fields in `auth_result`:
 
-- `features`: fitur opsional agent, yaitu `focus`, `screen`, `volume`, dan `media` (tombol media `0x60`–`0x62`; HP hanya menampilkan tombolnya kalau fitur ini ada).
-- `platform`: `macos` atau `windows`. HP memakainya untuk label modifier (⌘ ⌃ ⌥ ⇧ atau Ctrl Win Alt Shift), ikon, dan teks. Kalau tidak ada (agent sebelum v0.6), nilainya `macos`.
+- `features`: the agent's optional features: `focus`, `screen`, `volume`, and `media` (media keys `0x60`–`0x62`; the phone only shows its media buttons when this is present).
+- `platform`: `macos` or `windows`. The phone uses it for modifier labels (⌘ ⌃ ⌥ ⇧ or Ctrl Win Alt Shift), icons, and text. When missing (agents before v0.6), it is `macos`.
 
-Kode `error`:
+`error` codes:
 
-| Pesan | Kode |
+| Message | Codes |
 | --- | --- |
 | `pair_result` | `token_invalid`, `token_expired`, `too_many_attempts`, `denied` |
 | `auth_result` | `unknown_device`, `bad_sig` |
 | `error` | `unsupported_version`, `bad_message` |
 
-## Event input (binary, little-endian, byte pertama = tipe)
+## Input events (binary, little-endian, first byte = type)
 
-Hanya diproses setelah `auth_result` ok. Event yang datang sebelumnya dibuang.
+Only processed after a successful `auth_result`. Events that arrive earlier are dropped.
 
-| Tipe | Byte | Payload | Arti |
+| Type | Bytes | Payload | Meaning |
 | --- | --- | --- | --- |
-| `0x01` move | 5 | `dx: i16`, `dy: i16` | Delta dalam satuan 0,1 dp layar HP |
-| `0x02` button | 3 | `button: u8` (0 kiri, 1 kanan), `state: u8` (1 down, 0 up) | Untuk drag |
-| `0x03` click | 3 | `button: u8`, `count: u8` (1 atau 2) | Klik tunggal atau ganda |
-| `0x04` scroll | 5 | `dx: i16`, `dy: i16` | Delta scroll dalam 0,1 dp |
-| `0x05` text | 2–1025 | teks UTF-8, 1–1024 byte | Ketik teks di app yang sedang aktif; `\n` = Return, `\t` = Tab |
-| `0x06` key | 3 | `key: u8`, `modifiers: u8` | Tekan satu tombol sambil menahan modifier |
+| `0x01` move | 5 | `dx: i16`, `dy: i16` | Delta in units of 0.1 dp of the phone's screen |
+| `0x02` button | 3 | `button: u8` (0 left, 1 right), `state: u8` (1 down, 0 up) | For dragging |
+| `0x03` click | 3 | `button: u8`, `count: u8` (1 or 2) | Single or double click |
+| `0x04` scroll | 5 | `dx: i16`, `dy: i16` | Scroll delta in 0.1 dp |
+| `0x05` text | 2–1025 | UTF-8 text, 1–1024 bytes | Type text into the active app; `\n` = Return, `\t` = Tab |
+| `0x06` key | 3 | `key: u8`, `modifiers: u8` | Press one key while holding modifiers |
 
-Frame dengan panjang yang salah, tipe tidak dikenal, atau nilai di luar rentang dibuang. Untuk `text`, itu termasuk UTF-8 yang tidak valid dan karakter kontrol selain `\n` dan `\t`.
+Frames with the wrong length, an unknown type, or an out-of-range value are dropped. For `text`, that includes invalid UTF-8 and control characters other than `\n` and `\t`.
 
-Kode `key`:
+`key` codes:
 
-| Kode | Tombol |
+| Code | Key |
 | --- | --- |
 | `0x01`–`0x06` | Return, Backspace, Tab, Esc, Space, Forward Delete |
 | `0x07`–`0x0A` | ←, →, ↑, ↓ |
@@ -80,107 +82,107 @@ Kode `key`:
 | `0x20`–`0x39` | A–Z |
 | `0x40`–`0x49` | 0–9 |
 | `0x50`–`0x5A` | `-` `=` `[` `]` `\` `;` `'` `,` `.` `/` `` ` `` |
-| `0x60`–`0x62` | Putar/jeda, lagu berikutnya, lagu sebelumnya (tombol media sistem, modifier diabaikan) |
+| `0x60`–`0x62` | Play/pause, next track, previous track (system media keys; modifiers are ignored) |
 
-Bit `modifiers`: `0x01` Shift, `0x02` Control, `0x04` Option, `0x08` Command. Bit lain harus 0. Huruf dan tanda baca memakai posisi tombol ANSI, jadi ⌘C selalu tombol di posisi C.
+`modifiers` bits: `0x01` Shift, `0x02` Control, `0x04` Option, `0x08` Command. All other bits must be 0. Letters and punctuation use ANSI key positions, so ⌘C is always the key in the C position.
 
-Bit modifier berarti posisi tombol fisik. Di Windows: Control = Ctrl, Option = Alt, Command = tombol Windows, jadi Ctrl+C dikirim sebagai `C` dengan bit Control. Agent Windows menekan huruf lewat scan code posisi ANSI, sama dengan agent Mac.
+Modifier bits mean physical key positions. On Windows: Control = Ctrl, Option = Alt, Command = the Windows key, so Ctrl+C is sent as `C` with the Control bit. The Windows agent presses letters by the scan code of their ANSI position, just like the Mac agent.
 
-Aturan:
+Rules:
 
-- HP mengirim delta **mentah**. Akselerasi dihitung di agent: `gain = sensitivity × min(6, 1 + 2 × max(0, v − 0,2))`, dengan `v` dalam dp/ms. Sisa pecahan piksel disimpan antar paket.
-- `scroll` dikalikan `scrollSpeed` tanpa akselerasi. Arahnya mengikuti setelan natural scrolling di Mac.
-- HP mengumpulkan delta per frame dan mengirim maksimal satu `move` per frame. Kalau antrean kirim menumpuk, delta digabung ke paket berikutnya. `click`, `button`, `text`, dan `key` tidak pernah digabung atau dibuang, dan selalu dikirim setelah gerakan yang tertunda.
-- `text` diketik lewat event Unicode, jadi tidak bergantung pada layout keyboard Mac. Backspace dikirim sebagai `key` `0x02`.
+- The phone sends **raw** deltas. The agent applies acceleration: `gain = sensitivity × min(6, 1 + 2 × max(0, v − 0.2))`, with `v` in dp/ms. Fractional pixels carry over between packets.
+- `scroll` is multiplied by `scrollSpeed` without acceleration. Its direction follows the Mac's natural scrolling setting.
+- The phone accumulates deltas per frame and sends at most one `move` per frame. When the send queue backs up, deltas are merged into the next packet. `click`, `button`, `text`, and `key` are never merged or dropped, and are always sent after any pending movement.
+- `text` is typed as Unicode events, so it doesn't depend on the computer's keyboard layout. Backspace is sent as `key` `0x02`.
 
-## Fokus kolom teks
+## Text field focus
 
-Supaya HP bisa membuka dan menutup keyboard sendiri, agent memberi tahu apakah elemen yang sedang fokus di Mac adalah kolom teks.
+So the phone can open and close its keyboard on its own, the agent reports whether the focused element on the computer is a text field.
 
-- HP meminta dengan `focusUpdates: true` di pesan `settings`, dan berhenti dengan `false`. Kalau field ini tidak ada (HP v0.3), nilainya `false`.
-- Agent langsung mengirim status saat ini, lalu mengirim ulang setiap kali berubah: `{"t":"focus","text":true}`.
-- Agent memeriksa elemen yang fokus lewat Accessibility setiap 250 ms, hanya selama ada HP yang meminta. Yang dihitung kolom teks: role `AXTextField` (termasuk kolom password dan pencarian), `AXTextArea`, `AXComboBox`, atau elemen di dalam area yang bisa diedit (`AXEditableAncestor`, mis. editor contenteditable di browser).
-- Fokus masuk ke kolom teks langsung dikirim. Fokus keluar baru dikirim setelah bertahan 500 ms, supaya pindah antar kolom tidak membuat keyboard HP tertutup lalu terbuka lagi.
-- HP v0.3 mengabaikan pesan `focus`, dan agent v0.3 mengabaikan `focusUpdates`.
+- The phone asks with `focusUpdates: true` in `settings`, and stops with `false`. When the field is missing (phone v0.3), it is `false`.
+- The agent sends the current state right away, then again on every change: `{"t":"focus","text":true}`.
+- The agent checks the focused element every 250 ms, only while a phone is asking: through Accessibility on macOS and UI Automation on Windows. On macOS, a text field is the role `AXTextField` (including password and search fields), `AXTextArea`, `AXComboBox`, or an element inside an editable area (`AXEditableAncestor`, such as a contenteditable editor in a browser).
+- Focus moving into a text field is sent immediately. Focus leaving is sent only after it lasts 500 ms, so moving between fields doesn't close and reopen the phone's keyboard.
+- Phone v0.3 ignores `focus` messages, and agent v0.3 ignores `focusUpdates`.
 
-## Layar Mac
+## Computer screen
 
-HP bisa menampilkan layar Mac, misalnya di belakang area touchpad. Videonya H.264, dikirim sebagai binary frame di koneksi yang sama.
+The phone can show the computer's screen, for example behind the touchpad. The video is H.264, sent as binary frames on the same connection.
 
-- **Fitur**: agent yang mendukung mengirim `features: ["focus", "screen"]` di `auth_result`. HP hanya mengirim `screen` kalau ada `"screen"`, karena agent lama menutup koneksi saat menerima pesan yang tidak dikenal.
-- **Mulai**: HP mengirim `screen` dengan `maxWidth` dan `maxHeight` dalam piksel, biasanya ukuran layar HP. Agent membalas `screen_status` `streaming`, lalu mengirim `screen_config` dan keyframe.
-- **Izin**: kalau Mac belum memberi izin Screen Recording, agent membalas `screen_status` `denied` tanpa mengirim video. Kalau tangkapan gagal atau berhenti karena error, statusnya `failed`. Dalam dua kasus itu HP boleh mengirim `screen` lagi untuk mencoba ulang.
-- **Keyframe**: `screen` on yang dikirim lagi selama aliran berjalan berarti decoder HP butuh keyframe, misalnya setelah Surface dibuat ulang. Agent mengirim `screen_config` lalu keyframe dari gambar terakhir, juga saat layar sedang diam.
-- **Berhenti**: `screen` off, atau koneksi putus.
-- **Posisi kursor**: kalau `screen` membawa `cursor: true`, agent mengirim `{"t":"screen_cursor","x":0.4213,"y":0.25}` setiap kali posisi kursor di video berubah, paling banyak sekali per gambar yang ditangkap, dan sekali lagi setelah permintaan ulang. `x` dan `y` dihitung dari kiri atas video, 0–1, empat desimal. HP memakainya supaya tampilan yang di-zoom mengikuti kursor. Agent sebelum v0.7 mengabaikan `cursor`.
+- **Feature**: agents that support it send `features: ["focus", "screen"]` in `auth_result`. The phone only sends `screen` when `"screen"` is present, because older agents close the connection on unknown messages.
+- **Start**: the phone sends `screen` with `maxWidth` and `maxHeight` in pixels, usually its own screen size. The agent replies with `screen_status` `streaming`, then sends `screen_config` and a keyframe.
+- **Permission**: if the Mac hasn't granted Screen Recording, the agent replies with `screen_status` `denied` and sends no video. If capture fails or stops on an error, the state is `failed`. In both cases the phone may send `screen` again to retry.
+- **Keyframe**: `screen` on sent again while streaming means the phone's decoder needs a keyframe, for example after its Surface was recreated. The agent sends `screen_config` and then a keyframe of the latest image, even when the screen is idle.
+- **Stop**: `screen` off, or a disconnect.
+- **Cursor position**: if `screen` carries `cursor: true`, the agent sends `{"t":"screen_cursor","x":0.4213,"y":0.25}` whenever the cursor position in the video changes, at most once per captured image, and once more after a repeated request. `x` and `y` are measured from the top left of the video, 0–1, with four decimals. The phone uses them so a zoomed view follows the cursor. Agents before v0.7 ignore `cursor`.
 
-Binary frame Mac → HP (little-endian, byte pertama = tipe):
+Binary frames, agent → phone (little-endian, first byte = type):
 
-| Tipe | Byte | Isi | Arti |
+| Type | Bytes | Contents | Meaning |
 | --- | --- | --- | --- |
-| `0x81` screen_config | 7+ | `codec: u8` (1 = H.264), `width: u16`, `height: u16`, SPS dan PPS | Ukuran video dan parameter decoder, dikirim sebelum setiap keyframe |
-| `0x82` screen_frame | 7+ | `seq: u32`, `flags: u8` (bit 0 = keyframe), access unit | Satu frame video |
+| `0x81` screen_config | 7+ | `codec: u8` (1 = H.264), `width: u16`, `height: u16`, SPS and PPS | Video size and decoder parameters, sent before every keyframe |
+| `0x82` screen_frame | 7+ | `seq: u32`, `flags: u8` (bit 0 = keyframe), access unit | One video frame |
 
-SPS, PPS, dan access unit memakai format Annex B (setiap NAL diawali `00 00 00 01`). Frame dengan tipe atau codec tidak dikenal, ukuran 0, flag selain bit 0, atau tanpa isi dibuang.
+SPS, PPS, and access units use Annex B format (every NAL starts with `00 00 00 01`). Frames with an unknown type or codec, a zero size, flags other than bit 0, or no payload are dropped.
 
-Aturan video:
+Video rules:
 
-- H.264 tanpa B-frame (profil Baseline, Main, atau High), jadi setiap frame bisa langsung ditampilkan. Agent Mac memakai Constrained High, agent Windows Main. Paling besar 1920 × 1200 dan 30 fps, rasio mengikuti layar, sisi genap, warna BT.709.
-- Layar yang diam tidak menghasilkan frame. Kursor ikut tergambar. Dengan beberapa monitor, agent mengikuti monitor tempat kursor berada; kalau ukurannya berubah, `screen_config` baru mendahului keyframe berikutnya.
-- **Kontrol aliran**: `seq` naik satu per frame. HP mengirim `screen_ack` untuk setiap frame yang diterima, dan konfirmasinya kumulatif. Agent menahan frame baru selama ada 4 frame yang belum dikonfirmasi, lalu mengirim gambar terbaru begitu ada konfirmasi. Jadi saat WiFi lambat gambar dilewati, bukan menumpuk.
-- HP menyalakan video hanya selama app terlihat, supaya WiFi dan baterai tidak terpakai sia-sia.
+- H.264 without B-frames (Baseline, Main, or High profile), so every frame can be shown right away. The Mac agent uses Constrained High, the Windows agent Main. At most 1920 × 1200 and 30 fps, keeping the screen's aspect ratio, with even dimensions and BT.709 color.
+- An idle screen produces no frames. The cursor is drawn into the video. With several monitors, the agent follows the monitor the cursor is on; when the size changes, a new `screen_config` precedes the next keyframe.
+- **Flow control**: `seq` increases by one per frame. The phone sends `screen_ack` for every frame it receives, and acknowledgements are cumulative. The agent holds back new frames while 4 frames are unacknowledged, then sends the latest image as soon as an acknowledgement arrives. So on slow Wi-Fi, images are skipped instead of piling up.
+- The phone only turns video on while the app is visible, to save Wi-Fi and battery.
 
 ## Volume
 
-Supaya HP bisa mengatur volume suara komputer, misalnya lewat tombol volume HP.
+Lets the phone control the computer's volume, for example with the phone's volume buttons.
 
-- **Fitur**: agent yang mendukung mengirim `"volume"` di `features`. HP hanya mengirim `volume` kalau fitur ini ada, karena agent lama menutup koneksi saat menerima pesan yang tidak dikenal.
-- **Perintah** berisi tepat satu field:
-  - `{"t":"volume","step":1}` naik satu langkah, `-1` turun (paling banyak 16 langkah sekaligus). Satu langkah = 1/16, dan hasilnya selalu kelipatan 1/16 seperti tombol volume Mac: dari 0,53 naik ke 0,5625 atau turun ke 0,5.
-  - `{"t":"volume","level":0.4}` mengatur volume langsung (0–1).
-  - `{"t":"volume","muted":true}` membisukan, `false` menyalakan suara lagi.
-  - `step` dan `level` juga menyalakan suara yang sedang bisu, seperti tombol volume.
-- **Status**: HP meminta dengan `volumeUpdates: true` di `settings`. Agent langsung mengirim status saat ini, lalu mengirim ulang setiap kali berubah, termasuk kalau volume diubah di komputer: `{"t":"volume_status","level":0.5625,"muted":false}`.
-- Tanpa `level`, output komputer tidak bisa diatur volumenya (mis. monitor HDMI di Mac). Perintah `step` dan `level` lalu diabaikan.
-- Agent memeriksa volume setiap 250 ms, hanya selama ada HP yang meminta. Yang diatur adalah perangkat output default: lewat CoreAudio di Mac (tanpa izin tambahan), dan lewat Core Audio (`IAudioEndpointVolume`) di Windows.
-- HP sebelum v0.7 tidak mengirim `volumeUpdates`, jadi tidak pernah menerima `volume_status`.
+- **Feature**: agents that support it send `"volume"` in `features`. The phone only sends `volume` when it is present, because older agents close the connection on unknown messages.
+- **Commands** contain exactly one field:
+  - `{"t":"volume","step":1}` goes up one step, `-1` down (at most 16 steps at once). One step is 1/16, and the result is always a multiple of 1/16, like the Mac's volume keys: from 0.53, up goes to 0.5625 and down to 0.5.
+  - `{"t":"volume","level":0.4}` sets the volume directly (0–1).
+  - `{"t":"volume","muted":true}` mutes, `false` unmutes.
+  - `step` and `level` also unmute, like volume keys.
+- **Status**: the phone asks with `volumeUpdates: true` in `settings`. The agent sends the current state right away, then again on every change, including changes made on the computer: `{"t":"volume_status","level":0.5625,"muted":false}`.
+- Without `level`, the computer's output has no adjustable volume (for example an HDMI monitor on a Mac). `step` and `level` commands are then ignored.
+- The agent checks the volume every 250 ms, only while a phone is asking. It controls the default output device: through CoreAudio on macOS (no extra permission), and Core Audio (`IAudioEndpointVolume`) on Windows.
+- Phones before v0.7 don't send `volumeUpdates`, so they never receive `volume_status`.
 
-## QR pairing
+## Pairing QR code
 
 ```
 armrest://pair?h=<hostId>&n=<hostName>&a=<ip>:<port>&t=<token>&fp=<fingerprint>
 ```
 
-`n` di-percent-encode. Alamat `a` hanya dipakai saat pairing; setelah itu HP mencari Mac lewat Bonjour, dengan alamat terakhir sebagai cadangan. App Android juga menerima URI ini sebagai deep link.
+`n` is percent-encoded. The address `a` is only used for pairing; after that, the phone finds the agent over Bonjour, with the last known address as a fallback. The Android app also accepts this URI as a deep link.
 
-### Alur pairing
+### Pairing flow
 
-1. User klik **Tambah perangkat** di menu bar. Agent membuat token (TTL 120 detik, sekali pakai) dan menampilkan QR.
-2. HP scan QR, lalu membuka `wss://<a>` dengan pinning `fp`. Kalau fingerprint tidak cocok, koneksi dibatalkan.
-3. HP kirim `hello` (mode `pair`), lalu `pair_request`.
-4. Agent memeriksa token. Token langsung hangus begitu dipakai, baik hasilnya diizinkan maupun ditolak. Agent lalu menampilkan dialog "Izinkan <deviceName>?".
-5. Izinkan: agent menyimpan perangkat dan mengirim `pair_result` ok, lalu langsung `challenge`. HP menyimpan host dan menjawab `auth` di koneksi yang sama.
+1. The user clicks **Add device…** in the agent's menu. The agent creates a token (120-second TTL, single use) and shows the QR code.
+2. The phone scans the QR code, then opens `wss://<a>`, pinning `fp`. If the fingerprint doesn't match, the connection is aborted.
+3. The phone sends `hello` (mode `pair`), then `pair_request`.
+4. The agent checks the token. The token is spent as soon as it is used, whether the request is then allowed or denied. The agent then asks "Allow <deviceName> to control this computer?".
+5. Allow: the agent stores the device and sends a successful `pair_result`, followed right away by `challenge`. The phone stores the host and answers with `auth` on the same connection.
 
-### Alur koneksi ulang
+### Reconnection flow
 
-1. HP resolve `_armrest._tcp` lewat NSD dan mencocokkan `hostId` dari TXT record. Kalau tidak ketemu, HP mencoba alamat terakhir.
-2. HP membuka `wss` dengan pinning fingerprint tersimpan, lalu kirim `hello` (mode `auth`).
-3. Agent kirim `challenge`, HP menandatangani payload dengan kunci di Android Keystore.
-4. Agent verifikasi dengan public key tersimpan, kirim `auth_result` ok, dan memperbarui `lastSeen`.
+1. The phone resolves `_armrest._tcp` through NSD and matches the `hostId` from the TXT record. If it finds nothing, it tries the last known address.
+2. The phone opens `wss`, pinning the stored fingerprint, then sends `hello` (mode `auth`).
+3. The agent sends `challenge`; the phone signs the payload with its key in the Android Keystore.
+4. The agent verifies it with the stored public key, sends a successful `auth_result`, and updates `lastSeen`.
 
-### Aturan keamanan
+### Security rules
 
-- Token pairing sekali pakai, TTL 120 detik, dibatalkan setelah 5 percobaan salah.
-- Nonce baru untuk setiap koneksi. Agent membuang event input sebelum autentikasi selesai.
-- Hanya satu sesi aktif per perangkat. Koneksi baru dari perangkat yang sama menutup sesi lama.
-- Revoke = hapus perangkat dari daftar terpercaya dan putus sesinya.
+- Pairing tokens are single use, expire after 120 seconds, and are canceled after 5 failed attempts.
+- A fresh nonce for every connection. The agent drops input events until authentication completes.
+- One active session per device. A new connection from the same device closes the old session.
+- Revoking removes the device from the trusted list and ends its session.
 
-## Test vector
+## Test vectors
 
-`vectors/` dipakai test Swift dan Kotlin, supaya kedua sisi dijamin sepakat:
+`vectors/` is shared by the Swift, Kotlin, and C# tests, so every side is guaranteed to agree:
 
-- `input.json`: encoding biner setiap tipe event, plus frame yang harus ditolak.
-- `auth.json`: payload, public key, dan signature buatan openssl (valid dan tidak valid), plus contoh fingerprint.
-- `screen.json`: encoding `screen_config` dan `screen_frame`, frame yang harus ditolak, dan konversi NAL berawalan panjang ke Annex B.
+- `input.json`: the binary encoding of every event type, plus frames that must be rejected.
+- `auth.json`: payloads, public keys, and signatures made with openssl (valid and invalid), plus a sample fingerprint.
+- `screen.json`: the encoding of `screen_config` and `screen_frame`, frames that must be rejected, and the conversion from length-prefixed NALs to Annex B.
 
-Uji end-to-end memakai profil uji yang sama di setiap agent: lihat [E2E.md](E2E.md).
+End-to-end tests use the same test profile in every agent: see [E2E.md](E2E.md).

@@ -1,37 +1,39 @@
-# Profil uji end-to-end
+# End-to-end test profile
 
-Semua agent (Mac dan Windows) punya profil uji yang sama, supaya bisa diuji oleh klien yang sama:
-`android-app/core/src/test/.../AgentConnectionE2ETest.kt`, yaitu kode koneksi app Android yang dijalankan di JVM.
-Klien itu melakukan pairing, autentikasi, kirim input, fokus kolom teks, layar, sambung ulang, dan tiga skenario
-penolakan (fingerprint salah, token dipakai ulang, perangkat tidak dikenal).
+Every agent (Mac and Windows) has the same test profile, so the same client can test them all:
+`android-app/core/src/test/.../AgentConnectionE2ETest.kt`, the Android app's connection code running on the JVM.
+The client pairs, authenticates, sends input and media keys, and checks text field focus, volume, the screen,
+reconnection, and three rejection scenarios (wrong fingerprint, reused token, unknown device).
 
-## Variabel environment agent
+## Agent environment variables
 
-| Variabel | Arti |
+| Variable | Meaning |
 | --- | --- |
-| `ARMREST_PROFILE` | Nama profil. Data, identitas TLS, dan pengaturan terpisah dari app normal (mis. `e2e`). Mode tanpa UI tanpa nama profil memakai `e2e`, jadi uji tidak pernah menyentuh data app normal. |
-| `ARMREST_PORT` | Port server, mis. `47811` supaya tidak bentrok dengan app yang sedang dipakai. |
-| `ARMREST_E2E_ADDRESS` | Alamat di QR: `127.0.0.1`, atau `10.0.2.2` untuk emulator Android. |
-| `ARMREST_E2E_AUTO_APPROVE=1` | Permintaan pairing langsung diizinkan. |
-| `ARMREST_E2E_PAIRING_FILE` | Agent menulis URI QR ke file ini begitu server siap. Variabel ini juga menyalakan mode tanpa UI. |
-| `ARMREST_E2E_FOCUS_FILE` | Status fokus kolom teks dibaca dari file ini: `1` = kolom teks fokus. |
-| `ARMREST_E2E_LOG=1` | Log ke stderr: `server: …`, `features: …`, `input: …`, `focus: …`, `screen: …`, `volume: …`. |
+| `ARMREST_PROFILE` | Profile name. Data, TLS identity, and settings are kept apart from the normal app (for example `e2e`). Headless mode without a profile name uses `e2e`, so tests never touch the normal app's data. |
+| `ARMREST_PORT` | Server port, for example `47811` so it doesn't clash with an app in use. |
+| `ARMREST_E2E_ADDRESS` | Address in the QR code: `127.0.0.1`, or `10.0.2.2` for the Android emulator. |
+| `ARMREST_E2E_AUTO_APPROVE=1` | Pairing requests are allowed right away. |
+| `ARMREST_E2E_PAIRING_FILE` | The agent writes the QR code's URI to this file once the server is ready. This variable also turns on headless mode. |
+| `ARMREST_E2E_FOCUS_FILE` | Text field focus is read from this file: `1` = a text field has focus. |
+| `ARMREST_E2E_HOST_NAME` | The computer name to announce, for example for screenshots without the real computer name. Headless mode only. |
+| `ARMREST_E2E_LOG=1` | Logs to stderr: `server: …`, `features: …`, `input: …`, `focus: …`, `screen: …`, `volume: …`. |
 
-## Perilaku mode tanpa UI
+## Headless mode behavior
 
-- **Tanpa jendela, tanpa input sungguhan**: input dari HP hanya dicatat, tidak pernah menggerakkan kursor atau mengetik.
-- **Fokus kolom teks**: dari file di atas, atau selalu "bukan kolom teks" kalau tidak di-set. Tidak pernah membaca app lain.
-- **Layar**: pola uji bergerak, seolah layar 1440 × 900, lewat encoder H.264 sungguhan. Tidak pernah menangkap layar asli.
-  - HP uji meminta 1920 × 1080, jadi `screen_config` harus berukuran 1440 × 900.
-  - Posisi kursor (`screen_cursor`) tiruan: di tengah balok yang bergerak, `y` = 0,725.
-- **Volume**: tiruan di memori, mulai dari `level` 0,5 dan tidak bisu. Tidak pernah mengubah volume sungguhan.
-- **Fitur `screen`** hanya diumumkan kalau encoder tersedia.
-  - Agent tanpa encoder: host C# di macOS/Linux, atau Windows Server tanpa Media Foundation.
-  - Untuk agent seperti itu, jalankan klien dengan `ARMREST_E2E_EXPECT_SCREEN=0`.
+- **No windows, no real input**: input from the phone is only logged, and never moves the cursor or types.
+- **Text field focus**: from the file above, or always "not a text field" when unset. Never reads other apps.
+- **Screen**: a moving test pattern, as if the screen were 1440 × 900, through a real H.264 encoder. Never captures the real screen.
+  - The test phone asks for 1920 × 1080, so `screen_config` must be 1440 × 900.
+  - The cursor position (`screen_cursor`) is simulated: in the middle of the moving bar, with `y` = 0.725.
+- **Volume**: simulated in memory, starting at `level` 0.5 and unmuted. Never changes the real volume.
+- **Media keys**: logged as `input: key(…)` like any other key. Never controls real playback.
+- **The `screen` feature** is only announced when an encoder is available.
+  - Agents without an encoder: the C# host on macOS/Linux, or Windows Server without Media Foundation.
+  - For such an agent, run the client with `ARMREST_E2E_EXPECT_SCREEN=0`.
 
-## Menjalankan
+## Running
 
-| Agent | Perintah |
+| Agent | Command |
 | --- | --- |
-| Mac, dan inti C# agent Windows (tanpa layar) | `./scripts/e2e-local.sh` |
-| Windows (juga dijalankan CI) | `./scripts/e2e-windows.ps1` |
+| Mac, and the C# core of the Windows agent (no screen) | `./scripts/e2e-local.sh` |
+| Windows (also run by CI) | `./scripts/e2e-windows.ps1` |
