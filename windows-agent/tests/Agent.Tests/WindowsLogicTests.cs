@@ -78,5 +78,14 @@ public class WindowsLogicTests
         Assert.Equal(new WindowsKey(0xB0, 0, true), WindowsKeys.For(KeyCode.NextTrack));
         Assert.Equal(new WindowsKey(0xB1, 0, true), WindowsKeys.For(KeyCode.PreviousTrack));
     }
+
+    [Fact]
+    public void UiTextFollowsTheWindowsDisplayLanguage()
+    {
+        Assert.Equal("Tutup", Armrest.Agent.Hosting.Localized.Pick(new System.Globalization.CultureInfo("id-ID"), "Close", "Tutup"));
+        Assert.Equal("Close", Armrest.Agent.Hosting.Localized.Pick(new System.Globalization.CultureInfo("en-US"), "Close", "Tutup"));
+        // Bahasa lain memakai Inggris sebagai dasar.
+        Assert.Equal("Close", Armrest.Agent.Hosting.Localized.Pick(new System.Globalization.CultureInfo("ja-JP"), "Close", "Tutup"));
+    }
 }
 

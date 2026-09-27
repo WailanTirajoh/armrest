@@ -7,6 +7,7 @@ using Armrest.Agent.Hosting;
 using Armrest.Agent.Server;
 using Armrest.Agent.Session;
 using Armrest.Agent.Windows.Platform;
+using static Armrest.Agent.Hosting.Localized;
 
 namespace Armrest.Agent.Windows.Ui;
 
@@ -63,11 +64,11 @@ internal sealed class PanelWindow : Window
         content.Children.Add(Header());
         if (host.ServerState is ServerState.Failed { Message: var message })
         {
-            content.Children.Add(Spaced(Theme.Text($"Server tidak bisa berjalan: {message}", 12, color: Theme.Warning)));
+            content.Children.Add(Spaced(Theme.Text(T($"The server can't start: {message}", $"Server tidak bisa berjalan: {message}"), 12, color: Theme.Warning)));
         }
         foreach (var device in host.ActiveDevices) content.Children.Add(ActiveSession(device));
 
-        var add = Theme.Button("Tambah perangkat…", () =>
+        var add = Theme.Button(T("Add device…", "Tambah perangkat…"), () =>
         {
             Hide();
             pair();
@@ -76,16 +77,16 @@ internal sealed class PanelWindow : Window
         add.IsEnabled = host.ListeningAddress is not null;
         content.Children.Add(Spaced(add, 12));
 
-        content.Children.Add(Spaced(Theme.Text("PERANGKAT TERPERCAYA", 11, bold: true, color: Theme.Secondary), 16));
-        if (host.Devices.Count == 0) content.Children.Add(Spaced(Theme.Text("Belum ada perangkat.", 12, color: Theme.Secondary), 6));
+        content.Children.Add(Spaced(Theme.Text(T("TRUSTED DEVICES", "PERANGKAT TERPERCAYA"), 11, bold: true, color: Theme.Secondary), 16));
+        if (host.Devices.Count == 0) content.Children.Add(Spaced(Theme.Text(T("No devices yet.", "Belum ada perangkat."), 12, color: Theme.Secondary), 6));
         foreach (var device in host.Devices) content.Children.Add(DeviceRow(device));
 
         content.Children.Add(Spaced(new Separator(), 12));
-        var autostart = new CheckBox { Content = "Buka saat login", IsChecked = Autostart.Enabled, Margin = new Thickness(0, 8, 0, 0) };
+        var autostart = new CheckBox { Content = T("Open at login", "Buka saat login"), IsChecked = Autostart.Enabled, Margin = new Thickness(0, 8, 0, 0) };
         autostart.Click += (_, _) => Autostart.Enabled = autostart.IsChecked == true;
         content.Children.Add(autostart);
         content.Children.Add(Spaced(new Separator(), 8));
-        var exit = Theme.Button("Keluar", quit);
+        var exit = Theme.Button(T("Quit", "Keluar"), quit);
         exit.HorizontalAlignment = HorizontalAlignment.Left;
         content.Children.Add(Spaced(exit, 8));
     }
@@ -103,18 +104,20 @@ internal sealed class PanelWindow : Window
 
     private string Status()
     {
-        if (host.ActiveDevices.Count > 0) return $"{host.ActiveDevices.Count} sesi aktif";
-        if (host.Pairing is not null) return "Menunggu pairing…";
-        return host.ListeningAddress is { } address ? $"Siap · {address}" : "Menyiapkan…";
+        if (host.ActiveDevices.Count > 0) return T($"Active sessions: {host.ActiveDevices.Count}", $"Sesi aktif: {host.ActiveDevices.Count}");
+        if (host.Pairing is not null) return T("Waiting for pairing…", "Menunggu pairing…");
+        return host.ListeningAddress is { } address ? T($"Ready · {address}", $"Siap · {address}") : T("Starting…", "Menyiapkan…");
     }
 
     private UIElement ActiveSession(TrustedDevice device)
     {
         var text = new StackPanel();
-        text.Children.Add(Theme.Text($"Dikontrol oleh {device.Name}", 13, bold: true, color: Theme.Warning));
-        var detail = host.ScreenViewers.Contains(device.Id) ? "Sesi aktif · melihat layar" : "Sesi aktif";
+        text.Children.Add(Theme.Text(T($"Controlled by {device.Name}", $"Dikontrol oleh {device.Name}"), 13, bold: true, color: Theme.Warning));
+        var detail = host.ScreenViewers.Contains(device.Id)
+            ? T("Active session · viewing screen", "Sesi aktif · melihat layar")
+            : T("Active session", "Sesi aktif");
         text.Children.Add(Theme.Text(detail, 12, color: Theme.Warning));
-        var disconnect = Theme.Button("Putuskan", () => host.Disconnect(device.Id));
+        var disconnect = Theme.Button(T("Disconnect", "Putuskan"), () => host.Disconnect(device.Id));
         disconnect.VerticalAlignment = VerticalAlignment.Center;
         var grid = Row(text, disconnect);
         return Spaced(new Border { Background = Theme.WarningFill, CornerRadius = new CornerRadius(8), Padding = new Thickness(10), Child = grid }, 10);
@@ -125,8 +128,8 @@ internal sealed class PanelWindow : Window
         var active = host.ActiveDevices.Any(d => d.Id == device.Id);
         var text = new StackPanel();
         text.Children.Add(Theme.Text(device.Name, 13, bold: true));
-        text.Children.Add(Theme.Text(active ? "Aktif sekarang" : LastSeen(device), 12, bold: active, color: active ? Theme.Warning : Theme.Secondary));
-        var revoke = Theme.Button("Cabut…", () => Revoke(device));
+        text.Children.Add(Theme.Text(active ? T("Active now", "Aktif sekarang") : LastSeen(device), 12, bold: active, color: active ? Theme.Warning : Theme.Secondary));
+        var revoke = Theme.Button(T("Revoke…", "Cabut…"), () => Revoke(device));
         revoke.VerticalAlignment = VerticalAlignment.Center;
         return Spaced(Row(text, revoke), 8);
     }
@@ -135,8 +138,9 @@ internal sealed class PanelWindow : Window
     {
         var answer = MessageBox.Show(
             this,
-            $"{device.Name} tidak bisa mengontrol komputer ini lagi sampai dipasangkan ulang lewat QR.",
-            $"Cabut akses {device.Name}?",
+            T($"{device.Name} won't be able to control this computer until it's paired again with a QR code.",
+                $"{device.Name} tidak bisa mengontrol komputer ini lagi sampai dipasangkan ulang lewat QR."),
+            T($"Revoke access for {device.Name}?", $"Cabut akses {device.Name}?"),
             MessageBoxButton.OKCancel,
             MessageBoxImage.Warning);
         if (answer == MessageBoxResult.OK) host.Revoke(device.Id);
@@ -144,12 +148,13 @@ internal sealed class PanelWindow : Window
 
     private static string LastSeen(TrustedDevice device)
     {
-        if (device.LastSeen is not { } seen) return "Belum pernah terhubung";
+        if (device.LastSeen is not { } seen) return T("Never connected", "Belum pernah terhubung");
         var ago = DateTimeOffset.UtcNow - seen;
-        return ago.TotalMinutes < 1 ? "Terakhir: baru saja"
-            : ago.TotalHours < 1 ? $"Terakhir: {(int)ago.TotalMinutes} menit lalu"
-            : ago.TotalDays < 1 ? $"Terakhir: {(int)ago.TotalHours} jam lalu"
-            : $"Terakhir: {(int)ago.TotalDays} hari lalu";
+        int minutes = (int)ago.TotalMinutes, hours = (int)ago.TotalHours, days = (int)ago.TotalDays;
+        return ago.TotalMinutes < 1 ? T("Last seen just now", "Terakhir: baru saja")
+            : ago.TotalHours < 1 ? T($"Last seen {minutes} min ago", $"Terakhir: {minutes} menit lalu")
+            : ago.TotalDays < 1 ? T($"Last seen {hours} h ago", $"Terakhir: {hours} jam lalu")
+            : T(days == 1 ? "Last seen 1 day ago" : $"Last seen {days} days ago", $"Terakhir: {days} hari lalu");
     }
 
     private static Grid Row(UIElement left, UIElement right)

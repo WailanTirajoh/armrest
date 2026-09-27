@@ -16,6 +16,7 @@ test: test-mac test-android test-windows
 
 test-mac:
 	cd mac-agent && swift test
+	python3 scripts/check-mac-strings.py
 
 test-android:
 	cd android-app && ./gradlew :core:test :app:testDebugUnitTest

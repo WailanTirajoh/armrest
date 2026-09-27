@@ -5,6 +5,7 @@ using System.Drawing.Drawing2D;
 using System.Drawing.Imaging;
 using Microsoft.Win32;
 using Forms = System.Windows.Forms;
+using static Armrest.Agent.Hosting.Localized;
 
 namespace Armrest.Agent.Windows.Ui;
 
@@ -24,10 +25,10 @@ internal sealed class TrayIcon : IDisposable
     public TrayIcon(Action open, Action pair, Action quit)
     {
         var menu = new Forms.ContextMenuStrip();
-        menu.Items.Add("Buka Armrest", null, (_, _) => open());
-        menu.Items.Add("Tambah perangkat…", null, (_, _) => pair());
+        menu.Items.Add(T("Open Armrest", "Buka Armrest"), null, (_, _) => open());
+        menu.Items.Add(T("Add device…", "Tambah perangkat…"), null, (_, _) => pair());
         menu.Items.Add(new Forms.ToolStripSeparator());
-        menu.Items.Add("Keluar", null, (_, _) => quit());
+        menu.Items.Add(T("Quit", "Keluar"), null, (_, _) => quit());
         icon = new Forms.NotifyIcon { Text = "Armrest", ContextMenuStrip = menu };
         icon.MouseClick += (_, e) =>
         {

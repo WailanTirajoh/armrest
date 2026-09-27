@@ -12,6 +12,11 @@ android {
     // Library Compose terbaru butuh compileSdk 37.
     compileSdk = 37
 
+    // Bahasa app bisa dipilih per app (Android 13+): daftar bahasa dibuat dari folder values-*.
+    androidResources {
+        generateLocaleConfig = true
+    }
+
     defaultConfig {
         applicationId = "io.github.wailantirajoh.armrest"
         minSdk = 26

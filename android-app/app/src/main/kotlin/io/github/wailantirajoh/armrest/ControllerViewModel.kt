@@ -265,10 +265,10 @@ class ControllerViewModel(application: Application) : AndroidViewModel(applicati
             is Screen.Touchpad -> when {
                 failure is ClientFailure.AuthRejected && failure.code == "unknown_device" -> {
                     hostStore.remove(hostId)
-                    backToHosts("Komputer sudah mencabut akses HP ini. Pasangkan ulang lewat QR.")
+                    backToHosts(getApplication<Application>().getString(R.string.message_revoked))
                 }
                 failure is ClientFailure.FingerprintMismatch ->
-                    backToHosts("Sertifikat komputer berubah. Demi keamanan, pasangkan ulang lewat QR.")
+                    backToHosts(getApplication<Application>().getString(R.string.message_certificate_changed))
                 else -> scheduleReconnect(screen.hostId)
             }
             else -> Unit

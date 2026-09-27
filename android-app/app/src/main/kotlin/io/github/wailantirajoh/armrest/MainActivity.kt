@@ -51,9 +51,13 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    /** Tombol volume HP mengatur volume komputer selama touchpad terbuka (kalau setelannya menyala). */
-    override fun dispatchKeyEvent(event: KeyEvent): Boolean =
-        viewModel.onVolumeKey(event.keyCode, event.action == KeyEvent.ACTION_DOWN, event.repeatCount) || super.dispatchKeyEvent(event)
+    // Tombol volume HP mengatur volume komputer selama touchpad terbuka (kalau setelannya menyala). Kolom teks dan
+    // keyboard HP tidak memakai tombol volume, jadi event-nya selalu sampai ke sini sebelum sistem mengubah volume HP.
+    override fun onKeyDown(keyCode: Int, event: KeyEvent): Boolean =
+        viewModel.onVolumeKey(keyCode, down = true, event.repeatCount) || super.onKeyDown(keyCode, event)
+
+    override fun onKeyUp(keyCode: Int, event: KeyEvent): Boolean =
+        viewModel.onVolumeKey(keyCode, down = false, event.repeatCount) || super.onKeyUp(keyCode, event)
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
@@ -75,7 +79,7 @@ class MainActivity : ComponentActivity() {
     private fun handleDeepLink(intent: Intent?) {
         val data = intent?.dataString ?: return
         if (!viewModel.onPairingText(data)) {
-            Toast.makeText(this, "Tautan pairing tidak valid", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, R.string.invalid_pairing_link, Toast.LENGTH_SHORT).show()
         }
     }
 }

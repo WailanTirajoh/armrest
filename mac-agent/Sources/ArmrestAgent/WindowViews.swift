@@ -14,20 +14,20 @@ struct PairingView: View {
                     qr(pairing)
                     VStack(alignment: .leading, spacing: 10) {
                         if pairing.expired {
-                            Text("QR sudah tidak berlaku").font(.system(size: 14, weight: .bold))
-                            Text("Setiap QR hanya berlaku 120 detik dan sekali pakai. Buat QR baru untuk memasangkan HP.")
+                            Text("QR code no longer valid").font(.system(size: 14, weight: .bold))
+                            Text("Each QR code works once and only for 120 seconds. Create a new one to pair a phone.")
                                 .font(.system(size: 13))
                                 .foregroundStyle(.secondary)
                         } else {
-                            step(1, "Buka Armrest di HP Android.")
-                            step(2, "Ketuk **Pair komputer baru**.")
-                            step(3, "Arahkan kamera ke QR ini, lalu klik **Izinkan** di Mac.")
+                            step(1, "Open Armrest on your Android phone.")
+                            step(2, "Tap **Pair new computer**.")
+                            step(3, "Point the camera at this QR code, then click **Allow** on the Mac.")
                             countdown(pairing)
                         }
-                        Text("\(model.hostName) · \(pairing.address)")
+                        Text(verbatim: "\(model.hostName) · \(pairing.address)")
                             .font(.system(size: 12))
                             .foregroundStyle(.secondary)
-                        Text("Sidik jari: \(shortFingerprint)")
+                        Text("Fingerprint: \(shortFingerprint)")
                             .font(.system(size: 11, design: .monospaced))
                             .foregroundStyle(.secondary)
                     }
@@ -35,8 +35,8 @@ struct PairingView: View {
                 }
                 HStack {
                     Spacer()
-                    Button(pairing.expired ? "Buat QR baru" : "Buat ulang") { model.showPairing() }
-                    Button("Tutup") { model.closePairing() }
+                    Button(pairing.expired ? LocalizedStringKey("New QR code") : LocalizedStringKey("Regenerate")) { model.showPairing() }
+                    Button("Close") { model.closePairing() }
                         .keyboardShortcut(.cancelAction)
                 }
             }
@@ -54,7 +54,7 @@ struct PairingView: View {
                     .opacity(pairing.expired ? 0.12 : 1)
             }
             if pairing.expired {
-                Text("Kedaluwarsa")
+                Text("Expired")
                     .font(.system(size: 13, weight: .bold))
                     .foregroundColor(Palette.warning)
                     .padding(.horizontal, 10)
@@ -69,7 +69,7 @@ struct PairingView: View {
 
     private func step(_ number: Int, _ text: LocalizedStringKey) -> some View {
         HStack(alignment: .top, spacing: 10) {
-            Text("\(number)")
+            Text(verbatim: String(number))
                 .font(.system(size: 11, weight: .bold))
                 .foregroundColor(.white)
                 .frame(width: 20, height: 20)
@@ -81,7 +81,7 @@ struct PairingView: View {
     private func countdown(_ pairing: PairingDisplay) -> some View {
         VStack(alignment: .leading, spacing: 6) {
             HStack {
-                Text("Berlaku").foregroundStyle(.secondary)
+                Text("Valid for").foregroundStyle(.secondary)
                 Spacer()
                 Text(String(format: "%d:%02d", pairing.secondsRemaining / 60, pairing.secondsRemaining % 60)).fontWeight(.semibold)
             }
@@ -106,21 +106,21 @@ struct ApprovalView: View {
     var body: some View {
         VStack(spacing: 12) {
             AppGlyph(size: 64)
-            Text("Izinkan “\(device.name)” mengontrol Mac ini?")
+            Text("Allow “\(device.name)” to control this Mac?")
                 .font(.system(size: 14, weight: .bold))
                 .multilineTextAlignment(.center)
-            Text("\(device.name) akan bisa menggerakkan kursor, klik, dan scroll di Mac ini. Akses bisa dicabut kapan saja dari menu bar.")
+            Text("\(device.name) will be able to move the cursor, click, and scroll on this Mac. You can revoke access anytime from the menu bar.")
                 .font(.system(size: 12))
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
                 .fixedSize(horizontal: false, vertical: true)
-            Text("Kunci perangkat: \(keySummary)")
+            Text("Device key: \(keySummary)")
                 .font(.system(size: 11, design: .monospaced))
                 .foregroundStyle(.secondary)
             VStack(spacing: 8) {
-                Button { onDecision(true) } label: { Text("Izinkan").frame(maxWidth: .infinity) }
+                Button { onDecision(true) } label: { Text("Allow").frame(maxWidth: .infinity) }
                     .keyboardShortcut(.defaultAction)
-                Button { onDecision(false) } label: { Text("Tolak").frame(maxWidth: .infinity) }
+                Button { onDecision(false) } label: { Text("Deny").frame(maxWidth: .infinity) }
                     .keyboardShortcut(.cancelAction)
             }
             .controlSize(.large)
@@ -143,38 +143,38 @@ struct OnboardingView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             if model.accessibilityGranted {
-                Text("Siap dipakai").font(.system(size: 20, weight: .bold))
-                Label("Izin Accessibility aktif", systemImage: "checkmark")
+                Text("Ready to go").font(.system(size: 20, weight: .bold))
+                Label("Accessibility permission is on", systemImage: "checkmark")
                     .font(.system(size: 13, weight: .semibold))
                     .foregroundColor(Palette.success)
-                Text("Berikutnya: klik ikon app di menu bar, lalu pilih **Tambah perangkat** untuk memasangkan HP Android.")
+                Text("Next: click the app icon in the menu bar, then choose **Add device** to pair your Android phone.")
                     .font(.system(size: 13))
                     .foregroundStyle(.secondary)
-                Text("App ini berjalan di menu bar dan tidak muncul di Dock.")
+                Text("This app lives in the menu bar and doesn't appear in the Dock.")
                     .font(.system(size: 13))
                     .foregroundStyle(.secondary)
                 HStack {
                     Spacer()
-                    Button("Selesai") { model.closeOnboarding() }.keyboardShortcut(.defaultAction)
+                    Button("Done") { model.closeOnboarding() }.keyboardShortcut(.defaultAction)
                 }
             } else {
-                Text("Satu izin lagi").font(.system(size: 20, weight: .bold))
-                Text("macOS perlu izin Accessibility supaya Armrest bisa menggerakkan kursor dan klik atas perintah HP yang sudah kamu pasangkan.")
+                Text("One more permission").font(.system(size: 20, weight: .bold))
+                Text("macOS needs the Accessibility permission so Armrest can move the cursor and click when your paired phone asks it to.")
                     .font(.system(size: 13))
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
                 VStack(alignment: .leading, spacing: 10) {
-                    step(1, "Klik **Buka System Settings**.")
-                    step(2, "Nyalakan Armrest di Privacy & Security › Accessibility.")
-                    step(3, "Kembali ke sini. Status di bawah berubah otomatis.")
+                    step(1, "Click **Open System Settings**.")
+                    step(2, "Turn on Armrest under Privacy & Security › Accessibility.")
+                    step(3, "Come back here. The status below updates on its own.")
                 }
-                Label("Menunggu izin…", systemImage: "clock")
+                Label("Waiting for permission…", systemImage: "clock")
                     .font(.system(size: 13, weight: .semibold))
                     .foregroundColor(Palette.warning)
                 HStack {
                     Spacer()
-                    Button("Nanti saja") { model.closeOnboarding() }
-                    Button("Buka System Settings") { model.openAccessibilitySettings() }.keyboardShortcut(.defaultAction)
+                    Button("Not now") { model.closeOnboarding() }
+                    Button("Open System Settings") { model.openAccessibilitySettings() }.keyboardShortcut(.defaultAction)
                 }
             }
         }
@@ -184,7 +184,7 @@ struct OnboardingView: View {
 
     private func step(_ number: Int, _ text: LocalizedStringKey) -> some View {
         HStack(alignment: .top, spacing: 10) {
-            Text("\(number)")
+            Text(verbatim: String(number))
                 .font(.system(size: 11, weight: .bold))
                 .foregroundColor(.white)
                 .frame(width: 20, height: 20)

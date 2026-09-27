@@ -55,6 +55,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
@@ -65,6 +66,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import io.github.wailantirajoh.armrest.CursorPoint
 import io.github.wailantirajoh.armrest.Link
+import io.github.wailantirajoh.armrest.R
 import io.github.wailantirajoh.armrest.ScreenState
 import io.github.wailantirajoh.armrest.ScreenUi
 import io.github.wailantirajoh.armrest.VolumeUi
@@ -77,7 +79,6 @@ import io.github.wailantirajoh.armrest.core.ScreenViewport
 import io.github.wailantirajoh.armrest.data.TouchSettings
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.StateFlow
-import java.util.Locale
 import kotlin.math.roundToInt
 
 /** Mockup A3: touchpad. */
@@ -166,30 +167,30 @@ fun TouchpadScreen(
             TopBar(
                 title = hostName,
                 navigationIcon = AppIcons.Back,
-                navigationLabel = "Putuskan dan kembali",
+                navigationLabel = stringResource(R.string.disconnect_back),
                 onNavigate = onBack,
                 subtitle = { LinkStatus(link) },
                 actions = {
                     IconButton(onClick = onToggleScreen, enabled = connected) {
                         Icon(
                             AppIcons.Monitor,
-                            contentDescription = if (settings.screenPreview) "Sembunyikan layar komputer" else "Tampilkan layar komputer",
+                            contentDescription = stringResource(if (settings.screenPreview) R.string.screen_hide else R.string.screen_show),
                             tint = if (settings.screenPreview) colors.primary else colors.onSurface,
                         )
                     }
                     if (soundPanel) {
                         IconButton(onClick = { showVolume = true }, enabled = connected) {
-                            Icon(volumeIcon(volume), contentDescription = "Volume & media")
+                            Icon(volumeIcon(volume), contentDescription = stringResource(R.string.volume_media))
                         }
                     }
                     IconButton(onClick = onToggleKeyboard, enabled = connected) {
                         Icon(
                             AppIcons.Keyboard,
-                            contentDescription = if (keyboardOpen) "Tutup keyboard" else "Buka keyboard",
+                            contentDescription = stringResource(if (keyboardOpen) R.string.keyboard_close else R.string.keyboard_open),
                             tint = if (keyboardOpen) colors.primary else colors.onSurface,
                         )
                     }
-                    IconButton(onClick = { showSettings = true }) { Icon(AppIcons.Settings, contentDescription = "Pengaturan touchpad") }
+                    IconButton(onClick = { showSettings = true }) { Icon(AppIcons.Settings, contentDescription = stringResource(R.string.touchpad_settings)) }
                 },
             )
         }
@@ -204,10 +205,11 @@ fun TouchpadScreen(
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 Icon(AppIcons.Refresh, contentDescription = null, tint = Tones.warning(), modifier = Modifier.size(20.dp))
-                Text("Koneksi putus. Mencoba lagi… (percobaan ${link.attempt})", color = Tones.warning(), fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+                Text(stringResource(R.string.reconnecting_banner, link.attempt), color = Tones.warning(), fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
             }
         }
         val touchpadShape = RoundedCornerShape(28.dp)
+        val areaLabel = stringResource(R.string.touchpad_area)
         Box(
             Modifier
                 .weight(1f)
@@ -235,7 +237,7 @@ fun TouchpadScreen(
             Box(
                 Modifier
                     .matchParentSize()
-                    .semantics { contentDescription = "Area touchpad" }
+                    .semantics { contentDescription = areaLabel }
                     .pointerInput(connected) {
                         if (!connected) return@pointerInput
                         val engine = GestureEngine()
@@ -278,11 +280,16 @@ fun TouchpadScreen(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     if (fullscreen) {
-                        OverlayButton(AppIcons.Keyboard, if (keyboardOpen) "Tutup keyboard" else "Buka keyboard", onToggleKeyboard, enabled = connected)
-                        if (soundPanel) OverlayButton(volumeIcon(volume), "Volume & media", { showVolume = true }, enabled = connected)
-                        OverlayButton(AppIcons.FullscreenExit, "Keluar dari layar penuh", onToggleFullscreen)
+                        OverlayButton(
+                            AppIcons.Keyboard,
+                            stringResource(if (keyboardOpen) R.string.keyboard_close else R.string.keyboard_open),
+                            onToggleKeyboard,
+                            enabled = connected,
+                        )
+                        if (soundPanel) OverlayButton(volumeIcon(volume), stringResource(R.string.volume_media), { showVolume = true }, enabled = connected)
+                        OverlayButton(AppIcons.FullscreenExit, stringResource(R.string.fullscreen_exit), onToggleFullscreen)
                     } else {
-                        OverlayButton(AppIcons.Fullscreen, "Layar penuh", onToggleFullscreen)
+                        OverlayButton(AppIcons.Fullscreen, stringResource(R.string.fullscreen_enter), onToggleFullscreen)
                     }
                 }
             }
@@ -297,7 +304,7 @@ fun TouchpadScreen(
                     .padding(start = 16.dp, end = 16.dp, bottom = 28.dp),
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                listOf(MouseButton.LEFT to "Kiri", MouseButton.RIGHT to "Kanan").forEach { (button, label) ->
+                listOf(MouseButton.LEFT to R.string.button_left, MouseButton.RIGHT to R.string.button_right).forEach { (button, label) ->
                     OutlinedButton(
                         onClick = { emit(listOf(InputAction.Click(button, 1))) },
                         enabled = connected,
@@ -305,7 +312,7 @@ fun TouchpadScreen(
                         modifier = Modifier
                             .weight(1f)
                             .height(64.dp),
-                    ) { Text(label, fontSize = 15.sp, fontWeight = FontWeight.SemiBold) }
+                    ) { Text(stringResource(label), fontSize = 15.sp, fontWeight = FontWeight.SemiBold) }
                 }
             }
         }
@@ -356,11 +363,12 @@ private fun ScreenPreview(screen: ScreenUi, viewport: () -> ScreenViewport, onSu
 private fun volumeIcon(volume: VolumeUi): ImageVector =
     if (volume.known && (volume.muted || volume.level == 0f)) AppIcons.VolumeOff else AppIcons.Volume
 
+@Composable
 private fun volumeLabel(volume: VolumeUi, level: Float? = volume.level): String = when {
     !volume.known -> "…"
-    level == null -> "Tidak bisa diatur"
-    volume.muted -> "Bisu"
-    else -> "${(level * 100).roundToInt()}%"
+    level == null -> stringResource(R.string.volume_unavailable)
+    volume.muted -> stringResource(R.string.volume_muted)
+    else -> stringResource(R.string.volume_percent, (level * 100).roundToInt())
 }
 
 /** Latar gelap transparan dengan tepi tipis: terbaca di atas gambar apa pun, juga di atas pita hitam layar penuh. */
@@ -391,12 +399,12 @@ private fun ZoomChip(scale: Float, onReset: () -> Unit, modifier: Modifier) {
         modifier
             .padding(12.dp)
             .overlaySurface()
-            .clickable(onClickLabel = "Kembalikan zoom", onClick = onReset)
+            .clickable(onClickLabel = stringResource(R.string.zoom_reset), onClick = onReset)
             .padding(start = 14.dp, end = 10.dp, top = 8.dp, bottom = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(6.dp),
     ) {
-        Text(String.format(Locale.forLanguageTag("id-ID"), "%.1f×", scale), color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+        Text(stringResource(R.string.multiplier, scale), color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
         Icon(AppIcons.Close, contentDescription = null, tint = Color.White, modifier = Modifier.size(16.dp))
     }
 }
@@ -459,10 +467,9 @@ private fun VolumeSheet(
         val level = volume.level
         when {
             !volume.supported -> Unit
-            !volume.known -> Text("Membaca volume komputer…", fontSize = 15.sp, color = colors.onSurfaceVariant)
+            !volume.known -> Text(stringResource(R.string.volume_reading), fontSize = 15.sp, color = colors.onSurfaceVariant)
             level == null -> Text(
-                "Perangkat audio komputer ini tidak bisa diatur volumenya dari HP, misalnya monitor HDMI di Mac. " +
-                    "Bisukan tetap bisa kalau perangkatnya mendukung.",
+                stringResource(R.string.volume_fixed),
                 fontSize = 15.sp,
                 color = colors.onSurfaceVariant,
             )
@@ -472,7 +479,7 @@ private fun VolumeSheet(
                     IconButton(onClick = onToggleMute) {
                         Icon(
                             if (volume.muted) AppIcons.VolumeOff else AppIcons.Volume,
-                            contentDescription = if (volume.muted) "Nyalakan suara" else "Bisukan",
+                            contentDescription = stringResource(if (volume.muted) R.string.volume_unmute else R.string.volume_mute),
                             tint = if (volume.muted) colors.error else colors.onSurface,
                         )
                     }
@@ -488,7 +495,7 @@ private fun VolumeSheet(
                     Text(volumeLabel(volume, shown), fontSize = 15.sp, textAlign = TextAlign.End, modifier = Modifier.width(56.dp))
                 }
                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    listOf(Triple(-1, AppIcons.Minus, "Pelankan"), Triple(1, AppIcons.Plus, "Keraskan")).forEach { (steps, icon, label) ->
+                    listOf(Triple(-1, AppIcons.Minus, R.string.volume_down), Triple(1, AppIcons.Plus, R.string.volume_up)).forEach { (steps, icon, label) ->
                         OutlinedButton(
                             onClick = { onStep(steps) },
                             shape = RoundedCornerShape(20.dp),
@@ -497,14 +504,14 @@ private fun VolumeSheet(
                                 .height(56.dp),
                         ) {
                             Icon(icon, contentDescription = null, modifier = Modifier.size(20.dp))
-                            Text(label, fontSize = 15.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(start = 8.dp))
+                            Text(stringResource(label), fontSize = 15.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(start = 8.dp))
                         }
                     }
                 }
             }
         }
         if (volumeKeys && volume.supported) {
-            Text("Tombol volume HP juga mengatur volume komputer selama touchpad terbuka.", fontSize = 13.sp, color = colors.onSurfaceVariant)
+            Text(stringResource(R.string.volume_keys_hint), fontSize = 13.sp, color = colors.onSurfaceVariant)
         }
     }
 }
@@ -515,10 +522,11 @@ private fun MediaButtons(onMediaKey: (KeyCode) -> Unit) {
     val view = LocalView.current
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
         listOf(
-            Triple(KeyCode.PREVIOUS_TRACK, AppIcons.SkipPrevious, "Sebelumnya"),
-            Triple(KeyCode.PLAY_PAUSE, AppIcons.PlayPause, "Putar atau jeda"),
-            Triple(KeyCode.NEXT_TRACK, AppIcons.SkipNext, "Berikutnya"),
-        ).forEach { (key, icon, label) ->
+            Triple(KeyCode.PREVIOUS_TRACK, AppIcons.SkipPrevious, R.string.media_previous),
+            Triple(KeyCode.PLAY_PAUSE, AppIcons.PlayPause, R.string.media_play_pause),
+            Triple(KeyCode.NEXT_TRACK, AppIcons.SkipNext, R.string.media_next),
+        ).forEach { (key, icon, labelId) ->
+            val label = stringResource(labelId)
             OutlinedButton(
                 onClick = {
                     view.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
@@ -538,17 +546,18 @@ private fun MediaButtons(onMediaKey: (KeyCode) -> Unit) {
 
 @Composable
 private fun TouchpadMessage(connected: Boolean, state: ScreenState, platform: String, onRetry: () -> Unit) {
-    val text = when {
-        !connected -> "Touchpad nonaktif sampai tersambung"
-        state == ScreenState.SHOWING -> return
-        state == ScreenState.LOADING -> "Memuat layar komputer…"
-        state == ScreenState.DENIED && platform == ProtocolConstants.PLATFORM_MACOS ->
-            "Mac belum mengizinkan Screen Recording. Izinkan lewat menu Armrest di Mac."
-        state == ScreenState.DENIED -> "Komputer menolak menampilkan layar."
-        state == ScreenState.FAILED -> "Layar komputer tidak bisa ditampilkan."
-        state == ScreenState.UNSUPPORTED -> "Perbarui Armrest di komputer ke versi terbaru untuk melihat layar."
-        else -> "Geser untuk menggerakkan kursor"
-    }
+    val text = stringResource(
+        when {
+            !connected -> R.string.message_disconnected
+            state == ScreenState.SHOWING -> return
+            state == ScreenState.LOADING -> R.string.message_loading_screen
+            state == ScreenState.DENIED && platform == ProtocolConstants.PLATFORM_MACOS -> R.string.message_screen_denied_mac
+            state == ScreenState.DENIED -> R.string.message_screen_denied
+            state == ScreenState.FAILED -> R.string.message_screen_failed
+            state == ScreenState.UNSUPPORTED -> R.string.message_screen_unsupported
+            else -> R.string.message_slide
+        },
+    )
     Column(
         Modifier.padding(24.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -556,7 +565,7 @@ private fun TouchpadMessage(connected: Boolean, state: ScreenState, platform: St
     ) {
         Text(text, fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center)
         if (connected && (state == ScreenState.DENIED || state == ScreenState.FAILED)) {
-            OutlinedButton(onClick = onRetry) { Text("Coba lagi") }
+            OutlinedButton(onClick = onRetry) { Text(stringResource(R.string.retry)) }
         }
     }
 }
@@ -565,9 +574,9 @@ private fun TouchpadMessage(connected: Boolean, state: ScreenState, platform: St
 private fun LinkStatus(link: Link) {
     val colors = MaterialTheme.colorScheme
     val (label, dot) = when (link) {
-        Link.Connected -> "Terhubung" to colors.primary
-        Link.Connecting -> "Menyambung…" to Tones.warning()
-        is Link.Reconnecting -> "Menyambung ulang" to Tones.warning()
+        Link.Connected -> stringResource(R.string.link_connected) to colors.primary
+        Link.Connecting -> stringResource(R.string.link_connecting) to Tones.warning()
+        is Link.Reconnecting -> stringResource(R.string.link_reconnecting) to Tones.warning()
     }
     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
         Box(Modifier.size(8.dp).background(dot, CircleShape))
@@ -583,15 +592,15 @@ private fun SettingsSheet(settings: TouchSettings, onChange: (TouchSettings) -> 
             .padding(start = 24.dp, end = 24.dp, bottom = 32.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        Text("Pengaturan touchpad", fontSize = 22.sp, fontWeight = FontWeight.SemiBold)
-        SliderRow("Sensitivitas", settings.sensitivity, 0.5f..3f) { onChange(settings.copy(sensitivity = it)) }
-        SliderRow("Kecepatan scroll", settings.scrollSpeed, 0.5f..4f) { onChange(settings.copy(scrollSpeed = it)) }
-        SwitchRow("Tombol kiri/kanan", settings.showButtons) { onChange(settings.copy(showButtons = it)) }
-        SwitchRow("Getar saat klik", settings.haptics) { onChange(settings.copy(haptics = it)) }
-        SwitchRow("Buka keyboard otomatis", settings.autoKeyboard, "Saat kolom teks di komputer aktif") {
+        Text(stringResource(R.string.touchpad_settings), fontSize = 22.sp, fontWeight = FontWeight.SemiBold)
+        SliderRow(stringResource(R.string.setting_sensitivity), settings.sensitivity, 0.5f..3f) { onChange(settings.copy(sensitivity = it)) }
+        SliderRow(stringResource(R.string.setting_scroll_speed), settings.scrollSpeed, 0.5f..4f) { onChange(settings.copy(scrollSpeed = it)) }
+        SwitchRow(stringResource(R.string.setting_buttons), settings.showButtons) { onChange(settings.copy(showButtons = it)) }
+        SwitchRow(stringResource(R.string.setting_haptics), settings.haptics) { onChange(settings.copy(haptics = it)) }
+        SwitchRow(stringResource(R.string.setting_auto_keyboard), settings.autoKeyboard, stringResource(R.string.setting_auto_keyboard_hint)) {
             onChange(settings.copy(autoKeyboard = it))
         }
-        SwitchRow("Tombol volume HP mengatur komputer", settings.volumeKeys, "Selama touchpad terbuka") {
+        SwitchRow(stringResource(R.string.setting_volume_keys), settings.volumeKeys, stringResource(R.string.setting_volume_keys_hint)) {
             onChange(settings.copy(volumeKeys = it))
         }
     }
@@ -602,7 +611,7 @@ private fun SliderRow(label: String, value: Float, range: ClosedFloatingPointRan
     Column(Modifier.padding(vertical = 4.dp)) {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
             Text(label, fontSize = 15.sp)
-            Text(String.format(Locale.forLanguageTag("id-ID"), "%.1f×", value), fontSize = 15.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(stringResource(R.string.multiplier, value), fontSize = 15.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
         Slider(value = value, onValueChange = { onChange((it * 10).toInt() / 10f) }, valueRange = range)
     }
@@ -624,28 +633,28 @@ private fun SwitchRow(label: String, checked: Boolean, description: String? = nu
 @Composable
 private fun GestureHints(onDismiss: () -> Unit) {
     val rows = listOf(
-        "Geser 1 jari" to "Gerakkan kursor",
-        "Tap" to "Klik kiri",
-        "Tap 2 kali" to "Klik ganda",
-        "Tap 2 jari" to "Klik kanan",
-        "Geser 2 jari" to "Scroll",
-        "Tap, lalu tahan dan geser" to "Drag",
-        "Cubit (saat layar tampil)" to "Zoom layar",
+        R.string.gesture_slide to R.string.gesture_slide_action,
+        R.string.gesture_tap to R.string.gesture_tap_action,
+        R.string.gesture_double_tap to R.string.gesture_double_tap_action,
+        R.string.gesture_two_finger_tap to R.string.gesture_two_finger_tap_action,
+        R.string.gesture_two_finger_slide to R.string.gesture_two_finger_slide_action,
+        R.string.gesture_drag to R.string.gesture_drag_action,
+        R.string.gesture_pinch to R.string.gesture_pinch_action,
     )
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Cara pakai touchpad") },
+        title = { Text(stringResource(R.string.hints_title)) },
         text = {
             Column {
                 rows.forEachIndexed { index, (gesture, action) ->
                     Row(Modifier.fillMaxWidth().padding(vertical = 10.dp), horizontalArrangement = Arrangement.SpaceBetween) {
-                        Text(gesture, fontSize = 15.sp)
-                        Text(action, fontSize = 15.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text(stringResource(gesture), fontSize = 15.sp)
+                        Text(stringResource(action), fontSize = 15.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                     if (index < rows.lastIndex) HorizontalDivider()
                 }
             }
         },
-        confirmButton = { Button(onClick = onDismiss) { Text("Mengerti") } },
+        confirmButton = { Button(onClick = onDismiss) { Text(stringResource(R.string.got_it)) } },
     )
 }

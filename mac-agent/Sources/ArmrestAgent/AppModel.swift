@@ -253,7 +253,7 @@ final class AppModel: ObservableObject {
             try? uri.write(to: file, atomically: true, encoding: .utf8)
         }
         if !headless {
-            windows.show(.pairing, title: "Tambah perangkat") { PairingView(model: self) }
+            windows.show(.pairing, title: String(localized: "Add device")) { PairingView(model: self) }
         }
     }
 
@@ -275,7 +275,7 @@ final class AppModel: ObservableObject {
             return
         }
         pendingDecision = finish
-        windows.show(.approval, title: "Izinkan perangkat", floating: true) {
+        windows.show(.approval, title: String(localized: "Allow device"), floating: true) {
             ApprovalView(device: pending, onDecision: finish)
         }
     }
@@ -302,11 +302,11 @@ final class AppModel: ObservableObject {
 
     func revoke(_ device: TrustedDevice) {
         let alert = NSAlert()
-        alert.messageText = "Cabut akses \(device.name)?"
-        alert.informativeText = "\(device.name) tidak bisa mengontrol Mac ini lagi sampai dipasangkan ulang lewat QR."
+        alert.messageText = String(localized: "Revoke access for \(device.name)?")
+        alert.informativeText = String(localized: "\(device.name) won't be able to control this Mac until it's paired again with a QR code.")
         alert.alertStyle = .warning
-        alert.addButton(withTitle: "Cabut")
-        alert.addButton(withTitle: "Batal")
+        alert.addButton(withTitle: String(localized: "Revoke"))
+        alert.addButton(withTitle: String(localized: "Cancel"))
         NSApp.activate(ignoringOtherApps: true)
         guard alert.runModal() == .alertFirstButtonReturn else { return }
         server?.revoke(deviceId: device.id)

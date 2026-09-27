@@ -29,7 +29,7 @@ struct MenuBarLabel: View {
 
     var body: some View {
         Image(nsImage: MenuBarGlyph.image(model.glyphState))
-            .accessibilityLabel("Armrest")
+            .accessibilityLabel(Text(verbatim: "Armrest"))
     }
 }
 

@@ -31,6 +31,8 @@ mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 lipo -create "${binaries[@]}" -output "$APP/Contents/MacOS/$EXE"
 sed -e "s/__VERSION__/$VERSION/" -e "s/__BUILD__/$BUILD_NUMBER/" Resources/Info.plist > "$APP/Contents/Info.plist"
 cp Resources/AppIcon.icns "$APP/Contents/Resources/AppIcon.icns"
+# Teks Inggris (bahasa dasar) dan terjemahan Indonesia; macOS memilih sesuai bahasa pengguna.
+cp -R Resources/*.lproj "$APP/Contents/Resources/"
 
 # Identitas tetap (bukan ad-hoc) menjaga izin Accessibility dan akses Keychain antar update.
 codesign --force --options runtime --timestamp=none --sign "$SIGN_IDENTITY" "$APP"

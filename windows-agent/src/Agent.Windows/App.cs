@@ -11,6 +11,7 @@ using Armrest.Agent.Server;
 using Armrest.Agent.Windows.Platform;
 using Armrest.Agent.Windows.Screen;
 using Armrest.Agent.Windows.Ui;
+using static Armrest.Agent.Hosting.Localized;
 
 namespace Armrest.Agent.Windows;
 
@@ -139,7 +140,7 @@ internal sealed class App : Application
         agent.ActiveDevices.Count > 0 ? TrayState.Controlled : agent.Pairing is not null ? TrayState.Pairing : TrayState.Idle;
 
     private static string Tooltip(AgentHost agent) =>
-        agent.ActiveDevices.Count > 0 ? $"Armrest · dikontrol oleh {agent.ActiveDevices[0].Name}"
+        agent.ActiveDevices.Count > 0 ? T($"Armrest · controlled by {agent.ActiveDevices[0].Name}", $"Armrest · dikontrol oleh {agent.ActiveDevices[0].Name}")
         : agent.ListeningAddress is { } address ? $"Armrest · {address}"
         : "Armrest";
 }

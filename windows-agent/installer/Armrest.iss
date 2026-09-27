@@ -44,7 +44,7 @@ CloseApplications=yes
 RestartApplications=no
 
 [Tasks]
-Name: "autostart"; Description: "Jalankan Armrest saat login"; GroupDescription: "Tambahan:"
+Name: "autostart"; Description: "Start Armrest when I sign in"; GroupDescription: "Additional tasks:"
 
 [Files]
 Source: "{#SourceDir}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs
@@ -59,7 +59,7 @@ Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: 
 ; HP menyambung ke port 47810. Aturan hanya untuk jaringan Private dan Domain, bukan jaringan Public (kafe, bandara).
 Filename: "{sys}\netsh.exe"; Parameters: "advfirewall firewall delete rule name=""Armrest"""; Flags: runhidden
 Filename: "{sys}\netsh.exe"; Parameters: "advfirewall firewall add rule name=""Armrest"" dir=in action=allow program=""{app}\Armrest.exe"" enable=yes profile=private,domain"; Flags: runhidden
-Filename: "{app}\Armrest.exe"; Description: "Jalankan Armrest"; Flags: nowait postinstall skipifsilent runasoriginaluser
+Filename: "{app}\Armrest.exe"; Description: "Launch Armrest"; Flags: nowait postinstall skipifsilent runasoriginaluser
 
 [UninstallRun]
 Filename: "{sys}\netsh.exe"; Parameters: "advfirewall firewall delete rule name=""Armrest"""; Flags: runhidden; RunOnceId: "RemoveFirewallRule"

@@ -35,11 +35,13 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import io.github.wailantirajoh.armrest.HostUi
+import io.github.wailantirajoh.armrest.R
 import io.github.wailantirajoh.armrest.core.ProtocolConstants
 import io.github.wailantirajoh.armrest.data.SavedHost
 import java.text.DateFormat
@@ -59,14 +61,14 @@ fun HostsScreen(
     val colors = MaterialTheme.colorScheme
     Box(Modifier.fillMaxSize()) {
         Column(Modifier.fillMaxSize()) {
-            TopBar(title = "Komputer")
+            TopBar(title = stringResource(R.string.hosts_title))
             if (hosts.isEmpty()) {
                 CenteredMessage(
                     icon = AppIcons.Laptop,
                     iconTint = colors.onPrimaryContainer,
                     iconBackground = colors.primaryContainer,
-                    title = "Belum ada komputer",
-                    body = "Di komputer, buka Armrest (ikon di menu bar Mac atau di tray Windows), lalu pilih Tambah perangkat. QR akan muncul untuk dipindai.",
+                    title = stringResource(R.string.hosts_empty_title),
+                    body = stringResource(R.string.hosts_empty_body),
                 )
                 Button(
                     onClick = onScan,
@@ -76,7 +78,7 @@ fun HostsScreen(
                         .height(48.dp),
                 ) {
                     Icon(AppIcons.Qr, contentDescription = null, modifier = Modifier.size(20.dp))
-                    Text("  Pair komputer baru")
+                    Text(stringResource(R.string.pair_new_computer), modifier = Modifier.padding(start = 8.dp))
                 }
             } else {
                 LazyColumn(
@@ -91,7 +93,7 @@ fun HostsScreen(
                     }
                     item {
                         Text(
-                            "Ketuk komputer untuk mulai memakai touchpad. HP dan komputer harus di WiFi yang sama.",
+                            stringResource(R.string.hosts_hint),
                             fontSize = 13.sp,
                             color = colors.onSurfaceVariant,
                             modifier = Modifier.padding(horizontal = 4.dp),
@@ -104,7 +106,7 @@ fun HostsScreen(
             ExtendedFloatingActionButton(
                 onClick = onScan,
                 icon = { Icon(AppIcons.Plus, contentDescription = null) },
-                text = { Text("Pair komputer baru") },
+                text = { Text(stringResource(R.string.pair_new_computer)) },
                 modifier = Modifier
                     .align(Alignment.BottomEnd)
                     .padding(24.dp),
@@ -153,16 +155,16 @@ private fun HostCard(item: HostUi, onConnect: () -> Unit, onManual: () -> Unit, 
                 StatusChip(item.online)
             }
             Text(
-                "Terakhir dipakai ${DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT).format(Date(item.host.lastUsed))}",
+                stringResource(R.string.host_last_used, DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT).format(Date(item.host.lastUsed))),
                 fontSize = 13.sp,
                 color = colors.onSurfaceVariant,
             )
         }
         Box {
-            IconButton(onClick = { menu = true }) { Icon(AppIcons.More, contentDescription = "Opsi ${item.host.name}") }
+            IconButton(onClick = { menu = true }) { Icon(AppIcons.More, contentDescription = stringResource(R.string.host_options, item.host.name)) }
             DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
-                DropdownMenuItem(text = { Text("Sambungkan via IP…") }, onClick = { menu = false; onManual() })
-                DropdownMenuItem(text = { Text("Hapus dari HP ini") }, onClick = { menu = false; onRemove() })
+                DropdownMenuItem(text = { Text(stringResource(R.string.host_connect_by_ip_menu)) }, onClick = { menu = false; onManual() })
+                DropdownMenuItem(text = { Text(stringResource(R.string.host_remove)) }, onClick = { menu = false; onRemove() })
             }
         }
     }
@@ -177,7 +179,7 @@ private fun StatusChip(online: Boolean) {
         Modifier.border(1.dp, colors.outline, CircleShape)
     }
     Text(
-        if (online) "Online" else "Offline",
+        stringResource(if (online) R.string.status_online else R.string.status_offline),
         fontSize = 12.sp,
         fontWeight = FontWeight.SemiBold,
         color = if (online) colors.onPrimaryContainer else colors.onSurfaceVariant,
@@ -190,21 +192,21 @@ private fun ManualAddressDialog(host: SavedHost, onDismiss: () -> Unit, onSubmit
     var address by remember { mutableStateOf(host.lastAddress) }
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Sambungkan via IP") },
+        title = { Text(stringResource(R.string.manual_title)) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Text("Pakai ini kalau ${host.name} tidak ditemukan otomatis, misalnya karena WiFi memblokir mDNS. Alamatnya tertulis di menu Armrest di komputer.")
+                Text(stringResource(R.string.manual_body, host.name))
                 OutlinedTextField(
                     value = address,
                     onValueChange = { address = it },
-                    label = { Text("Alamat IP dan port") },
+                    label = { Text(stringResource(R.string.manual_field)) },
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
                 )
-                Text("Sertifikat komputer tetap dicek, jadi koneksi tetap aman.", fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(stringResource(R.string.manual_secure), fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         },
-        confirmButton = { TextButton(onClick = { onSubmit(address) }) { Text("Sambungkan") } },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Batal") } },
+        confirmButton = { TextButton(onClick = { onSubmit(address) }) { Text(stringResource(R.string.connect)) } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) } },
     )
 }

@@ -13,17 +13,17 @@ struct MenuPanel: View {
             if let error = model.startupError {
                 notice(error)
             } else if case let .failed(message) = model.serverState {
-                notice("Server tidak bisa berjalan: \(message)")
+                notice(String(localized: "The server can't start: \(message)"))
             }
             ForEach(model.activeDevices) { device in
                 HStack(spacing: 10) {
                     VStack(alignment: .leading, spacing: 2) {
-                        Text("Dikontrol oleh \(device.name)").font(.system(size: 13, weight: .bold))
-                        Text(model.screenViewers.contains(device.id) ? "Sesi aktif · melihat layar" : "Sesi aktif")
+                        Text("Controlled by \(device.name)").font(.system(size: 13, weight: .bold))
+                        Text(model.screenViewers.contains(device.id) ? LocalizedStringKey("Active session · viewing screen") : LocalizedStringKey("Active session"))
                             .font(.system(size: 12))
                     }
                     Spacer()
-                    Button("Putuskan") { model.disconnect(device) }
+                    Button("Disconnect") { model.disconnect(device) }
                 }
                 .foregroundColor(Palette.warning)
                 .padding(10)
@@ -32,7 +32,7 @@ struct MenuPanel: View {
             Button {
                 model.showPairing()
             } label: {
-                Text("Tambah perangkat…").frame(maxWidth: .infinity)
+                Text("Add device…").frame(maxWidth: .infinity)
             }
             .buttonStyle(.borderedProminent)
             .tint(Palette.accent)
@@ -40,47 +40,47 @@ struct MenuPanel: View {
             .keyboardShortcut("n")
             .disabled(model.listeningAddress == nil)
 
-            Text("PERANGKAT TERPERCAYA")
+            Text("TRUSTED DEVICES")
                 .font(.system(size: 11, weight: .semibold))
                 .foregroundStyle(.secondary)
                 .padding(.top, 4)
             if model.devices.isEmpty {
-                Text("Belum ada perangkat.").font(.system(size: 12)).foregroundStyle(.secondary)
+                Text("No devices yet.").font(.system(size: 12)).foregroundStyle(.secondary)
             }
             ForEach(model.devices) { device in
                 deviceRow(device)
             }
 
             Divider()
-            Toggle("Buka saat login", isOn: Binding(get: { model.launchAtLogin }, set: { model.setLaunchAtLogin($0) }))
+            Toggle("Open at login", isOn: Binding(get: { model.launchAtLogin }, set: { model.setLaunchAtLogin($0) }))
                 .toggleStyle(.switch)
                 .controlSize(.small)
                 .font(.system(size: 13))
             HStack {
-                Text("Izin Accessibility").font(.system(size: 13))
+                Text("Accessibility permission").font(.system(size: 13))
                 Spacer()
                 if model.accessibilityGranted {
-                    Label("Diizinkan", systemImage: "checkmark")
+                    Label("Allowed", systemImage: "checkmark")
                         .font(.system(size: 13, weight: .semibold))
                         .foregroundColor(Palette.success)
                 } else {
-                    Button("Berikan izin…") { model.showOnboarding() }
+                    Button("Grant permission…") { model.showOnboarding() }
                 }
             }
             HStack {
-                Text("Izin Screen Recording").font(.system(size: 13))
-                    .help("Untuk menampilkan layar Mac di HP")
+                Text("Screen Recording permission").font(.system(size: 13))
+                    .help("To show the Mac's screen on your phone")
                 Spacer()
                 if model.screenRecordingGranted {
-                    Label("Diizinkan", systemImage: "checkmark")
+                    Label("Allowed", systemImage: "checkmark")
                         .font(.system(size: 13, weight: .semibold))
                         .foregroundColor(Palette.success)
                 } else {
-                    Button("Izinkan…") { model.openScreenRecordingSettings() }
+                    Button("Allow…") { model.openScreenRecordingSettings() }
                 }
             }
             Divider()
-            Button("Keluar") { model.quit() }
+            Button("Quit") { model.quit() }
                 .buttonStyle(.plain)
                 .keyboardShortcut("q")
         }
@@ -92,17 +92,17 @@ struct MenuPanel: View {
         HStack(spacing: 10) {
             AppGlyph()
             VStack(alignment: .leading, spacing: 2) {
-                Text("Armrest").font(.system(size: 13, weight: .bold))
+                Text(verbatim: "Armrest").font(.system(size: 13, weight: .bold))
                 Text(status).font(.system(size: 12)).foregroundStyle(.secondary)
             }
         }
     }
 
     private var status: String {
-        if !model.activeDevices.isEmpty { return "\(model.activeDevices.count) sesi aktif" }
-        if model.pairing != nil { return "Menunggu pairing…" }
-        if let address = model.listeningAddress { return "Siap · \(address)" }
-        return "Menyiapkan…"
+        if !model.activeDevices.isEmpty { return String(format: String(localized: "Active sessions: %lld"), model.activeDevices.count) }
+        if model.pairing != nil { return String(localized: "Waiting for pairing…") }
+        if let address = model.listeningAddress { return String(localized: "Ready · \(address)") }
+        return String(localized: "Starting…")
     }
 
     private func deviceRow(_ device: TrustedDevice) -> some View {
@@ -111,20 +111,22 @@ struct MenuPanel: View {
             Image(systemName: "iphone").frame(width: 20)
             VStack(alignment: .leading, spacing: 2) {
                 Text(device.name).font(.system(size: 13, weight: .semibold))
-                Text(active ? "Aktif sekarang" : lastSeen(device))
+                Text(active ? String(localized: "Active now") : lastSeen(device))
                     .font(.system(size: 12, weight: active ? .semibold : .regular))
                     .foregroundColor(active ? Palette.warning : .secondary)
             }
             Spacer()
-            Button("Cabut…") { model.revoke(device) }
+            Button("Revoke…") { model.revoke(device) }
         }
     }
 
     private func lastSeen(_ device: TrustedDevice) -> String {
-        guard let date = device.lastSeen else { return "Belum pernah terhubung" }
+        guard let date = device.lastSeen else { return String(localized: "Never connected") }
         let formatter = RelativeDateTimeFormatter()
-        formatter.locale = Locale(identifier: "id_ID")
-        return "Terakhir: \(formatter.localizedString(for: date, relativeTo: Date()))"
+        // Bahasa yang sama dengan teks app, bukan sekadar region Mac.
+        formatter.locale = Locale(identifier: Bundle.main.preferredLocalizations.first ?? "en")
+        let when = formatter.localizedString(for: date, relativeTo: Date())
+        return String(localized: "Last seen \(when)")
     }
 
     private func notice(_ text: String) -> some View {

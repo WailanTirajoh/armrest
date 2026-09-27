@@ -9,6 +9,7 @@ using System.Windows.Media.Imaging;
 using Armrest.Agent.Hosting;
 using Armrest.Agent.Session;
 using QRCoder;
+using static Armrest.Agent.Hosting.Localized;
 
 namespace Armrest.Agent.Windows.Ui;
 
@@ -24,7 +25,7 @@ internal sealed class PairingWindow : Window
     public PairingWindow(AgentHost host)
     {
         this.host = host;
-        Title = "Tambah perangkat";
+        Title = T("Add device", "Tambah perangkat");
         Icon = Theme.AppIcon;
         SizeToContent = SizeToContent.WidthAndHeight;
         ResizeMode = ResizeMode.NoResize;
@@ -55,15 +56,20 @@ internal sealed class PairingWindow : Window
         var details = new StackPanel { Margin = new Thickness(20, 0, 0, 0), Width = 290 };
         if (pairing.Expired)
         {
-            details.Children.Add(Theme.Text("QR sudah tidak berlaku", 14, bold: true));
-            details.Children.Add(Theme.Text("Setiap QR hanya berlaku 120 detik dan sekali pakai. Buat QR baru untuk memasangkan HP.", 13, color: Theme.Secondary));
+            details.Children.Add(Theme.Text(T("QR code no longer valid", "QR sudah tidak berlaku"), 14, bold: true));
+            details.Children.Add(Theme.Text(
+                T("Each QR code works once and only for 120 seconds. Create a new one to pair a phone.",
+                    "Setiap QR hanya berlaku 120 detik dan sekali pakai. Buat QR baru untuk memasangkan HP."),
+                13,
+                color: Theme.Secondary));
         }
         else
         {
-            details.Children.Add(Theme.Step(1, "Buka Armrest di HP."));
-            details.Children.Add(Theme.Step(2, "Ketuk Pair komputer baru."));
-            details.Children.Add(Theme.Step(3, "Arahkan kamera ke QR ini, lalu klik Izinkan di komputer."));
-            var remaining = Theme.Text($"Berlaku {pairing.SecondsRemaining / 60}:{pairing.SecondsRemaining % 60:00}", 12, bold: true);
+            details.Children.Add(Theme.Step(1, T("Open Armrest on your phone.", "Buka Armrest di HP.")));
+            details.Children.Add(Theme.Step(2, T("Tap Pair new computer.", "Ketuk Pair komputer baru.")));
+            details.Children.Add(Theme.Step(3, T("Point the camera at this QR code, then click Allow on the computer.", "Arahkan kamera ke QR ini, lalu klik Izinkan di komputer.")));
+            var time = $"{pairing.SecondsRemaining / 60}:{pairing.SecondsRemaining % 60:00}";
+            var remaining = Theme.Text(T($"Valid for {time}", $"Berlaku {time}"), 12, bold: true);
             details.Children.Add(remaining);
             details.Children.Add(new ProgressBar
             {
@@ -76,15 +82,15 @@ internal sealed class PairingWindow : Window
         }
         details.Children.Add(Theme.Text($"{host.HostName} · {pairing.Address}", 12, color: Theme.Secondary));
         var fingerprint = host.Fingerprint.Length > 12 ? $"{host.Fingerprint[..6]}…{host.Fingerprint[^6..]}" : host.Fingerprint;
-        var fingerprintText = Theme.Text($"Sidik jari: {fingerprint}", 11, color: Theme.Secondary);
+        var fingerprintText = Theme.Text(T($"Fingerprint: {fingerprint}", $"Sidik jari: {fingerprint}"), 11, color: Theme.Secondary);
         fingerprintText.FontFamily = new FontFamily("Consolas");
         details.Children.Add(fingerprintText);
         row.Children.Add(details);
         content.Children.Add(row);
 
         var buttons = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(0, 16, 0, 0) };
-        buttons.Children.Add(Theme.Button(pairing.Expired ? "Buat QR baru" : "Buat ulang", host.ShowPairing, primary: pairing.Expired));
-        var close = Theme.Button("Tutup", Close);
+        buttons.Children.Add(Theme.Button(pairing.Expired ? T("New QR code", "Buat QR baru") : T("Regenerate", "Buat ulang"), host.ShowPairing, primary: pairing.Expired));
+        var close = Theme.Button(T("Close", "Tutup"), Close);
         close.IsCancel = true;
         close.Margin = new Thickness(8, 0, 0, 0);
         buttons.Children.Add(close);
@@ -119,7 +125,7 @@ internal sealed class PairingWindow : Window
                 Padding = new Thickness(10, 4, 10, 4),
                 HorizontalAlignment = HorizontalAlignment.Center,
                 VerticalAlignment = VerticalAlignment.Center,
-                Child = Theme.Text("Kedaluwarsa", 13, bold: true, color: Theme.Warning),
+                Child = Theme.Text(T("Expired", "Kedaluwarsa"), 13, bold: true, color: Theme.Warning),
             });
         }
         return new Border { Background = Brushes.White, CornerRadius = new CornerRadius(12), Padding = new Thickness(8), Child = grid };
@@ -133,7 +139,7 @@ internal sealed class ApprovalWindow : Window
 
     public ApprovalWindow(PendingDevice device, Action<bool> decide)
     {
-        Title = "Izinkan perangkat";
+        Title = T("Allow device", "Izinkan perangkat");
         Icon = Theme.AppIcon;
         Width = 360;
         SizeToContent = SizeToContent.Height;
@@ -154,18 +160,20 @@ internal sealed class ApprovalWindow : Window
         var icon = Theme.Icon(64);
         icon.Margin = new Thickness(0, 0, 0, 12);
         content.Children.Add(icon);
-        content.Children.Add(Centered(Theme.Text($"Izinkan “{device.Name}” mengontrol komputer ini?", 14, bold: true)));
+        content.Children.Add(Centered(Theme.Text(T($"Allow “{device.Name}” to control this computer?", $"Izinkan “{device.Name}” mengontrol komputer ini?"), 14, bold: true)));
         content.Children.Add(Centered(Theme.Text(
-            $"{device.Name} akan bisa menggerakkan kursor, klik, scroll, mengetik, dan melihat layar komputer ini. Akses bisa dicabut kapan saja dari ikon Armrest di tray.",
+            T($"{device.Name} will be able to move the cursor, click, scroll, type, and see this computer's screen. You can revoke access anytime from the Armrest icon in the tray.",
+                $"{device.Name} akan bisa menggerakkan kursor, klik, scroll, mengetik, dan melihat layar komputer ini. Akses bisa dicabut kapan saja dari ikon Armrest di tray."),
             12,
             color: Theme.Secondary)));
-        var key = Centered(Theme.Text($"Kunci perangkat: {KeySummary(device.PublicKey)}", 11, color: Theme.Secondary));
+        var summary = KeySummary(device.PublicKey);
+        var key = Centered(Theme.Text(T($"Device key: {summary}", $"Kunci perangkat: {summary}"), 11, color: Theme.Secondary));
         key.FontFamily = new FontFamily("Consolas");
         content.Children.Add(key);
-        var allow = Theme.Button("Izinkan", () => Decide(true), primary: true);
+        var allow = Theme.Button(T("Allow", "Izinkan"), () => Decide(true), primary: true);
         allow.Margin = new Thickness(0, 16, 0, 8);
         allow.HorizontalAlignment = HorizontalAlignment.Stretch;
-        var deny = Theme.Button("Tolak", () => Decide(false));
+        var deny = Theme.Button(T("Deny", "Tolak"), () => Decide(false));
         deny.IsCancel = true;
         deny.HorizontalAlignment = HorizontalAlignment.Stretch;
         content.Children.Add(allow);
@@ -207,21 +215,22 @@ internal sealed class WelcomeWindow : Window
         WindowStartupLocation = WindowStartupLocation.CenterScreen;
 
         var content = new StackPanel { Margin = new Thickness(28) };
-        content.Children.Add(Theme.Text("Armrest sudah berjalan", 20, bold: true));
+        content.Children.Add(Theme.Text(T("Armrest is running", "Armrest sudah berjalan"), 20, bold: true));
         var intro = Theme.Text(
-            "App ini ada di area notifikasi (tray) di pojok kanan bawah, bukan di taskbar. HP Android kamu bisa jadi touchpad dan keyboard untuk komputer ini.",
+            T("It lives in the notification area (tray) at the bottom right, not on the taskbar. Your Android phone can now be a touchpad and keyboard for this computer.",
+                "App ini ada di area notifikasi (tray) di pojok kanan bawah, bukan di taskbar. HP Android kamu bisa jadi touchpad dan keyboard untuk komputer ini."),
             13,
             color: Theme.Secondary);
         intro.Margin = new Thickness(0, 8, 0, 16);
         content.Children.Add(intro);
-        content.Children.Add(Theme.Step(1, "Klik Tambah perangkat di bawah, atau ikon Armrest di tray."));
-        content.Children.Add(Theme.Step(2, "Scan QR-nya dengan app Armrest di HP, lalu klik Izinkan."));
-        content.Children.Add(Theme.Step(3, "Kalau Windows Firewall bertanya, izinkan untuk jaringan Private."));
+        content.Children.Add(Theme.Step(1, T("Click Add device below, or the Armrest icon in the tray.", "Klik Tambah perangkat di bawah, atau ikon Armrest di tray.")));
+        content.Children.Add(Theme.Step(2, T("Scan the QR code with the Armrest app on your phone, then click Allow.", "Scan QR-nya dengan app Armrest di HP, lalu klik Izinkan.")));
+        content.Children.Add(Theme.Step(3, T("If Windows Firewall asks, allow access on Private networks.", "Kalau Windows Firewall bertanya, izinkan untuk jaringan Private.")));
         var buttons = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(0, 12, 0, 0) };
-        var later = Theme.Button("Nanti saja", Close);
+        var later = Theme.Button(T("Not now", "Nanti saja"), Close);
         later.IsCancel = true;
         buttons.Children.Add(later);
-        var add = Theme.Button("Tambah perangkat…", () =>
+        var add = Theme.Button(T("Add device…", "Tambah perangkat…"), () =>
         {
             Close();
             pair();

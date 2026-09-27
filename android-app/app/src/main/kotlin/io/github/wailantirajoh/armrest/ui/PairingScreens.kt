@@ -41,6 +41,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -53,6 +54,7 @@ import com.google.mlkit.vision.barcode.BarcodeScanning
 import com.google.mlkit.vision.barcode.common.Barcode
 import com.google.mlkit.vision.common.InputImage
 import io.github.wailantirajoh.armrest.PairingError
+import io.github.wailantirajoh.armrest.R
 
 /** Mockup A2 (1 dan 5): kamera untuk scan QR, atau penjelasan kalau izin kamera ditolak. */
 @Composable
@@ -70,14 +72,14 @@ fun ScanScreen(onBack: () -> Unit, onScanned: (String) -> Boolean) {
 
     if (!granted) {
         Column(Modifier.fillMaxSize()) {
-            TopBar(title = "", navigationIcon = AppIcons.Back, navigationLabel = "Kembali", onNavigate = onBack)
+            TopBar(title = "", navigationIcon = AppIcons.Back, navigationLabel = stringResource(R.string.back), onNavigate = onBack)
             if (denied) {
                 CenteredMessage(
                     icon = AppIcons.CameraOff,
                     iconTint = MaterialTheme.colorScheme.onSurface,
                     iconBackground = MaterialTheme.colorScheme.surfaceVariant,
-                    title = "Kamera dibutuhkan untuk scan QR",
-                    body = "Izinkan akses kamera di Setelan. Gambar kamera hanya dipakai untuk membaca QR dan tidak disimpan.",
+                    title = stringResource(R.string.camera_needed_title),
+                    body = stringResource(R.string.camera_needed_body),
                 )
                 Column(Modifier.padding(24.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Button(
@@ -87,8 +89,8 @@ fun ScanScreen(onBack: () -> Unit, onScanned: (String) -> Boolean) {
                             )
                         },
                         modifier = Modifier.fillMaxWidth().height(48.dp),
-                    ) { Text("Buka Setelan") }
-                    TextButton(onClick = onBack, modifier = Modifier.fillMaxWidth()) { Text("Kembali") }
+                    ) { Text(stringResource(R.string.open_settings)) }
+                    TextButton(onClick = onBack, modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.back)) }
                 }
             }
         }
@@ -102,7 +104,7 @@ fun ScanScreen(onBack: () -> Unit, onScanned: (String) -> Boolean) {
                 androidx.compose.runtime.CompositionLocalProvider(
                     androidx.compose.material3.LocalContentColor provides Color.White,
                 ) {
-                    TopBar(title = "Scan QR di komputer", navigationIcon = AppIcons.Back, navigationLabel = "Kembali", onNavigate = onBack)
+                    TopBar(title = stringResource(R.string.scan_title), navigationIcon = AppIcons.Back, navigationLabel = stringResource(R.string.back), onNavigate = onBack)
                 }
             }
             Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
@@ -113,8 +115,8 @@ fun ScanScreen(onBack: () -> Unit, onScanned: (String) -> Boolean) {
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(6.dp),
             ) {
-                Text("Arahkan kamera ke QR di komputer", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
-                Text("Di komputer: menu Armrest › Tambah perangkat", color = Color(0xFFD4D5CE), fontSize = 14.sp, textAlign = TextAlign.Center)
+                Text(stringResource(R.string.scan_point), color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
+                Text(stringResource(R.string.scan_where), color = Color(0xFFD4D5CE), fontSize = 14.sp, textAlign = TextAlign.Center)
             }
         }
     }
@@ -175,22 +177,22 @@ private fun QrCameraPreview(onScanned: (String) -> Boolean, modifier: Modifier) 
 @Composable
 fun PairingWaitScreen(hostName: String, onCancel: () -> Unit) {
     Column(Modifier.fillMaxSize()) {
-        TopBar(title = "Pair komputer baru")
+        TopBar(title = stringResource(R.string.pair_new_computer))
         Column(
             Modifier.weight(1f).fillMaxWidth().padding(horizontal = 32.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(16.dp, Alignment.CenterVertically),
         ) {
             CircularProgressIndicator(modifier = Modifier.size(64.dp), strokeWidth = 5.dp)
-            Text("Menunggu konfirmasi di komputer…", fontSize = 22.sp, fontWeight = FontWeight.SemiBold, textAlign = TextAlign.Center)
+            Text(stringResource(R.string.pairing_waiting), fontSize = 22.sp, fontWeight = FontWeight.SemiBold, textAlign = TextAlign.Center)
             Text(
-                "Klik Izinkan pada dialog yang muncul di $hostName.",
+                stringResource(R.string.pairing_click_allow, hostName),
                 fontSize = 15.sp,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center,
             )
         }
-        OutlinedButton(onClick = onCancel, modifier = Modifier.fillMaxWidth().padding(24.dp).height(48.dp)) { Text("Batal") }
+        OutlinedButton(onClick = onCancel, modifier = Modifier.fillMaxWidth().padding(24.dp).height(48.dp)) { Text(stringResource(R.string.cancel)) }
     }
 }
 
@@ -199,22 +201,16 @@ fun PairingWaitScreen(hostName: String, onCancel: () -> Unit) {
 fun PairingFailedScreen(error: PairingError, onRetry: () -> Unit, onClose: () -> Unit) {
     val colors = MaterialTheme.colorScheme
     val (title, body) = when (error) {
-        PairingError.FINGERPRINT -> "Koneksi dibatalkan" to
-            "Sertifikat komputer tidak sama dengan yang ada di QR. Bisa jadi ada perangkat lain yang menyadap jaringan ini. Tidak ada data yang dikirim."
-        PairingError.EXPIRED -> "QR sudah kedaluwarsa" to
-            "QR hanya berlaku 120 detik dan sekali pakai. Buat QR baru di komputer, lalu scan lagi."
-        PairingError.INVALID -> "QR sudah tidak berlaku" to
-            "QR ini sudah dipakai atau sudah diganti. Buat QR baru di komputer, lalu scan lagi."
-        PairingError.TOO_MANY -> "Terlalu banyak percobaan" to
-            "QR dibatalkan demi keamanan. Buat QR baru di komputer, lalu scan lagi."
-        PairingError.DENIED -> "Ditolak di komputer" to
-            "Permintaan pairing ditolak di komputer. Kalau itu tidak sengaja, buat QR baru dan coba lagi."
-        PairingError.NETWORK -> "Komputer tidak bisa dihubungi" to
-            "Pastikan HP dan komputer ada di WiFi yang sama dan Armrest berjalan di komputer."
+        PairingError.FINGERPRINT -> R.string.pair_error_fingerprint_title to R.string.pair_error_fingerprint_body
+        PairingError.EXPIRED -> R.string.pair_error_expired_title to R.string.pair_error_expired_body
+        PairingError.INVALID -> R.string.pair_error_invalid_title to R.string.pair_error_invalid_body
+        PairingError.TOO_MANY -> R.string.pair_error_too_many_title to R.string.pair_error_too_many_body
+        PairingError.DENIED -> R.string.pair_error_denied_title to R.string.pair_error_denied_body
+        PairingError.NETWORK -> R.string.pair_error_network_title to R.string.pair_error_network_body
     }
     val warning = error == PairingError.EXPIRED || error == PairingError.INVALID || error == PairingError.TOO_MANY
     Column(Modifier.fillMaxSize()) {
-        TopBar(title = "", navigationIcon = AppIcons.Close, navigationLabel = "Tutup", onNavigate = onClose)
+        TopBar(title = "", navigationIcon = AppIcons.Close, navigationLabel = stringResource(R.string.close), onNavigate = onClose)
         CenteredMessage(
             icon = when (error) {
                 PairingError.FINGERPRINT, PairingError.DENIED -> AppIcons.ShieldX
@@ -223,12 +219,12 @@ fun PairingFailedScreen(error: PairingError, onRetry: () -> Unit, onClose: () ->
             },
             iconTint = if (warning) Tones.warning() else if (error == PairingError.NETWORK) colors.onSurface else Tones.error(),
             iconBackground = if (warning) Tones.warningContainer() else if (error == PairingError.NETWORK) colors.surfaceVariant else Tones.errorContainer(),
-            title = title,
-            body = body,
+            title = stringResource(title),
+            body = stringResource(body),
         )
         Column(Modifier.padding(24.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Button(onClick = onRetry, modifier = Modifier.fillMaxWidth().height(48.dp)) { Text("Scan ulang") }
-            TextButton(onClick = onClose, modifier = Modifier.fillMaxWidth()) { Text("Tutup") }
+            Button(onClick = onRetry, modifier = Modifier.fillMaxWidth().height(48.dp)) { Text(stringResource(R.string.scan_again)) }
+            TextButton(onClick = onClose, modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.close)) }
         }
     }
 }

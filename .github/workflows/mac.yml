@@ -39,6 +39,9 @@ jobs:
         working-directory: mac-agent
         run: swift test
 
+      - name: Cek terjemahan
+        run: python3 scripts/check-mac-strings.py
+
       - name: Impor sertifikat signing
         env:
           MAC_CERT_P12_BASE64: ${{ secrets.MAC_CERT_P12_BASE64 }}

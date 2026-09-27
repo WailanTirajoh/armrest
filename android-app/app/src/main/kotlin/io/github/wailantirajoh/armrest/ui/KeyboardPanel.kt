@@ -32,6 +32,7 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextRange
@@ -42,6 +43,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import io.github.wailantirajoh.armrest.R
 import io.github.wailantirajoh.armrest.core.KeyCode
 import io.github.wailantirajoh.armrest.core.KeyModifiers
 import io.github.wailantirajoh.armrest.core.ProtocolConstants
@@ -107,6 +109,8 @@ fun KeyboardPanel(
         modifiers = 0
     }
 
+    val fieldLabel = stringResource(R.string.type_to_computer)
+    val placeholder = stringResource(R.string.type_placeholder)
     Column(
         modifier
             .fillMaxWidth()
@@ -120,17 +124,18 @@ fun KeyboardPanel(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             listOf(
-                "Esc" to KeyCode.ESCAPE,
-                "Tab" to KeyCode.TAB,
-                "←" to KeyCode.LEFT,
-                "↑" to KeyCode.UP,
-                "↓" to KeyCode.DOWN,
-                "→" to KeyCode.RIGHT,
-            ).forEach { (label, key) ->
+                Triple("Esc", KeyCode.ESCAPE, R.string.key_escape),
+                Triple("Tab", KeyCode.TAB, R.string.key_tab),
+                Triple("←", KeyCode.LEFT, R.string.key_left),
+                Triple("↑", KeyCode.UP, R.string.key_up),
+                Triple("↓", KeyCode.DOWN, R.string.key_down),
+                Triple("→", KeyCode.RIGHT, R.string.key_right),
+            ).forEach { (label, key, description) ->
+                val spoken = stringResource(description)
                 OutlinedButton(
                     onClick = { pressKey(key) },
                     shape = RoundedCornerShape(12.dp),
-                    modifier = Modifier.semantics { contentDescription = key.name.lowercase() },
+                    modifier = Modifier.semantics { contentDescription = spoken },
                 ) { Text(label, fontSize = 15.sp) }
             }
             val windows = platform == ProtocolConstants.PLATFORM_WINDOWS
@@ -178,11 +183,11 @@ fun KeyboardPanel(
                 modifier = Modifier
                     .fillMaxWidth()
                     .focusRequester(focusRequester)
-                    .semantics { contentDescription = "Ketik ke komputer" },
+                    .semantics { contentDescription = fieldLabel },
                 decorationBox = { inner ->
                     if (buffer.typed.isEmpty()) {
                         Text(
-                            "Ketik di sini, langsung muncul di komputer",
+                            placeholder,
                             color = colors.onSurfaceVariant,
                             fontSize = 16.sp,
                         )
