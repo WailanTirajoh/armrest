@@ -1,4 +1,4 @@
-namespace CursorController.Agent.Streaming;
+namespace Armrest.Agent.Streaming;
 
 /// <summary>
 /// Konversi gambar BGRA (hasil tangkapan GDI) ke NV12 BT.709 rentang terbatas, format masukan encoder H.264.

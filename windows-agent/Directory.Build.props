@@ -11,7 +11,7 @@
     <FileVersion>$(Version).$(BuildNumber)</FileVersion>
     <InformationalVersion>$(Version) (build $(BuildNumber))</InformationalVersion>
     <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
-    <Company>Cursor Controller</Company>
-    <Product>Cursor Controller</Product>
+    <Company>Armrest</Company>
+    <Product>Armrest</Product>
   </PropertyGroup>
 </Project>

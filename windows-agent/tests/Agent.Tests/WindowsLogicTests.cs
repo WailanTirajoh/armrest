@@ -1,8 +1,8 @@
-using CursorController.Agent.Input;
-using CursorController.Agent.Protocol;
-using CursorController.Agent.Streaming;
+using Armrest.Agent.Input;
+using Armrest.Agent.Protocol;
+using Armrest.Agent.Streaming;
 
-namespace CursorController.Agent.Tests;
+namespace Armrest.Agent.Tests;
 
 public class WindowsLogicTests
 {

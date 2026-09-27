@@ -5,11 +5,11 @@ using System.Net.WebSockets;
 using System.Security.Authentication;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
-using CursorController.Agent.Protocol;
-using CursorController.Agent.Session;
-using CursorController.Agent.Volume;
+using Armrest.Agent.Protocol;
+using Armrest.Agent.Session;
+using Armrest.Agent.Volume;
 
-namespace CursorController.Agent.Server;
+namespace Armrest.Agent.Server;
 
 public abstract record ServerState
 {

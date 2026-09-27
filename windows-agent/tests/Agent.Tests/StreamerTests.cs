@@ -1,8 +1,8 @@
 using System.Collections.Concurrent;
-using CursorController.Agent.Protocol;
-using CursorController.Agent.Streaming;
+using Armrest.Agent.Protocol;
+using Armrest.Agent.Streaming;
 
-namespace CursorController.Agent.Tests;
+namespace Armrest.Agent.Tests;
 
 public class StreamerTests
 {

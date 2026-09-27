@@ -2,7 +2,7 @@ using System.Buffers.Text;
 using System.Security.Cryptography;
 using System.Text;
 
-namespace CursorController.Agent.Protocol;
+namespace Armrest.Agent.Protocol;
 
 public static class AuthCrypto
 {

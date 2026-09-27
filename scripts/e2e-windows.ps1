@@ -15,14 +15,14 @@ dotnet build "$root\windows-agent\src\Agent.Windows" -c Release -o "$work\agent"
 if ($LASTEXITCODE) { throw 'build agent gagal' }
 
 Write-Host '== Jalankan agent (profil e2e)'
-$env:CURSORCTL_PROFILE = 'e2e'
-$env:CURSORCTL_PORT = '47811'
-$env:CURSORCTL_E2E_ADDRESS = '127.0.0.1'
-$env:CURSORCTL_E2E_AUTO_APPROVE = '1'
-$env:CURSORCTL_E2E_PAIRING_FILE = $pairing
-$env:CURSORCTL_E2E_FOCUS_FILE = $focus
-$env:CURSORCTL_E2E_LOG = '1'
-$agent = Start-Process -FilePath "$work\agent\CursorController.exe" -PassThru -NoNewWindow `
+$env:ARMREST_PROFILE = 'e2e'
+$env:ARMREST_PORT = '47811'
+$env:ARMREST_E2E_ADDRESS = '127.0.0.1'
+$env:ARMREST_E2E_AUTO_APPROVE = '1'
+$env:ARMREST_E2E_PAIRING_FILE = $pairing
+$env:ARMREST_E2E_FOCUS_FILE = $focus
+$env:ARMREST_E2E_LOG = '1'
+$agent = Start-Process -FilePath "$work\agent\Armrest.exe" -PassThru -NoNewWindow `
     -RedirectStandardError $log -RedirectStandardOutput (Join-Path $work 'agent.out')
 
 try {
@@ -35,8 +35,8 @@ try {
 
     # Windows Server tanpa Media Foundation tidak punya encoder H.264, jadi agent tidak mengumumkan fitur layar.
     $screen = (Select-String -Path $log -Pattern '^features: .*screen' -Quiet)
-    $env:CURSORCTL_E2E_EXPECT_SCREEN = if ($screen) { '1' } else { '0' }
-    Write-Host "Fitur layar: $($env:CURSORCTL_E2E_EXPECT_SCREEN)"
+    $env:ARMREST_E2E_EXPECT_SCREEN = if ($screen) { '1' } else { '0' }
+    Write-Host "Fitur layar: $($env:ARMREST_E2E_EXPECT_SCREEN)"
 
     Write-Host '== Klien JVM'
     Push-Location "$root\android-app"
@@ -63,6 +63,6 @@ try {
 }
 finally {
     Stop-Process -Id $agent.Id -Force -ErrorAction SilentlyContinue
-    Remove-Item -Recurse -Force (Join-Path $env:APPDATA 'Cursor Controller-e2e') -ErrorAction SilentlyContinue
+    Remove-Item -Recurse -Force (Join-Path $env:APPDATA 'Armrest-e2e') -ErrorAction SilentlyContinue
     Remove-Item -Recurse -Force $work -ErrorAction SilentlyContinue
 }

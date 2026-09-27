@@ -2,12 +2,12 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.InteropServices;
-using CursorController.Agent.Protocol;
-using CursorController.Agent.Streaming;
+using Armrest.Agent.Protocol;
+using Armrest.Agent.Streaming;
 using SharpGen.Runtime;
 using Vortice.MediaFoundation;
 
-namespace CursorController.Agent.Windows.Screen;
+namespace Armrest.Agent.Windows.Screen;
 
 /// <summary>
 /// Encoder H.264 Media Foundation (MFT sinkron bawaan Windows) dalam mode latensi rendah, profil Main tanpa B-frame.

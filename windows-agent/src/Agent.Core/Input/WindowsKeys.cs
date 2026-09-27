@@ -1,6 +1,6 @@
-using CursorController.Agent.Protocol;
+using Armrest.Agent.Protocol;
 
-namespace CursorController.Agent.Input;
+namespace Armrest.Agent.Input;
 
 /// <summary>Cara menekan satu tombol di Windows lewat SendInput.</summary>
 /// <param name="VirtualKey">Virtual key (tombol khusus), atau 0 kalau memakai scan code.</param>

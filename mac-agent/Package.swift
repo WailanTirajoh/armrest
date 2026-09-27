@@ -6,10 +6,10 @@ import PackageDescription
 let swift5: [SwiftSetting] = [.swiftLanguageMode(.v5)]
 
 let package = Package(
-    name: "CursorControllerAgent",
+    name: "Armrest",
     platforms: [.macOS(.v13)],
     products: [
-        .executable(name: "CursorControllerAgent", targets: ["CursorControllerAgent"]),
+        .executable(name: "Armrest", targets: ["ArmrestAgent"]),
     ],
     targets: [
         // Logika murni tanpa AppKit: protokol, PointerMath, sesi, penyimpanan. Bisa di-unit test.
@@ -18,7 +18,7 @@ let package = Package(
         .target(name: "AgentServer", dependencies: ["AgentCore"], swiftSettings: swift5),
         // App menu bar: SwiftUI, CGEvent, Keychain.
         .executableTarget(
-            name: "CursorControllerAgent",
+            name: "ArmrestAgent",
             dependencies: ["AgentCore", "AgentServer"],
             swiftSettings: swift5
         ),

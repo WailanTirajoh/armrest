@@ -1,7 +1,7 @@
 using System.Security.Cryptography;
 using System.Text.Json;
 
-namespace CursorController.Agent.Tests;
+namespace Armrest.Agent.Tests;
 
 /// <summary>Test vector bersama di protocol/vectors (juga dipakai test Swift dan Kotlin).</summary>
 internal static class Vectors

@@ -1,6 +1,6 @@
-using CursorController.Agent.Protocol;
+using Armrest.Agent.Protocol;
 
-namespace CursorController.Agent.Streaming;
+namespace Armrest.Agent.Streaming;
 
 /// <summary>
 /// Pola uji bergerak untuk profil e2e: melewati encoder sungguhan tanpa menangkap layar pengguna.

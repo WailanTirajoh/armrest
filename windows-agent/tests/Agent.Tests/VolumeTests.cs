@@ -1,7 +1,7 @@
 using System.Collections.Concurrent;
-using CursorController.Agent.Volume;
+using Armrest.Agent.Volume;
 
-namespace CursorController.Agent.Tests;
+namespace Armrest.Agent.Tests;
 
 public class VolumeTests
 {

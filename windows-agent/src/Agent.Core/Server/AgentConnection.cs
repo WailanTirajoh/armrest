@@ -1,10 +1,10 @@
 using System.Net.Sockets;
 using System.Net.WebSockets;
 using System.Threading.Channels;
-using CursorController.Agent.Protocol;
-using CursorController.Agent.Session;
+using Armrest.Agent.Protocol;
+using Armrest.Agent.Session;
 
-namespace CursorController.Agent.Server;
+namespace Armrest.Agent.Server;
 
 /// <summary>
 /// Satu koneksi WebSocket dari HP: meneruskan frame ke <see cref="SessionMachine"/> dan menjalankan aksinya.

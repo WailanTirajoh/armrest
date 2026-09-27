@@ -4,7 +4,7 @@ using System.Net.Sockets;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 
-namespace CursorController.Agent.Hosting;
+namespace Armrest.Agent.Hosting;
 
 public static class LocalNetwork
 {

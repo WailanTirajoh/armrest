@@ -58,9 +58,9 @@ jobs:
           security set-key-partition-list -S apple-tool:,apple: -s -k "$keychain_password" "$keychain" > /dev/null
           security list-keychains -d user -s "$keychain" $(security list-keychains -d user | tr -d '"')
           # Sertifikat self-signed tidak "trusted", jadi dicari tanpa -v dan dipakai lewat hash SHA-1.
-          identity="$(security find-identity -p codesigning "$keychain" | awk '/Cursor Controller Dev Signing/ { print $2; exit }')"
+          identity="$(security find-identity -p codesigning "$keychain" | awk '/Armrest Dev Signing/ { print $2; exit }')"
           if [ -z "$identity" ]; then
-            echo "::error::Identitas 'Cursor Controller Dev Signing' tidak ditemukan di p12."
+            echo "::error::Identitas 'Armrest Dev Signing' tidak ditemukan di p12."
             exit 1
           fi
           echo "SIGN_IDENTITY=$identity" >> "$GITHUB_ENV"

@@ -34,7 +34,7 @@ final class Clock {
 
 @Test func pairingURIEncodesEveryField() {
     let uri = PairingURI(hostId: "h-1", hostName: "Mac Wailan+Kantor", address: "192.168.1.20", port: 47810, token: "a_b-c", fingerprint: "f_p")
-    #expect(uri.string == "cursorctl://pair?h=h-1&n=Mac%20Wailan%2BKantor&a=192.168.1.20%3A47810&t=a_b-c&fp=f_p")
+    #expect(uri.string == "armrest://pair?h=h-1&n=Mac%20Wailan%2BKantor&a=192.168.1.20%3A47810&t=a_b-c&fp=f_p")
 }
 
 @Test func slowMovementUsesBaseSensitivityAndKeepsRemainder() {

@@ -8,12 +8,12 @@ val buildNumber = providers.environmentVariable("GITHUB_RUN_NUMBER").orNull?.toI
 val releaseKeystore = providers.environmentVariable("ANDROID_KEYSTORE_PATH").orNull
 
 android {
-    namespace = "io.github.wailantirajoh.cursorcontroller"
+    namespace = "io.github.wailantirajoh.armrest"
     // Library Compose terbaru butuh compileSdk 37.
     compileSdk = 37
 
     defaultConfig {
-        applicationId = "io.github.wailantirajoh.cursorcontroller"
+        applicationId = "io.github.wailantirajoh.armrest"
         minSdk = 26
         // Naik ke 37 setelah perubahan perilaku Android 17 untuk akses jaringan lokal dicek di M0.
         targetSdk = 36

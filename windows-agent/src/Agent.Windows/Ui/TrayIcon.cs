@@ -6,7 +6,7 @@ using System.Drawing.Imaging;
 using Microsoft.Win32;
 using Forms = System.Windows.Forms;
 
-namespace CursorController.Agent.Windows.Ui;
+namespace Armrest.Agent.Windows.Ui;
 
 internal enum TrayState
 {
@@ -24,16 +24,16 @@ internal sealed class TrayIcon : IDisposable
     public TrayIcon(Action open, Action pair, Action quit)
     {
         var menu = new Forms.ContextMenuStrip();
-        menu.Items.Add("Buka Cursor Controller", null, (_, _) => open());
+        menu.Items.Add("Buka Armrest", null, (_, _) => open());
         menu.Items.Add("Tambah perangkat…", null, (_, _) => pair());
         menu.Items.Add(new Forms.ToolStripSeparator());
         menu.Items.Add("Keluar", null, (_, _) => quit());
-        icon = new Forms.NotifyIcon { Text = "Cursor Controller", ContextMenuStrip = menu };
+        icon = new Forms.NotifyIcon { Text = "Armrest", ContextMenuStrip = menu };
         icon.MouseClick += (_, e) =>
         {
             if (e.Button == Forms.MouseButtons.Left) open();
         };
-        Update(TrayState.Idle, "Cursor Controller");
+        Update(TrayState.Idle, "Armrest");
         icon.Visible = true;
     }
 

@@ -1,8 +1,8 @@
 using System.Globalization;
-using CursorController.Agent.Protocol;
-using CursorController.Agent.Volume;
+using Armrest.Agent.Protocol;
+using Armrest.Agent.Volume;
 
-namespace CursorController.Agent.Session;
+namespace Armrest.Agent.Session;
 
 /// <summary>Yang dibutuhkan sesi dari luar. Diimplementasikan oleh server (dan fake di test).</summary>
 public interface ISessionEnvironment

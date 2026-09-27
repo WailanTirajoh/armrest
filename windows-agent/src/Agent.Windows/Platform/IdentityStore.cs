@@ -3,7 +3,7 @@ using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using Microsoft.Win32;
 
-namespace CursorController.Agent.Windows.Platform;
+namespace Armrest.Agent.Windows.Platform;
 
 /// <summary>
 /// Identitas TLS agent: kunci ECDSA P-256 non-exportable (CNG) dan sertifikat self-signed di CurrentUser\My.
@@ -44,7 +44,7 @@ internal static class IdentityStore
 internal static class Autostart
 {
     private const string RunKey = @"Software\Microsoft\Windows\CurrentVersion\Run";
-    private const string ValueName = "Cursor Controller";
+    private const string ValueName = "Armrest";
 
     public static bool Enabled
     {

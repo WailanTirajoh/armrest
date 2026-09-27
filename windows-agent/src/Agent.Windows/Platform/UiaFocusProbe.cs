@@ -2,9 +2,9 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Windows.Automation;
-using CursorController.Agent.Windows.Native;
+using Armrest.Agent.Windows.Native;
 
-namespace CursorController.Agent.Windows.Platform;
+namespace Armrest.Agent.Windows.Platform;
 
 /// <summary>
 /// Apakah elemen yang fokus menerima ketikan, lewat UI Automation. Dipanggil dari thread latar FocusMonitor.

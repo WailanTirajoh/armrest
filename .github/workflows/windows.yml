@@ -66,8 +66,8 @@ jobs:
             choco install innosetup --no-progress -y | Out-Null
           }
           foreach ($arch in 'x64', 'arm64') {
-            $name = "cursor-controller-windows-$version-b$env:GITHUB_RUN_NUMBER-$arch"
-            & $iscc /Q "/DAppVersion=$version" "/DArch=$arch" "/DSourceDir=$publish\$arch" "/DOutputName=$name" "/O$dist" installer\CursorController.iss
+            $name = "armrest-windows-$version-b$env:GITHUB_RUN_NUMBER-$arch"
+            & $iscc /Q "/DAppVersion=$version" "/DArch=$arch" "/DSourceDir=$publish\$arch" "/DOutputName=$name" "/O$dist" installer\Armrest.iss
             if ($LASTEXITCODE) { exit $LASTEXITCODE }
             "$arch=$name.exe" >> $env:GITHUB_OUTPUT
           }

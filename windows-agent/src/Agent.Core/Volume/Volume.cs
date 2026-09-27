@@ -1,6 +1,6 @@
 using System.Globalization;
 
-namespace CursorController.Agent.Volume;
+namespace Armrest.Agent.Volume;
 
 /// <summary>Volume output komputer (pesan <c>volume_status</c>). <c>Level</c> null = output tidak bisa diatur volumenya.</summary>
 public sealed record VolumeState

@@ -1,4 +1,4 @@
-# Protokol Cursor Controller
+# Protokol Armrest
 
 Versi protokol: **1** (field `v` di pesan `hello`). Agent menolak versi lain dengan `error` `unsupported_version`, lalu menutup koneksi.
 
@@ -6,7 +6,7 @@ Versi protokol: **1** (field `v` di pesan `hello`). Agent menolak versi lain den
 
 - WebSocket di atas TLS (`wss://`) di jaringan lokal, port default **47810**, dengan `TCP_NODELAY`.
 - Sertifikat agent self-signed (ECDSA P-256). HP tidak memakai CA: HP mencocokkan **fingerprint** = base64url tanpa padding dari SHA-256 sertifikat (DER). Fingerprint dibawa lewat QR saat pairing, lalu disimpan.
-- Agent mengiklankan diri lewat Bonjour dengan tipe `_cursorctl._tcp`. TXT record berisi `hostId`, `v`, dan `os` (`macos` atau `windows`).
+- Agent mengiklankan diri lewat Bonjour dengan tipe `_armrest._tcp`. TXT record berisi `hostId`, `v`, dan `os` (`macos` atau `windows`).
 - Pesan kontrol memakai **text frame JSON**. Event input (HP → Mac) dan video layar (Mac → HP) memakai **binary frame**.
 
 ## Format nilai
@@ -147,7 +147,7 @@ Supaya HP bisa mengatur volume suara komputer, misalnya lewat tombol volume HP.
 ## QR pairing
 
 ```
-cursorctl://pair?h=<hostId>&n=<hostName>&a=<ip>:<port>&t=<token>&fp=<fingerprint>
+armrest://pair?h=<hostId>&n=<hostName>&a=<ip>:<port>&t=<token>&fp=<fingerprint>
 ```
 
 `n` di-percent-encode. Alamat `a` hanya dipakai saat pairing; setelah itu HP mencari Mac lewat Bonjour, dengan alamat terakhir sebagai cadangan. App Android juga menerima URI ini sebagai deep link.
@@ -162,7 +162,7 @@ cursorctl://pair?h=<hostId>&n=<hostName>&a=<ip>:<port>&t=<token>&fp=<fingerprint
 
 ### Alur koneksi ulang
 
-1. HP resolve `_cursorctl._tcp` lewat NSD dan mencocokkan `hostId` dari TXT record. Kalau tidak ketemu, HP mencoba alamat terakhir.
+1. HP resolve `_armrest._tcp` lewat NSD dan mencocokkan `hostId` dari TXT record. Kalau tidak ketemu, HP mencoba alamat terakhir.
 2. HP membuka `wss` dengan pinning fingerprint tersimpan, lalu kirim `hello` (mode `auth`).
 3. Agent kirim `challenge`, HP menandatangani payload dengan kunci di Android Keystore.
 4. Agent verifikasi dengan public key tersimpan, kirim `auth_result` ok, dan memperbarui `lastSeen`.

@@ -2,5 +2,5 @@
 public enum AgentConstants {
     public static let protocolVersion = 1
     public static let defaultPort: UInt16 = 47810
-    public static let bonjourServiceType = "_cursorctl._tcp"
+    public static let bonjourServiceType = "_armrest._tcp"
 }

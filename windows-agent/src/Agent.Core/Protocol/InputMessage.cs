@@ -1,7 +1,7 @@
 using System.Buffers.Binary;
 using System.Text;
 
-namespace CursorController.Agent.Protocol;
+namespace Armrest.Agent.Protocol;
 
 public enum MouseButton : byte
 {

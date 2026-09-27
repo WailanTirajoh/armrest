@@ -11,8 +11,8 @@
     <!-- WPF dan WinForms punya nama tipe yang sama (Application, Color, ...), jadi using ditulis eksplisit. -->
     <ImplicitUsings>disable</ImplicitUsings>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
-    <AssemblyName>CursorController</AssemblyName>
-    <RootNamespace>CursorController.Agent.Windows</RootNamespace>
+    <AssemblyName>Armrest</AssemblyName>
+    <RootNamespace>Armrest.Agent.Windows</RootNamespace>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <ApplicationIcon>Assets\AppIcon.ico</ApplicationIcon>
     <!-- Tema Fluent WPF masih ditandai eksperimental. DPI diatur lewat app.manifest karena app-nya WPF; WinForms

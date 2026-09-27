@@ -1,7 +1,7 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
-namespace CursorController.Agent.Session;
+namespace Armrest.Agent.Session;
 
 public sealed record TrustedDevice(string Id, string Name, byte[] PublicKey, DateTimeOffset PairedAt, DateTimeOffset? LastSeen = null)
 {

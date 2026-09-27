@@ -3,12 +3,12 @@ using System.Diagnostics;
 using System.Drawing;
 using System.Runtime.InteropServices;
 using System.Threading;
-using CursorController.Agent.Protocol;
-using CursorController.Agent.Streaming;
-using CursorController.Agent.Windows.Native;
+using Armrest.Agent.Protocol;
+using Armrest.Agent.Streaming;
+using Armrest.Agent.Windows.Native;
 using Forms = System.Windows.Forms;
 
-namespace CursorController.Agent.Windows.Screen;
+namespace Armrest.Agent.Windows.Screen;
 
 /// <summary>
 /// Tangkapan layar lewat GDI dari monitor tempat kursor berada, sudah diperkecil ke ukuran video dan termasuk
@@ -29,7 +29,7 @@ internal sealed class GdiScreenSource : IScreenSource
             this.events = events;
         }
         running = true;
-        new Thread(Run) { IsBackground = true, Name = "cursorctl-capture", Priority = ThreadPriority.AboveNormal }.Start();
+        new Thread(Run) { IsBackground = true, Name = "armrest-capture", Priority = ThreadPriority.AboveNormal }.Start();
     }
 
     public void Update(ScreenRequest request)

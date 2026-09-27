@@ -1,11 +1,11 @@
 using System.Collections.Concurrent;
 using System.Net.WebSockets;
-using CursorController.Agent.Protocol;
-using CursorController.Agent.Server;
-using CursorController.Agent.Session;
-using CursorController.Agent.Volume;
+using Armrest.Agent.Protocol;
+using Armrest.Agent.Server;
+using Armrest.Agent.Session;
+using Armrest.Agent.Volume;
 
-namespace CursorController.Agent.Tests;
+namespace Armrest.Agent.Tests;
 
 /// <summary>Server sungguhan (ws:// tanpa TLS) dan HP tiruan lewat ClientWebSocket.</summary>
 internal sealed class ServerHarness : IDisposable

@@ -1,11 +1,11 @@
 using System.Collections;
 using System.Text;
-using CursorController.Agent.Hosting;
-using CursorController.Agent.Protocol;
-using CursorController.Agent.Session;
-using CursorController.Agent.Volume;
+using Armrest.Agent.Hosting;
+using Armrest.Agent.Protocol;
+using Armrest.Agent.Session;
+using Armrest.Agent.Volume;
 
-namespace CursorController.Agent.Tests;
+namespace Armrest.Agent.Tests;
 
 internal sealed class FakeEnvironment : ISessionEnvironment
 {
@@ -177,7 +177,7 @@ public class SessionTests
     public void PairingUriEncodesEveryFieldLikeTheMac()
     {
         var uri = new PairingUri("h-1", "Mac Wailan+Kantor", "192.168.1.20", 47810, "a_b-c", "f_p");
-        Assert.Equal("cursorctl://pair?h=h-1&n=Mac%20Wailan%2BKantor&a=192.168.1.20%3A47810&t=a_b-c&fp=f_p", uri.ToString());
+        Assert.Equal("armrest://pair?h=h-1&n=Mac%20Wailan%2BKantor&a=192.168.1.20%3A47810&t=a_b-c&fp=f_p", uri.ToString());
     }
 
     [Fact]
@@ -199,9 +199,9 @@ public class SessionTests
     public void HeadlessProfileNeverUsesNormalAppData()
     {
         Assert.Equal("", Profile.FromEnvironment(new Hashtable()).Suffix);
-        var headless = Profile.FromEnvironment(new Hashtable { ["CURSORCTL_E2E_PAIRING_FILE"] = "qr.txt" });
+        var headless = Profile.FromEnvironment(new Hashtable { ["ARMREST_E2E_PAIRING_FILE"] = "qr.txt" });
         Assert.True(headless.Headless);
         Assert.Equal("-e2e", headless.Suffix);
-        Assert.Equal("-e2e-core", Profile.FromEnvironment(new Hashtable { ["CURSORCTL_PROFILE"] = "e2e-core", ["CURSORCTL_E2E_PAIRING_FILE"] = "qr.txt" }).Suffix);
+        Assert.Equal("-e2e-core", Profile.FromEnvironment(new Hashtable { ["ARMREST_PROFILE"] = "e2e-core", ["ARMREST_E2E_PAIRING_FILE"] = "qr.txt" }).Suffix);
     }
 }

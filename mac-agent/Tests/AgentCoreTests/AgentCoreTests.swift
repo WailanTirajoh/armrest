@@ -12,5 +12,5 @@ import Testing
 @Test func constantsMatchProtocolDoc() {
     #expect(AgentConstants.protocolVersion == 1)
     #expect(AgentConstants.defaultPort == 47810)
-    #expect(AgentConstants.bonjourServiceType == "_cursorctl._tcp")
+    #expect(AgentConstants.bonjourServiceType == "_armrest._tcp")
 }

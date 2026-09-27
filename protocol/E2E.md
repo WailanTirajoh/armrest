@@ -9,13 +9,13 @@ penolakan (fingerprint salah, token dipakai ulang, perangkat tidak dikenal).
 
 | Variabel | Arti |
 | --- | --- |
-| `CURSORCTL_PROFILE` | Nama profil. Data, identitas TLS, dan pengaturan terpisah dari app normal (mis. `e2e`). Mode tanpa UI tanpa nama profil memakai `e2e`, jadi uji tidak pernah menyentuh data app normal. |
-| `CURSORCTL_PORT` | Port server, mis. `47811` supaya tidak bentrok dengan app yang sedang dipakai. |
-| `CURSORCTL_E2E_ADDRESS` | Alamat di QR: `127.0.0.1`, atau `10.0.2.2` untuk emulator Android. |
-| `CURSORCTL_E2E_AUTO_APPROVE=1` | Permintaan pairing langsung diizinkan. |
-| `CURSORCTL_E2E_PAIRING_FILE` | Agent menulis URI QR ke file ini begitu server siap. Variabel ini juga menyalakan mode tanpa UI. |
-| `CURSORCTL_E2E_FOCUS_FILE` | Status fokus kolom teks dibaca dari file ini: `1` = kolom teks fokus. |
-| `CURSORCTL_E2E_LOG=1` | Log ke stderr: `server: …`, `features: …`, `input: …`, `focus: …`, `screen: …`, `volume: …`. |
+| `ARMREST_PROFILE` | Nama profil. Data, identitas TLS, dan pengaturan terpisah dari app normal (mis. `e2e`). Mode tanpa UI tanpa nama profil memakai `e2e`, jadi uji tidak pernah menyentuh data app normal. |
+| `ARMREST_PORT` | Port server, mis. `47811` supaya tidak bentrok dengan app yang sedang dipakai. |
+| `ARMREST_E2E_ADDRESS` | Alamat di QR: `127.0.0.1`, atau `10.0.2.2` untuk emulator Android. |
+| `ARMREST_E2E_AUTO_APPROVE=1` | Permintaan pairing langsung diizinkan. |
+| `ARMREST_E2E_PAIRING_FILE` | Agent menulis URI QR ke file ini begitu server siap. Variabel ini juga menyalakan mode tanpa UI. |
+| `ARMREST_E2E_FOCUS_FILE` | Status fokus kolom teks dibaca dari file ini: `1` = kolom teks fokus. |
+| `ARMREST_E2E_LOG=1` | Log ke stderr: `server: …`, `features: …`, `input: …`, `focus: …`, `screen: …`, `volume: …`. |
 
 ## Perilaku mode tanpa UI
 
@@ -27,7 +27,7 @@ penolakan (fingerprint salah, token dipakai ulang, perangkat tidak dikenal).
 - **Volume**: tiruan di memori, mulai dari `level` 0,5 dan tidak bisu. Tidak pernah mengubah volume sungguhan.
 - **Fitur `screen`** hanya diumumkan kalau encoder tersedia.
   - Agent tanpa encoder: host C# di macOS/Linux, atau Windows Server tanpa Media Foundation.
-  - Untuk agent seperti itu, jalankan klien dengan `CURSORCTL_E2E_EXPECT_SCREEN=0`.
+  - Untuk agent seperti itu, jalankan klien dengan `ARMREST_E2E_EXPECT_SCREEN=0`.
 
 ## Menjalankan
 

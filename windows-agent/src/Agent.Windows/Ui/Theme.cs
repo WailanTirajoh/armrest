@@ -6,7 +6,7 @@ using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using Microsoft.Win32;
 
-namespace CursorController.Agent.Windows.Ui;
+namespace Armrest.Agent.Windows.Ui;
 
 /// <summary>Warna dan komponen kecil yang dipakai semua jendela; warnanya sama dengan agent Mac.</summary>
 internal static class Theme

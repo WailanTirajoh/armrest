@@ -14,5 +14,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "cursor-controller"
+rootProject.name = "armrest"
 include(":app", ":core")

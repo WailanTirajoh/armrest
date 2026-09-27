@@ -6,11 +6,11 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
-using CursorController.Agent.Hosting;
-using CursorController.Agent.Session;
+using Armrest.Agent.Hosting;
+using Armrest.Agent.Session;
 using QRCoder;
 
-namespace CursorController.Agent.Windows.Ui;
+namespace Armrest.Agent.Windows.Ui;
 
 /// <summary>Jendela QR pairing (mockup B3). Ditutup user = QR dibatalkan.</summary>
 internal sealed class PairingWindow : Window
@@ -60,7 +60,7 @@ internal sealed class PairingWindow : Window
         }
         else
         {
-            details.Children.Add(Theme.Step(1, "Buka Cursor Controller di HP."));
+            details.Children.Add(Theme.Step(1, "Buka Armrest di HP."));
             details.Children.Add(Theme.Step(2, "Ketuk Pair komputer baru."));
             details.Children.Add(Theme.Step(3, "Arahkan kamera ke QR ini, lalu klik Izinkan di komputer."));
             var remaining = Theme.Text($"Berlaku {pairing.SecondsRemaining / 60}:{pairing.SecondsRemaining % 60:00}", 12, bold: true);
@@ -156,7 +156,7 @@ internal sealed class ApprovalWindow : Window
         content.Children.Add(icon);
         content.Children.Add(Centered(Theme.Text($"Izinkan “{device.Name}” mengontrol komputer ini?", 14, bold: true)));
         content.Children.Add(Centered(Theme.Text(
-            $"{device.Name} akan bisa menggerakkan kursor, klik, scroll, mengetik, dan melihat layar komputer ini. Akses bisa dicabut kapan saja dari ikon Cursor Controller di tray.",
+            $"{device.Name} akan bisa menggerakkan kursor, klik, scroll, mengetik, dan melihat layar komputer ini. Akses bisa dicabut kapan saja dari ikon Armrest di tray.",
             12,
             color: Theme.Secondary)));
         var key = Centered(Theme.Text($"Kunci perangkat: {KeySummary(device.PublicKey)}", 11, color: Theme.Secondary));
@@ -199,7 +199,7 @@ internal sealed class WelcomeWindow : Window
 {
     public WelcomeWindow(Action pair)
     {
-        Title = "Cursor Controller";
+        Title = "Armrest";
         Icon = Theme.AppIcon;
         Width = 480;
         SizeToContent = SizeToContent.Height;
@@ -207,15 +207,15 @@ internal sealed class WelcomeWindow : Window
         WindowStartupLocation = WindowStartupLocation.CenterScreen;
 
         var content = new StackPanel { Margin = new Thickness(28) };
-        content.Children.Add(Theme.Text("Cursor Controller sudah berjalan", 20, bold: true));
+        content.Children.Add(Theme.Text("Armrest sudah berjalan", 20, bold: true));
         var intro = Theme.Text(
             "App ini ada di area notifikasi (tray) di pojok kanan bawah, bukan di taskbar. HP Android kamu bisa jadi touchpad dan keyboard untuk komputer ini.",
             13,
             color: Theme.Secondary);
         intro.Margin = new Thickness(0, 8, 0, 16);
         content.Children.Add(intro);
-        content.Children.Add(Theme.Step(1, "Klik Tambah perangkat di bawah, atau ikon Cursor Controller di tray."));
-        content.Children.Add(Theme.Step(2, "Scan QR-nya dengan app Cursor Controller di HP, lalu klik Izinkan."));
+        content.Children.Add(Theme.Step(1, "Klik Tambah perangkat di bawah, atau ikon Armrest di tray."));
+        content.Children.Add(Theme.Step(2, "Scan QR-nya dengan app Armrest di HP, lalu klik Izinkan."));
         content.Children.Add(Theme.Step(3, "Kalau Windows Firewall bertanya, izinkan untuk jaringan Private."));
         var buttons = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(0, 12, 0, 0) };
         var later = Theme.Button("Nanti saja", Close);

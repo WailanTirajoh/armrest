@@ -1,4 +1,4 @@
-# Cursor Controller
+# Armrest
 
 Pakai HP Android sebagai touchpad dan keyboard untuk Mac atau PC Windows lewat WiFi yang sama: gerak kursor, klik, klik ganda, klik kanan, scroll, drag, dan mengetik. Volume komputer bisa diatur dari tombol volume HP, dan layar komputer bisa ditampilkan di HP, lengkap dengan zoom dan layar penuh. HP cukup dipasangkan sekali lewat QR, lalu tersambung ulang otomatis.
 
@@ -14,13 +14,13 @@ Pakai HP Android sebagai touchpad dan keyboard untuk Mac atau PC Windows lewat W
 ## Cara pakai
 
 1. **Komputer**:
-   - **Mac**: install DMG, buka **Cursor Controller**, lalu ikuti jendela izin **Accessibility**. App ini hanya muncul sebagai ikon di menu bar, tanpa ikon di Dock.
+   - **Mac**: install DMG, buka **Armrest**, lalu ikuti jendela izin **Accessibility**. App ini hanya muncul sebagai ikon di menu bar, tanpa ikon di Dock.
    - **Windows 10/11**: jalankan installer `.exe`: `x64` untuk kebanyakan PC, `arm64` untuk Windows on ARM (termasuk VM di Mac Apple Silicon).
      - Installer belum ditandatangani, jadi SmartScreen memperingatkan: pilih **More info → Run anyway**.
-     - Cursor Controller lalu berjalan di area notifikasi (tray) di pojok kanan bawah. Tidak ada izin tambahan.
-2. **HP**: install APK, lalu buka **Cursor Controller**.
+     - Armrest lalu berjalan di area notifikasi (tray) di pojok kanan bawah. Tidak ada izin tambahan.
+2. **HP**: install APK, lalu buka **Armrest**.
 3. **Pairing** (sekali saja):
-   1. Di komputer: klik ikon Cursor Controller (menu bar Mac, atau tray Windows) → **Tambah perangkat…**. QR muncul dan berlaku 120 detik.
+   1. Di komputer: klik ikon Armrest (menu bar Mac, atau tray Windows) → **Tambah perangkat…**. QR muncul dan berlaku 120 detik.
    2. Di HP: ketuk **Pair komputer baru**, lalu scan QR. Scan lewat kamera bawaan HP juga bisa; app akan terbuka otomatis.
    3. Di komputer: klik **Izinkan**.
 4. Selanjutnya cukup ketuk nama komputer di HP. Kalau koneksi putus, HP menyambung ulang sendiri.
@@ -50,10 +50,10 @@ Ketuk ikon monitor di kanan atas layar touchpad. Layar komputer, termasuk kursor
 - **Zoom**: cubit dengan 2 jari untuk memperbesar sampai 4×, dan geser sambil mencubit untuk berpindah bagian. Selama di-zoom, tampilan mengikuti kursor, jadi kursor tidak pernah keluar dari layar HP. Geser 2 jari tanpa mencubit tetap scroll. Ketuk label zoom (mis. `2,0×`) di kiri atas untuk kembali ke tampilan penuh.
 - **Layar penuh**: ketuk tombol ⛶ di pojok kanan atas gambar. Bar atas dan bar sistem HP disembunyikan, dan tombol keyboard, volume, serta keluar pindah ke pojok layar. Tombol Back juga keluar dari layar penuh.
 
-- **Mac**: pertama kali dipakai, Mac meminta izin **Screen Recording**. Nyalakan Cursor Controller di System Settings, lalu pilih **Quit & Reopen**. Selama layar tampil di HP, macOS menampilkan indikator perekaman layar di menu bar.
+- **Mac**: pertama kali dipakai, Mac meminta izin **Screen Recording**. Nyalakan Armrest di System Settings, lalu pilih **Quit & Reopen**. Selama layar tampil di HP, macOS menampilkan indikator perekaman layar di menu bar.
 - **Windows**: tidak perlu izin.
 
-Panel Cursor Controller menulis "melihat layar" di sesi HP yang sedang menampilkan layar. Video hanya dikirim selama app di HP terbuka; ketuk ikon monitor lagi untuk berhenti.
+Panel Armrest menulis "melihat layar" di sesi HP yang sedang menampilkan layar. Video hanya dikirim selama app di HP terbuka; ketuk ikon monitor lagi untuk berhenti.
 
 ### Volume komputer
 
@@ -64,20 +64,20 @@ Selama touchpad terbuka, tombol volume HP mengatur volume komputer, bukan volume
 
 ### Pengaturan
 
-Sensitivitas, kecepatan scroll, tombol Kiri/Kanan, getar saat klik, keyboard otomatis, dan tombol volume diatur lewat ikon pengaturan di layar touchpad. Akses HP bisa dicabut kapan saja lewat **Cabut…** di panel Cursor Controller di komputer.
+Sensitivitas, kecepatan scroll, tombol Kiri/Kanan, getar saat klik, keyboard otomatis, dan tombol volume diatur lewat ikon pengaturan di layar touchpad. Akses HP bisa dicabut kapan saja lewat **Cabut…** di panel Armrest di komputer.
 
 ### Kalau ada masalah
 
 Umum:
 
-- **HP tidak menemukan komputer** (WiFi kantor atau hotspot sering memblokir mDNS): di HP, menu ⋮ pada kartu komputer → **Sambungkan via IP**. Alamatnya tertulis di panel Cursor Controller (mis. `Siap · 192.168.1.20:47810`).
+- **HP tidak menemukan komputer** (WiFi kantor atau hotspot sering memblokir mDNS): di HP, menu ⋮ pada kartu komputer → **Sambungkan via IP**. Alamatnya tertulis di panel Armrest (mis. `Siap · 192.168.1.20:47810`).
 - **Keyboard tidak terbuka otomatis**: sebagian app tidak melaporkan kolom teksnya, misalnya game atau remote desktop. VS Code, Slack, dan app Electron lain sengaja tidak dicek, karena VS Code lalu mengira ada screen reader. Di app seperti itu, buka keyboard lewat ikonnya.
 - **Sebagian layar tampil hitam**: video yang dilindungi DRM (Netflix, Apple TV+) dan jendela yang memblokir tangkapan layar.
 
 Mac:
 
 - **Kursor tidak bergerak atau ketikan tidak masuk**: pastikan panel menu bar Mac menampilkan "Izin Accessibility: Diizinkan".
-- **Layar tidak muncul di HP**: pastikan panel menu bar Mac menampilkan "Izin Screen Recording: Diizinkan". Kalau toggle di System Settings sudah menyala tapi tetap ditolak (biasanya setelah update build tanpa signing), jalankan `tccutil reset ScreenCapture io.github.wailantirajoh.cursorcontroller.agent`, lalu izinkan ulang.
+- **Layar tidak muncul di HP**: pastikan panel menu bar Mac menampilkan "Izin Screen Recording: Diizinkan". Kalau toggle di System Settings sudah menyala tapi tetap ditolak (biasanya setelah update build tanpa signing), jalankan `tccutil reset ScreenCapture io.github.wailantirajoh.armrest.agent`, lalu izinkan ulang.
 - **Ketikan tidak masuk ke kolom password**: macOS bisa memblokir ketikan dari app lain saat Secure Input aktif, misalnya di kolom password atau Terminal dengan Secure Keyboard Entry.
 - **macOS menolak membuka app**: app belum dinotarisasi Apple. Klik kanan → Open (macOS 14), atau System Settings → Privacy & Security → **Open Anyway** (macOS 15+).
 
@@ -85,12 +85,12 @@ Windows:
 
 - **HP tidak bisa tersambung**: installer hanya membuka firewall untuk jaringan **Private** dan Domain. Kalau WiFi-nya berprofil Public, ubah di Settings → Network & internet → Wi-Fi → nama jaringan → **Private network**.
 - **Sebagian jendela tidak bisa dikontrol**: jendela yang berjalan sebagai administrator (mis. Task Manager, installer), dialog UAC, dan layar kunci. Ini batasan Windows untuk app biasa.
-- **Tidak ada ikon di taskbar**: ikonnya ada di tray. Klik panah ^ di pojok kanan bawah kalau tersembunyi. Membuka Cursor Controller lagi dari Start menu juga menampilkan panelnya.
+- **Tidak ada ikon di taskbar**: ikonnya ada di tray. Klik panah ^ di pojok kanan bawah kalau tersembunyi. Membuka Armrest lagi dari Start menu juga menampilkan panelnya.
 
 ## Mengunduh hasil build
 
 - **Setiap push ke `main`**: tab Actions → run **Android**, **macOS**, atau **Windows** → bagian Artifacts. File `.apk`, `.dmg`, dan installer `.exe` (x64 dan arm64) terunduh langsung tanpa zip, dan perlu login GitHub.
-- **Lewat terminal**: `gh run download <run-id> --repo WailanTirajoh/cursor-controller`.
+- **Lewat terminal**: `gh run download <run-id> --repo WailanTirajoh/armrest`.
 - **Rilis bertag** (`v*`): halaman Releases berisi semuanya, bisa diunduh tanpa login.
 
 ## Build dan test lokal
@@ -103,7 +103,7 @@ Kebutuhan:
 
 ```bash
 make test      # unit test Swift, Kotlin, dan C#
-make mac       # dist/Cursor Controller.app + DMG, tanda tangan ad-hoc
+make mac       # dist/Armrest.app + DMG, tanda tangan ad-hoc
 make android   # APK debug
 make windows   # agent Windows (installer dibuat CI)
 ```
@@ -118,7 +118,7 @@ Uji end-to-end menjalankan agent sungguhan dengan profil uji terpisah, lalu klie
 ./scripts/e2e-windows.ps1   # di Windows: agent Windows lengkap, termasuk encoder video
 ```
 
-Agent juga bisa diuji dengan emulator Android: jalankan agent dengan `CURSORCTL_PROFILE=e2e CURSORCTL_E2E_ADDRESS=10.0.2.2 CURSORCTL_E2E_AUTO_APPROVE=1 CURSORCTL_E2E_PAIRING_FILE=<file>`, lalu buka isi file itu di emulator lewat `adb shell am start -a android.intent.action.VIEW -d '<uri>'`.
+Agent juga bisa diuji dengan emulator Android: jalankan agent dengan `ARMREST_PROFILE=e2e ARMREST_E2E_ADDRESS=10.0.2.2 ARMREST_E2E_AUTO_APPROVE=1 ARMREST_E2E_PAIRING_FILE=<file>`, lalu buka isi file itu di emulator lewat `adb shell am start -a android.intent.action.VIEW -d '<uri>'`.
 
 ## Signing di CI
 
@@ -130,7 +130,7 @@ Untuk signing Android dan Mac yang tetap, jalankan sekali:
 ./scripts/setup-signing.sh
 ```
 
-Skrip ini membuat keystore Android dan sertifikat code signing self-signed, mengisi 6 GitHub Secrets, dan menyimpan backup di `~/cursor-controller-signing/`. Simpan backup itu di password manager.
+Skrip ini membuat keystore Android dan sertifikat code signing self-signed, mengisi 6 GitHub Secrets, dan menyimpan backup di `~/armrest-signing/`. Simpan backup itu di password manager.
 
 ## Berikutnya
 

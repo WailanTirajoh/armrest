@@ -1,8 +1,8 @@
 using System.Text;
-using CursorController.Agent.Protocol;
-using CursorController.Agent.Volume;
+using Armrest.Agent.Protocol;
+using Armrest.Agent.Volume;
 
-namespace CursorController.Agent.Tests;
+namespace Armrest.Agent.Tests;
 
 public class ProtocolTests
 {

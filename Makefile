@@ -1,6 +1,6 @@
 .PHONY: mac android windows test test-mac test-android test-windows clean
 
-# Build Cursor Controller.app + DMG ke dist/
+# Build Armrest.app + DMG ke dist/
 mac:
 	cd mac-agent && ./scripts/bundle.sh
 

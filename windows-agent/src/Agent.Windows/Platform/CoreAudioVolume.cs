@@ -1,8 +1,8 @@
 using System;
 using System.Runtime.InteropServices;
-using CursorController.Agent.Volume;
+using Armrest.Agent.Volume;
 
-namespace CursorController.Agent.Windows.Platform;
+namespace Armrest.Agent.Windows.Platform;
 
 /// <summary>
 /// Volume perangkat output default Windows lewat Core Audio (<c>IAudioEndpointVolume</c>), sama dengan slider volume

@@ -1,7 +1,7 @@
 using System.Security.Cryptography;
 using System.Text;
 
-namespace CursorController.Agent.Server;
+namespace Armrest.Agent.Server;
 
 /// <summary>Sisi server handshake WebSocket (RFC 6455): baca request upgrade, balas 101.</summary>
 internal static class WebSocketHandshake

@@ -1,7 +1,7 @@
-using CursorController.Agent.Protocol;
-using CursorController.Agent.Server;
+using Armrest.Agent.Protocol;
+using Armrest.Agent.Server;
 
-namespace CursorController.Agent.Streaming;
+namespace Armrest.Agent.Streaming;
 
 /// <summary>Gambar layar dalam NV12: bidang Y penuh, lalu bidang UV berselang-seling setengah resolusi.</summary>
 public sealed class VideoFrame(int width, int height, byte[] nv12)
@@ -67,7 +67,7 @@ public sealed class ScreenStreamer
     private readonly Action<ScreenStatus> report;
     private readonly Action<Exception>? error;
     private readonly Action<CursorPosition>? sendCursor;
-    private readonly SerialQueue queue = new("cursorctl-screen");
+    private readonly SerialQueue queue = new("armrest-screen");
 
     // Hanya diakses di queue.
     private IVideoEncoder? encoder;

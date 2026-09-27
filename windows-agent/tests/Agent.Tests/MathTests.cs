@@ -1,8 +1,8 @@
-using CursorController.Agent.Focus;
-using CursorController.Agent.Input;
-using CursorController.Agent.Protocol;
+using Armrest.Agent.Focus;
+using Armrest.Agent.Input;
+using Armrest.Agent.Protocol;
 
-namespace CursorController.Agent.Tests;
+namespace Armrest.Agent.Tests;
 
 public class MathTests
 {

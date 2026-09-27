@@ -1,17 +1,17 @@
-using CursorController.Agent.Hosting;
-using CursorController.Agent.Protocol;
-using CursorController.Agent.Server;
+using Armrest.Agent.Hosting;
+using Armrest.Agent.Protocol;
+using Armrest.Agent.Server;
 
 // Agent tanpa UI untuk uji end-to-end di luar Windows: server, pairing, dan fokus dari file (protocol/E2E.md).
 // Tidak ada tangkapan layar di sini; fitur "screen" hanya diumumkan agent Windows sungguhan.
 var profile = Profile.Current;
 if (!profile.Headless)
 {
-    Console.Error.WriteLine("Jalankan dengan CURSORCTL_E2E_PAIRING_FILE (lihat protocol/E2E.md).");
+    Console.Error.WriteLine("Jalankan dengan ARMREST_E2E_PAIRING_FILE (lihat protocol/E2E.md).");
     return 2;
 }
 
-using var queue = new SerialQueue("cursorctl-main");
+using var queue = new SerialQueue("armrest-main");
 var exit = new TaskCompletionSource();
 Console.CancelKeyPress += (_, e) =>
 {

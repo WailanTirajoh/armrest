@@ -60,7 +60,7 @@ jobs:
         id: apk
         run: |
           version="$(tr -d '[:space:]' < VERSION)"
-          name="cursor-controller-android-${version}-b${GITHUB_RUN_NUMBER}.apk"
+          name="armrest-android-${version}-b${GITHUB_RUN_NUMBER}.apk"
           mkdir -p dist
           cp android-app/app/build/outputs/apk/release/app-release.apk "dist/$name"
           echo "name=$name" >> "$GITHUB_OUTPUT"

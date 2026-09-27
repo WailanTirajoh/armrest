@@ -1,6 +1,6 @@
 using System.Text;
 
-namespace CursorController.Agent.Protocol;
+namespace Armrest.Agent.Protocol;
 
 /// <summary>Tombol yang bisa dikirim HP (kode protokol, lihat PROTOCOL.md). Huruf dan tanda baca = posisi ANSI.</summary>
 public enum KeyCode : byte

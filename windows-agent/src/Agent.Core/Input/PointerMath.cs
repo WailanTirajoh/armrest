@@ -1,4 +1,4 @@
-namespace CursorController.Agent.Input;
+namespace Armrest.Agent.Input;
 
 /// <summary>Kurva akselerasi dari spec: gain = sensitivity × min(maxGain, 1 + accel × max(0, v − v0)), v dalam dp/ms.</summary>
 public sealed record AccelerationCurve(double Sensitivity = 1.5, double Accel = 2.0, double V0 = 0.2, double MaxGain = 6)

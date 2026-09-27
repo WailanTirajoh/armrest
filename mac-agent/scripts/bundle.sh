@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Merakit "Cursor Controller.app" dan DMG dari build SwiftPM, hasilnya di dist/.
+# Merakit "Armrest.app" dan DMG dari build SwiftPM, hasilnya di dist/.
 #
 # Env opsional:
 #   BUILD_NUMBER   nomor build (default: GITHUB_RUN_NUMBER, lalu 0)
@@ -10,15 +10,15 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 ROOT="$(cd .. && pwd)"
 
-APP_NAME="Cursor Controller"
-EXE="CursorControllerAgent"
+APP_NAME="Armrest"
+EXE="Armrest"
 VERSION="$(tr -d '[:space:]' < "$ROOT/VERSION")"
 BUILD_NUMBER="${BUILD_NUMBER:-${GITHUB_RUN_NUMBER:-0}}"
 SIGN_IDENTITY="${SIGN_IDENTITY:--}"
 ARCHS="${ARCHS:-arm64 x86_64}"
 DIST="$ROOT/dist"
 APP="$DIST/$APP_NAME.app"
-DMG="$DIST/cursor-controller-mac-$VERSION-b$BUILD_NUMBER.dmg"
+DMG="$DIST/armrest-mac-$VERSION-b$BUILD_NUMBER.dmg"
 
 binaries=()
 for arch in $ARCHS; do

@@ -1,7 +1,7 @@
 using System;
 using System.Runtime.InteropServices;
 
-namespace CursorController.Agent.Windows.Native;
+namespace Armrest.Agent.Windows.Native;
 
 /// <summary>Deklarasi Win32 yang dipakai agent: input, monitor, tangkapan GDI, kursor, jendela, dan DNS-SD.</summary>
 internal static partial class Win32

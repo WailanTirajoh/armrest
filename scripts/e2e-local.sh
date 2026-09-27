@@ -16,16 +16,16 @@ LOG="$WORK/agent.log"
 
 echo "== Build agent"
 (cd "$ROOT/mac-agent" && ARCHS="$(uname -m)" ./scripts/bundle.sh > /dev/null)
-AGENT="$ROOT/dist/Cursor Controller.app/Contents/MacOS/CursorControllerAgent"
+AGENT="$ROOT/dist/Armrest.app/Contents/MacOS/Armrest"
 
 echo "== Jalankan agent (profil e2e)"
-CURSORCTL_PROFILE=e2e \
-CURSORCTL_PORT=47811 \
-CURSORCTL_E2E_ADDRESS=127.0.0.1 \
-CURSORCTL_E2E_AUTO_APPROVE=1 \
-CURSORCTL_E2E_PAIRING_FILE="$PAIRING" \
-CURSORCTL_E2E_FOCUS_FILE="$FOCUS" \
-CURSORCTL_E2E_LOG=1 \
+ARMREST_PROFILE=e2e \
+ARMREST_PORT=47811 \
+ARMREST_E2E_ADDRESS=127.0.0.1 \
+ARMREST_E2E_AUTO_APPROVE=1 \
+ARMREST_E2E_PAIRING_FILE="$PAIRING" \
+ARMREST_E2E_FOCUS_FILE="$FOCUS" \
+ARMREST_E2E_LOG=1 \
   "$AGENT" > "$LOG" 2>&1 &
 AGENT_PID=$!
 
@@ -37,10 +37,10 @@ cleanup() {
     kill "$WIN_PID" 2> /dev/null || true
     wait "$WIN_PID" 2> /dev/null || true
   fi
-  rm -rf "$HOME/Library/Application Support/Cursor Controller-e2e-core"
-  security delete-identity -c "Cursor Controller-e2e" > /dev/null 2>&1 || true
-  rm -rf "$HOME/Library/Application Support/Cursor Controller-e2e"
-  defaults delete io.github.wailantirajoh.cursorcontroller.agent-e2e > /dev/null 2>&1 || true
+  rm -rf "$HOME/Library/Application Support/Armrest-e2e-core"
+  security delete-identity -c "Armrest-e2e" > /dev/null 2>&1 || true
+  rm -rf "$HOME/Library/Application Support/Armrest-e2e"
+  defaults delete io.github.wailantirajoh.armrest.agent-e2e > /dev/null 2>&1 || true
   rm -rf "$WORK"
 }
 trap cleanup EXIT
@@ -73,7 +73,7 @@ expect_log() {
 wait_for_pairing "$PAIRING" "$LOG"
 
 echo "== Klien JVM"
-(cd "$ROOT/android-app" && CURSORCTL_E2E_PAIRING_FILE="$PAIRING" CURSORCTL_E2E_FOCUS_FILE="$FOCUS" ./gradlew -q :core:test --tests '*AgentConnectionE2ETest' --rerun)
+(cd "$ROOT/android-app" && ARMREST_E2E_PAIRING_FILE="$PAIRING" ARMREST_E2E_FOCUS_FILE="$FOCUS" ./gradlew -q :core:test --tests '*AgentConnectionE2ETest' --rerun)
 
 echo "== Log agent"
 cat "$LOG"
@@ -95,19 +95,19 @@ WIN_FOCUS="$WORK/win-focus.txt"
 WIN_LOG="$WORK/win-agent.log"
 
 echo "== Jalankan inti agent Windows (profil e2e-core, tanpa layar)"
-CURSORCTL_PROFILE=e2e-core \
-CURSORCTL_PORT=47813 \
-CURSORCTL_E2E_ADDRESS=127.0.0.1 \
-CURSORCTL_E2E_AUTO_APPROVE=1 \
-CURSORCTL_E2E_PAIRING_FILE="$WIN_PAIRING" \
-CURSORCTL_E2E_FOCUS_FILE="$WIN_FOCUS" \
-CURSORCTL_E2E_LOG=1 \
-  dotnet "$WORK/headless/CursorController.Headless.dll" > "$WIN_LOG" 2>&1 &
+ARMREST_PROFILE=e2e-core \
+ARMREST_PORT=47813 \
+ARMREST_E2E_ADDRESS=127.0.0.1 \
+ARMREST_E2E_AUTO_APPROVE=1 \
+ARMREST_E2E_PAIRING_FILE="$WIN_PAIRING" \
+ARMREST_E2E_FOCUS_FILE="$WIN_FOCUS" \
+ARMREST_E2E_LOG=1 \
+  dotnet "$WORK/headless/Armrest.Headless.dll" > "$WIN_LOG" 2>&1 &
 WIN_PID=$!
 wait_for_pairing "$WIN_PAIRING" "$WIN_LOG"
 
 echo "== Klien JVM"
-(cd "$ROOT/android-app" && CURSORCTL_E2E_PAIRING_FILE="$WIN_PAIRING" CURSORCTL_E2E_FOCUS_FILE="$WIN_FOCUS" CURSORCTL_E2E_EXPECT_SCREEN=0 \
+(cd "$ROOT/android-app" && ARMREST_E2E_PAIRING_FILE="$WIN_PAIRING" ARMREST_E2E_FOCUS_FILE="$WIN_FOCUS" ARMREST_E2E_EXPECT_SCREEN=0 \
   ./gradlew -q :core:test --tests '*AgentConnectionE2ETest' --rerun)
 
 echo "== Log inti agent Windows"

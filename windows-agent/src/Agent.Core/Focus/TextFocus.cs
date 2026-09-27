@@ -1,6 +1,6 @@
 using System.Diagnostics;
 
-namespace CursorController.Agent.Focus;
+namespace Armrest.Agent.Focus;
 
 /// <summary>
 /// Meredam kedipan status fokus. Masuk ke kolom teks langsung dilaporkan; keluar baru dilaporkan setelah bertahan

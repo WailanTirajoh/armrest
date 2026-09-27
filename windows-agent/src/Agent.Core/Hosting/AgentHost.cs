@@ -1,14 +1,14 @@
 using System.Security.Cryptography.X509Certificates;
 using System.Text.Json;
 using System.Text.Json.Nodes;
-using CursorController.Agent.Focus;
-using CursorController.Agent.Protocol;
-using CursorController.Agent.Server;
-using CursorController.Agent.Session;
-using CursorController.Agent.Streaming;
-using CursorController.Agent.Volume;
+using Armrest.Agent.Focus;
+using Armrest.Agent.Protocol;
+using Armrest.Agent.Server;
+using Armrest.Agent.Session;
+using Armrest.Agent.Streaming;
+using Armrest.Agent.Volume;
 
-namespace CursorController.Agent.Hosting;
+namespace Armrest.Agent.Hosting;
 
 /// <summary>Menjalankan input dari HP di komputer. Dipanggil di dispatcher.</summary>
 public interface IInputSink
@@ -19,7 +19,7 @@ public interface IInputSink
     void ReleaseButtons();
 }
 
-/// <summary>Iklan DNS-SD (<c>_cursorctl._tcp</c>) supaya HP menemukan komputer ini.</summary>
+/// <summary>Iklan DNS-SD (<c>_armrest._tcp</c>) supaya HP menemukan komputer ini.</summary>
 public interface IServiceAdvertiser : IDisposable
 {
     void Advertise(string instanceName, int port, IReadOnlyDictionary<string, string> txt);

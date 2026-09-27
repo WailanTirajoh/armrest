@@ -3,12 +3,12 @@
   <!-- Protokol dan logika agent tanpa API Windows, jadi bisa dibangun dan dites di macOS/Linux. -->
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
-    <AssemblyName>CursorController.Agent.Core</AssemblyName>
-    <RootNamespace>CursorController.Agent</RootNamespace>
+    <AssemblyName>Armrest.Agent.Core</AssemblyName>
+    <RootNamespace>Armrest.Agent</RootNamespace>
   </PropertyGroup>
 
   <ItemGroup>
-    <InternalsVisibleTo Include="CursorController.Agent.Tests" />
+    <InternalsVisibleTo Include="Armrest.Agent.Tests" />
   </ItemGroup>
 
 </Project>

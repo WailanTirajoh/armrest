@@ -1,7 +1,7 @@
 using System.Buffers.Text;
 using System.Security.Cryptography;
 
-namespace CursorController.Agent.Session;
+namespace Armrest.Agent.Session;
 
 public enum PairingTokenCheck
 {
@@ -72,12 +72,12 @@ public sealed class PairingTokens(Func<DateTimeOffset>? now = null, Func<byte[]>
     }
 }
 
-/// <summary>Isi QR pairing: cursorctl://pair?h=&amp;n=&amp;a=&amp;t=&amp;fp=</summary>
+/// <summary>Isi QR pairing: armrest://pair?h=&amp;n=&amp;a=&amp;t=&amp;fp=</summary>
 public sealed record PairingUri(string HostId, string HostName, string Address, int Port, string Token, string Fingerprint)
 {
     // Uri.EscapeDataString hanya membiarkan karakter unreserved, sama dengan agent Mac.
     public override string ToString() =>
-        "cursorctl://pair?" + string.Join('&',
+        "armrest://pair?" + string.Join('&',
             $"h={Uri.EscapeDataString(HostId)}",
             $"n={Uri.EscapeDataString(HostName)}",
             $"a={Uri.EscapeDataString($"{Address}:{Port}")}",

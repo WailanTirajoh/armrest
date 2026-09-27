@@ -9,9 +9,9 @@
 # Butuh: gh (sudah login), keytool (JDK), openssl.
 set -euo pipefail
 
-REPO="${REPO:-WailanTirajoh/cursor-controller}"
-OUT="${OUT:-$HOME/cursor-controller-signing}"
-CERT_NAME="Cursor Controller Dev Signing"
+REPO="${REPO:-WailanTirajoh/armrest}"
+OUT="${OUT:-$HOME/armrest-signing}"
+CERT_NAME="Armrest Dev Signing"
 
 if [ -e "$OUT" ]; then
   echo "Folder $OUT sudah ada. Pindahkan atau hapus dulu supaya kunci lama tidak tertimpa." >&2
@@ -25,12 +25,12 @@ random_password() { openssl rand -base64 32 | tr -d '/+=\n' | cut -c1-28; }
 
 echo "1/3 Membuat keystore Android…"
 ks_password="$(random_password)"
-key_alias="cursor-controller"
+key_alias="armrest"
 # Keystore PKCS12 memakai password yang sama untuk store dan key.
 keytool -genkeypair -keystore android-release.jks -storetype PKCS12 -alias "$key_alias" \
   -keyalg RSA -keysize 3072 -validity 10000 \
   -storepass "$ks_password" -keypass "$ks_password" \
-  -dname "CN=Cursor Controller" > /dev/null 2>&1
+  -dname "CN=Armrest" > /dev/null 2>&1
 
 echo "2/3 Membuat sertifikat code signing Mac…"
 p12_password="$(random_password)"

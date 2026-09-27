@@ -1,6 +1,6 @@
 using System.Buffers.Binary;
 
-namespace CursorController.Agent.Protocol;
+namespace Armrest.Agent.Protocol;
 
 /// <summary>Permintaan HP untuk melihat layar: ukuran video maksimum dalam piksel, biasanya ukuran layar HP.</summary>
 public sealed record ScreenRequest

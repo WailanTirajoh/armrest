@@ -83,7 +83,7 @@ public final class PairingTokens {
     }
 }
 
-/// Isi QR pairing: cursorctl://pair?h=&n=&a=&t=&fp=
+/// Isi QR pairing: armrest://pair?h=&n=&a=&t=&fp=
 public struct PairingURI: Equatable, Sendable {
     public var hostId: String
     public var hostName: String
@@ -112,6 +112,6 @@ public struct PairingURI: Equatable, Sendable {
             "t=\(enc(token))",
             "fp=\(enc(fingerprint))",
         ].joined(separator: "&")
-        return "cursorctl://pair?\(query)"
+        return "armrest://pair?\(query)"
     }
 }

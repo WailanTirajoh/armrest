@@ -5,14 +5,14 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Threading;
-using CursorController.Agent.Hosting;
-using CursorController.Agent.Protocol;
-using CursorController.Agent.Server;
-using CursorController.Agent.Windows.Platform;
-using CursorController.Agent.Windows.Screen;
-using CursorController.Agent.Windows.Ui;
+using Armrest.Agent.Hosting;
+using Armrest.Agent.Protocol;
+using Armrest.Agent.Server;
+using Armrest.Agent.Windows.Platform;
+using Armrest.Agent.Windows.Screen;
+using Armrest.Agent.Windows.Ui;
 
-namespace CursorController.Agent.Windows;
+namespace Armrest.Agent.Windows;
 
 internal static class Program
 {
@@ -20,8 +20,8 @@ internal static class Program
     private static int Main()
     {
         var profile = Profile.Current;
-        using var instance = new Mutex(initiallyOwned: true, $@"Local\CursorController{profile.Suffix}", out var first);
-        using var showPanel = new EventWaitHandle(false, EventResetMode.AutoReset, $@"Local\CursorController{profile.Suffix}-show");
+        using var instance = new Mutex(initiallyOwned: true, $@"Local\Armrest{profile.Suffix}", out var first);
+        using var showPanel = new EventWaitHandle(false, EventResetMode.AutoReset, $@"Local\Armrest{profile.Suffix}-show");
         if (!first)
         {
             // App sudah berjalan (mis. dibuka lagi dari Start menu): minta panelnya ditampilkan.
@@ -132,14 +132,14 @@ internal sealed class App : Application
         new Thread(() =>
         {
             while (showPanel.WaitOne()) dispatcher.Post(() => panel?.Toggle());
-        }) { IsBackground = true, Name = "cursorctl-show" }.Start();
+        }) { IsBackground = true, Name = "armrest-show" }.Start();
     }
 
     private static TrayState TrayStateFor(AgentHost agent) =>
         agent.ActiveDevices.Count > 0 ? TrayState.Controlled : agent.Pairing is not null ? TrayState.Pairing : TrayState.Idle;
 
     private static string Tooltip(AgentHost agent) =>
-        agent.ActiveDevices.Count > 0 ? $"Cursor Controller · dikontrol oleh {agent.ActiveDevices[0].Name}"
-        : agent.ListeningAddress is { } address ? $"Cursor Controller · {address}"
-        : "Cursor Controller";
+        agent.ActiveDevices.Count > 0 ? $"Armrest · dikontrol oleh {agent.ActiveDevices[0].Name}"
+        : agent.ListeningAddress is { } address ? $"Armrest · {address}"
+        : "Armrest";
 }

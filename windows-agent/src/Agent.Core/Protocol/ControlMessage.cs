@@ -1,7 +1,7 @@
 using System.Text.Json;
-using CursorController.Agent.Volume;
+using Armrest.Agent.Volume;
 
-namespace CursorController.Agent.Protocol;
+namespace Armrest.Agent.Protocol;
 
 /// <summary>Pesan kontrol JSON (protocol/PROTOCOL.md, bagian "Pesan kontrol").</summary>
 public abstract record ControlMessage

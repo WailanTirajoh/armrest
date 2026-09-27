@@ -3,13 +3,13 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Runtime.InteropServices;
-using CursorController.Agent.Hosting;
-using CursorController.Agent.Input;
-using CursorController.Agent.Protocol;
-using CursorController.Agent.Windows.Native;
+using Armrest.Agent.Hosting;
+using Armrest.Agent.Input;
+using Armrest.Agent.Protocol;
+using Armrest.Agent.Windows.Native;
 using Forms = System.Windows.Forms;
 
-namespace CursorController.Agent.Windows.Platform;
+namespace Armrest.Agent.Windows.Platform;
 
 /// <summary>
 /// Menerjemahkan input dari HP menjadi SendInput. Jendela yang berjalan sebagai administrator, UAC, dan layar kunci

@@ -1,8 +1,8 @@
 using System;
-using CursorController.Agent.Protocol;
-using CursorController.Agent.Streaming;
+using Armrest.Agent.Protocol;
+using Armrest.Agent.Streaming;
 
-namespace CursorController.Agent.Windows.Screen;
+namespace Armrest.Agent.Windows.Screen;
 
 /// <summary>Tangkapan GDI + encoder Media Foundation.</summary>
 internal sealed class WindowsScreenBackend : IScreenBackend

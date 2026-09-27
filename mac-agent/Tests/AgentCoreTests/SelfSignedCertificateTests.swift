@@ -8,13 +8,13 @@ import Testing
     let key = P256.Signing.PrivateKey()
     let der = try SelfSignedCertificate.make(
         key: key,
-        commonName: "Cursor Controller",
+        commonName: "Armrest",
         notBefore: Date(timeIntervalSince1970: 1_790_000_000),
         notAfter: Date(timeIntervalSince1970: 1_790_000_000 + 20 * 365 * 86_400)
     )
 
     let certificate = try #require(SecCertificateCreateWithData(nil, der as CFData))
-    #expect(SecCertificateCopySubjectSummary(certificate) as String? == "Cursor Controller")
+    #expect(SecCertificateCopySubjectSummary(certificate) as String? == "Armrest")
 
     // Kunci publik di sertifikat sama dengan kunci yang dipakai.
     let publicKey = try #require(SecCertificateCopyKey(certificate))
@@ -23,7 +23,7 @@ import Testing
 
     // Signature atas TBSCertificate valid, dan ikut di akhir sertifikat.
     let parts = try SelfSignedCertificate.build(
-        key: key, commonName: "Cursor Controller", notBefore: Date(), notAfter: Date().addingTimeInterval(86_400), serial: [0x42]
+        key: key, commonName: "Armrest", notBefore: Date(), notAfter: Date().addingTimeInterval(86_400), serial: [0x42]
     )
     let signature = try P256.Signing.ECDSASignature(derRepresentation: parts.signature)
     #expect(key.publicKey.isValidSignature(signature, for: parts.tbs))

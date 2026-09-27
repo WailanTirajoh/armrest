@@ -3,12 +3,12 @@ using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
-using CursorController.Agent.Hosting;
-using CursorController.Agent.Server;
-using CursorController.Agent.Session;
-using CursorController.Agent.Windows.Platform;
+using Armrest.Agent.Hosting;
+using Armrest.Agent.Server;
+using Armrest.Agent.Session;
+using Armrest.Agent.Windows.Platform;
 
-namespace CursorController.Agent.Windows.Ui;
+namespace Armrest.Agent.Windows.Ui;
 
 /// <summary>Panel dari ikon tray (padanan panel menu bar di Mac). Tertutup sendiri saat klik di luar.</summary>
 internal sealed class PanelWindow : Window
@@ -23,7 +23,7 @@ internal sealed class PanelWindow : Window
         this.host = host;
         this.pair = pair;
         this.quit = quit;
-        Title = "Cursor Controller";
+        Title = "Armrest";
         Width = 340;
         SizeToContent = SizeToContent.Height;
         WindowStyle = WindowStyle.None;
@@ -93,7 +93,7 @@ internal sealed class PanelWindow : Window
     private UIElement Header()
     {
         var text = new StackPanel { Margin = new Thickness(10, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center };
-        text.Children.Add(Theme.Text("Cursor Controller", 13, bold: true));
+        text.Children.Add(Theme.Text("Armrest", 13, bold: true));
         text.Children.Add(Theme.Text(Status(), 12, color: Theme.Secondary));
         var row = new StackPanel { Orientation = Orientation.Horizontal };
         row.Children.Add(Theme.Icon(32));

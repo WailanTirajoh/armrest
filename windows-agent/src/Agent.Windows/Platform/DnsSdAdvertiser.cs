@@ -4,14 +4,14 @@ using System.Linq;
 using System.Net;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
-using CursorController.Agent.Hosting;
-using CursorController.Agent.Protocol;
-using CursorController.Agent.Windows.Native;
+using Armrest.Agent.Hosting;
+using Armrest.Agent.Protocol;
+using Armrest.Agent.Windows.Native;
 
-namespace CursorController.Agent.Windows.Platform;
+namespace Armrest.Agent.Windows.Platform;
 
 /// <summary>
-/// Iklan <c>_cursorctl._tcp</c> lewat DNS-SD bawaan Windows (dnsapi, Windows 10 1809+). Kalau gagal, HP masih bisa
+/// Iklan <c>_armrest._tcp</c> lewat DNS-SD bawaan Windows (dnsapi, Windows 10 1809+). Kalau gagal, HP masih bisa
 /// tersambung lewat alamat terakhir atau "Sambungkan via IP".
 /// </summary>
 internal sealed unsafe class DnsSdAdvertiser : IServiceAdvertiser

@@ -1,6 +1,6 @@
 using System.Collections.Concurrent;
 
-namespace CursorController.Agent.Server;
+namespace Armrest.Agent.Server;
 
 /// <summary>Antrean tempat semua state agent diubah, satu aksi sekali jalan. Di app: thread UI (WPF Dispatcher).</summary>
 public interface IDispatcher

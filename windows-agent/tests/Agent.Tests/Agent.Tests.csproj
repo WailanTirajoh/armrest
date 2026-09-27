@@ -3,8 +3,8 @@
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
     <IsPackable>false</IsPackable>
-    <RootNamespace>CursorController.Agent.Tests</RootNamespace>
-    <AssemblyName>CursorController.Agent.Tests</AssemblyName>
+    <RootNamespace>Armrest.Agent.Tests</RootNamespace>
+    <AssemblyName>Armrest.Agent.Tests</AssemblyName>
   </PropertyGroup>
 
   <ItemGroup>
