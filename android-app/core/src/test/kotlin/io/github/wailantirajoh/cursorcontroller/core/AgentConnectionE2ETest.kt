@@ -113,8 +113,12 @@ class AgentConnectionE2ETest {
         assertTrue(first.keyframe && AnnexB.NAL_IDR in nalTypes(first.data))
         var seq = first.seq
         repeat(20) {
-            val frame = nextPacket() as ScreenPacket.Frame
-            assertTrue(frame.seq > seq)
+            var packet = nextPacket()
+            // Encoder dengan keyframe berkala (mis. Media Foundation) mengirim screen_config sebelum setiap keyframe.
+            val afterConfig = packet is ScreenPacket.Config
+            if (afterConfig) packet = nextPacket()
+            val frame = packet as ScreenPacket.Frame
+            assertTrue(frame.seq > seq && (frame.keyframe || !afterConfig))
             seq = frame.seq
         }
         // Permintaan ulang (mis. decoder HP dibuat ulang) menghasilkan config dan keyframe baru.

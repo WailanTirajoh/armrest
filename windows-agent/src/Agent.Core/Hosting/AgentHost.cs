@@ -260,7 +260,8 @@ public sealed class AgentHost
             source,
             backend.CreateEncoder,
             packet => dispatcher.Post(() => server?.SendScreen(packet, connection)),
-            status => dispatcher.Post(() => ScreenStatusChanged(status, connection)));
+            status => dispatcher.Post(() => ScreenStatusChanged(status, connection)),
+            error => log.Write($"screen: error {error}"));
         streamers[connection] = (device.Id, streamer);
         streamer.Start(request);
         UpdateScreenViewers();

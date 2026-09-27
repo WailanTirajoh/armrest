@@ -44,21 +44,23 @@ public class StreamerTests
         public FakeSource Source { get; } = new();
         public ConcurrentQueue<ScreenPacket> Packets { get; } = new();
         public ConcurrentQueue<ScreenStatus> Statuses { get; } = new();
+        public ConcurrentQueue<Exception> Errors { get; } = new();
         public List<FakeEncoder> Encoders { get; } = [];
         public ScreenStreamer Streamer { get; }
 
-        public Harness()
+        public Harness(Func<PixelSize, Action<EncodedFrame>, IVideoEncoder>? makeEncoder = null)
         {
             Streamer = new ScreenStreamer(
                 Source,
-                (size, output) =>
+                makeEncoder ?? ((size, output) =>
                 {
                     var encoder = new FakeEncoder(size, output);
                     lock (Encoders) Encoders.Add(encoder);
                     return encoder;
-                },
+                }),
                 bytes => Packets.Enqueue(ScreenPacket.Decode(bytes)!),
-                Statuses.Enqueue);
+                Statuses.Enqueue,
+                Errors.Enqueue);
             Streamer.Start(new ScreenRequest(1920, 1080));
             Eventually(() => Source.Events is not null);
             Source.Events!(new ScreenSourceEvent.Size(new PixelSize(640, 400)));
@@ -150,6 +152,17 @@ public class StreamerTests
         h.Source.Events!(new ScreenSourceEvent.Stopped(null, Denied: true));
         Eventually(() => h.Statuses.Count == 2);
         Assert.Equal([ScreenStatus.Streaming, ScreenStatus.Denied], h.Statuses);
+        Assert.True(h.Source.Stopped);
+    }
+
+    [Fact]
+    public void EncoderFailureIsReportedWithItsCause()
+    {
+        var failure = new InvalidOperationException("encoder tidak tersedia");
+        using var h = new Harness((_, _) => throw failure);
+        Eventually(() => !h.Statuses.IsEmpty);
+        Assert.Equal([ScreenStatus.Failed], h.Statuses);
+        Assert.Same(failure, Assert.Single(h.Errors));
         Assert.True(h.Source.Stopped);
     }
 }

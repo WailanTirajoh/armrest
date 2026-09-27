@@ -28,6 +28,8 @@ internal sealed partial class MediaFoundationEncoder : IVideoEncoder
     private IMFTransform transform;
     private long frameIndex;
     private bool fresh = true;
+    // SPS/PPS terakhir dari encoder ini, untuk keyframe yang tidak membawanya sendiri.
+    private byte[]? parameterSets;
 
     public MediaFoundationEncoder(PixelSize size, Action<EncodedFrame> output)
     {
@@ -62,6 +64,7 @@ internal sealed partial class MediaFoundationEncoder : IVideoEncoder
             // Tanpa ICodecAPI tidak ada cara sederhana memaksa keyframe; encoder baru selalu mulai dengan IDR.
             transform.Dispose();
             pending.Clear();
+            parameterSets = null;
             transform = CreateTransform(Size);
         }
         fresh = false;
@@ -126,16 +129,13 @@ internal sealed partial class MediaFoundationEncoder : IVideoEncoder
     private void Emit(byte[] annexB)
     {
         var units = AnnexB.Split(annexB);
+        if (units.Any(u => AnnexB.NalType(u) is 7 or 8)) parameterSets = AnnexB.Join(units.Where(u => AnnexB.NalType(u) is 7 or 8));
+        // Sampel tanpa slice (mis. hanya SPS/PPS) bukan frame: tidak memakai seq, parameternya disimpan untuk keyframe.
+        if (!units.Any(u => AnnexB.NalType(u) is >= 1 and <= 5)) return;
         var keyframe = units.Any(u => AnnexB.NalType(u) == 5);
-        byte[]? parameterSets = null;
-        if (keyframe)
-        {
-            parameterSets = AnnexB.Join(units.Where(u => AnnexB.NalType(u) is 7 or 8));
-            if (parameterSets.Length == 0) parameterSets = SequenceHeader();
-        }
         var frameData = AnnexB.Join(units.Where(u => AnnexB.NalType(u) is not (7 or 8 or 9)));
         var seq = pending.Count > 0 ? pending.Dequeue() : 0;
-        if (frameData.Length > 0) output(new EncodedFrame(seq, keyframe, frameData, parameterSets));
+        output(new EncodedFrame(seq, keyframe, frameData, keyframe ? parameterSets ?? SequenceHeader() : null));
     }
 
     /// <summary>SPS/PPS dari tipe keluaran, untuk encoder yang tidak menaruhnya di dalam keyframe.</summary>

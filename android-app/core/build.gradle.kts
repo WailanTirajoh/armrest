@@ -25,5 +25,10 @@ tasks.test {
     testLogging {
         events("failed", "skipped")
         exceptionFormat = org.gradle.api.tasks.testing.logging.TestExceptionFormat.FULL
+        // Skrip e2e memakai -q: kegagalan tetap tampil lengkap.
+        quiet {
+            events("failed")
+            exceptionFormat = org.gradle.api.tasks.testing.logging.TestExceptionFormat.FULL
+        }
     }
 }

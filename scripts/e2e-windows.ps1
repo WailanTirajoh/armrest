@@ -42,13 +42,16 @@ try {
     Push-Location "$root\android-app"
     try {
         .\gradlew.bat -q :core:test --tests '*AgentConnectionE2ETest' --rerun
-        if ($LASTEXITCODE) { throw 'uji JVM gagal' }
+        $jvmFailed = [bool]$LASTEXITCODE
     }
     finally { Pop-Location }
 
+    # Log agent selalu ditampilkan, juga saat uji JVM gagal.
     Write-Host '== Log agent'
+    if ($agent.HasExited) { Write-Host "Agent berhenti sendiri (kode $($agent.ExitCode))" }
     $lines = Get-Content $log
     $lines
+    if ($jvmFailed) { throw 'uji JVM gagal' }
     $expected = @('input: move(dx: 120, dy: -40)', 'input: click(left, count: 1)', 'input: scroll(dx: 0, dy: -60)',
         'input: text("Halo dunia', 'input: key(return, modifiers: 0)', 'input: key(c, modifiers: 8)', 'focus: true', 'focus: false')
     if ($screen) { $expected += @('screen: start', 'screen: streaming', 'screen: stop') }

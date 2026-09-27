@@ -62,6 +62,7 @@ public sealed class ScreenStreamer
     private readonly Func<PixelSize, Action<EncodedFrame>, IVideoEncoder> makeEncoder;
     private readonly Action<byte[]> send;
     private readonly Action<ScreenStatus> report;
+    private readonly Action<Exception>? error;
     private readonly SerialQueue queue = new("cursorctl-screen");
 
     // Hanya diakses di queue.
@@ -73,17 +74,22 @@ public sealed class ScreenStreamer
     private bool keyframeNeeded = true;
     private bool stopped;
 
-    /// <summary><c>send</c> dan <c>report</c> dipanggil di antrean internal streamer.</summary>
+    /// <summary>
+    /// <c>send</c>, <c>report</c>, dan <c>error</c> dipanggil di antrean internal streamer. <c>error</c> menerima
+    /// penyebab sebelum <see cref="ScreenStatus.Failed"/> dilaporkan.
+    /// </summary>
     public ScreenStreamer(
         IScreenSource source,
         Func<PixelSize, Action<EncodedFrame>, IVideoEncoder> makeEncoder,
         Action<byte[]> send,
-        Action<ScreenStatus> report)
+        Action<ScreenStatus> report,
+        Action<Exception>? error = null)
     {
         this.source = source;
         this.makeEncoder = makeEncoder;
         this.send = send;
         this.report = report;
+        this.error = error;
     }
 
     public void Start(ScreenRequest request) =>
@@ -126,10 +132,9 @@ public sealed class ScreenStreamer
                 {
                     encoder = makeEncoder(size, frame => queue.Post(() => Deliver(frame, size, generation)));
                 }
-                catch (Exception)
+                catch (Exception failure)
                 {
-                    Shutdown();
-                    report(ScreenStatus.Failed);
+                    Fail(failure);
                     return;
                 }
                 keyframeNeeded = true;
@@ -141,6 +146,7 @@ public sealed class ScreenStreamer
                 EncodeLatest();
                 break;
             case ScreenSourceEvent.Stopped stoppedEvent:
+                if (stoppedEvent.Error is { } sourceError) error?.Invoke(sourceError);
                 Shutdown();
                 report(stoppedEvent.Denied ? ScreenStatus.Denied : ScreenStatus.Failed);
                 break;
@@ -155,10 +161,9 @@ public sealed class ScreenStreamer
         {
             encoder.Encode(latest, flow.Next(), keyframeNeeded);
         }
-        catch (Exception)
+        catch (Exception failure)
         {
-            Shutdown();
-            report(ScreenStatus.Failed);
+            Fail(failure);
             return;
         }
         keyframeNeeded = false;
@@ -173,6 +178,13 @@ public sealed class ScreenStreamer
             send(new ScreenPacket.Config(size.Width, size.Height, parameterSets).Encode());
         }
         send(new ScreenPacket.Frame(frame.Seq, frame.Keyframe, frame.Data).Encode());
+    }
+
+    private void Fail(Exception failure)
+    {
+        error?.Invoke(failure);
+        Shutdown();
+        report(ScreenStatus.Failed);
     }
 
     private void Shutdown()
