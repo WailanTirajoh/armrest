@@ -74,6 +74,9 @@ class AgentConnectionE2ETest {
         // Tombol media: agent uji hanya mencatat, tidak pernah memutar atau menjeda apa pun.
         assertTrue(ProtocolConstants.FEATURE_MEDIA in pairing.features)
         listOf(KeyCode.PLAY_PAUSE, KeyCode.NEXT_TRACK, KeyCode.PREVIOUS_TRACK).forEach { assertTrue(pairing.sendInput(InputMessage.Key(it))) }
+        // Perintah daya: agent uji hanya mencatat, tidak pernah mematikan komputer.
+        assertTrue(ProtocolConstants.FEATURE_POWER in pairing.features)
+        listOf(ControlMessage.POWER_SLEEP, ControlMessage.POWER_RESTART, ControlMessage.POWER_SHUTDOWN).forEach(pairing::power)
 
         // Fokus kolom teks: status awal dikirim begitu diminta, lalu setiap kali berubah.
         focusFile.writeText("0")

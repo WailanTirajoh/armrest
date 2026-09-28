@@ -70,6 +70,7 @@ import io.github.wailantirajoh.armrest.R
 import io.github.wailantirajoh.armrest.ScreenState
 import io.github.wailantirajoh.armrest.ScreenUi
 import io.github.wailantirajoh.armrest.VolumeUi
+import io.github.wailantirajoh.armrest.core.ControlMessage
 import io.github.wailantirajoh.armrest.core.GestureEngine
 import io.github.wailantirajoh.armrest.core.InputAction
 import io.github.wailantirajoh.armrest.core.KeyCode
@@ -94,6 +95,7 @@ fun TouchpadScreen(
     screenCursor: StateFlow<CursorPoint?>,
     volume: VolumeUi,
     media: Boolean,
+    power: Boolean,
     volumeHud: Int,
     settings: TouchSettings,
     showGestureHints: Boolean,
@@ -107,6 +109,7 @@ fun TouchpadScreen(
     onVolumeLevel: (Float) -> Unit,
     onToggleMute: () -> Unit,
     onMediaKey: (KeyCode) -> Unit,
+    onPower: (String) -> Unit,
     onRetryScreen: () -> Unit,
     onScreenSurface: (Surface?) -> Unit,
     onSettingsChange: (TouchSettings) -> Unit,
@@ -117,6 +120,7 @@ fun TouchpadScreen(
     val view = LocalView.current
     var showSettings by remember { mutableStateOf(false) }
     var showVolume by remember { mutableStateOf(false) }
+    var showPower by remember { mutableStateOf(false) }
     val connected = link == Link.Connected
     val showingScreen = connected && macScreen.state == ScreenState.SHOWING
     // Satu panel untuk volume dan tombol media; muncul kalau agent mendukung salah satunya.
@@ -189,6 +193,11 @@ fun TouchpadScreen(
                             contentDescription = stringResource(if (keyboardOpen) R.string.keyboard_close else R.string.keyboard_open),
                             tint = if (keyboardOpen) colors.primary else colors.onSurface,
                         )
+                    }
+                    if (power) {
+                        IconButton(onClick = { showPower = true }, enabled = connected) {
+                            Icon(AppIcons.Power, contentDescription = stringResource(R.string.power_title))
+                        }
                     }
                     IconButton(onClick = { showSettings = true }) { Icon(AppIcons.Settings, contentDescription = stringResource(R.string.touchpad_settings)) }
                 },
@@ -326,6 +335,14 @@ fun TouchpadScreen(
     if (showVolume && soundPanel) {
         ModalBottomSheet(onDismissRequest = { showVolume = false }) {
             VolumeSheet(hostName, volume, media, settings.volumeKeys, onVolumeStep, onVolumeLevel, onToggleMute, onMediaKey)
+        }
+    }
+    if (showPower && power) {
+        ModalBottomSheet(onDismissRequest = { showPower = false }) {
+            PowerSheet(hostName, platform) { action ->
+                showPower = false
+                onPower(action)
+            }
         }
     }
     if (showGestureHints && connected) {
@@ -627,6 +644,56 @@ private fun SwitchRow(label: String, checked: Boolean, description: String? = nu
             }
         }
         Switch(checked = checked, onCheckedChange = onChange)
+    }
+}
+
+/** Tidur langsung dikirim; mulai ulang dan matikan minta konfirmasi dulu karena pekerjaan yang belum disimpan bisa hilang. */
+@Composable
+private fun PowerSheet(hostName: String, platform: String, onPower: (String) -> Unit) {
+    var confirm by remember { mutableStateOf<String?>(null) }
+    Column(
+        Modifier
+            .fillMaxWidth()
+            .padding(start = 24.dp, end = 24.dp, bottom = 32.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        Text(hostName, fontSize = 22.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        listOf(
+            Triple(ControlMessage.POWER_SLEEP, AppIcons.Sleep, R.string.power_sleep),
+            Triple(ControlMessage.POWER_RESTART, AppIcons.Restart, R.string.power_restart),
+            Triple(ControlMessage.POWER_SHUTDOWN, AppIcons.Power, R.string.power_shutdown),
+        ).forEach { (action, icon, label) ->
+            OutlinedButton(
+                onClick = { if (action == ControlMessage.POWER_SLEEP) onPower(action) else confirm = action },
+                shape = RoundedCornerShape(20.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(56.dp),
+            ) {
+                Icon(icon, contentDescription = null, modifier = Modifier.size(20.dp))
+                Text(stringResource(label), fontSize = 15.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(start = 8.dp))
+            }
+        }
+        Text(
+            stringResource(if (platform == ProtocolConstants.PLATFORM_WINDOWS) R.string.power_wake_hint_windows else R.string.power_wake_hint_mac),
+            fontSize = 13.sp,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
+    confirm?.let { action ->
+        val restart = action == ControlMessage.POWER_RESTART
+        AlertDialog(
+            onDismissRequest = { confirm = null },
+            title = { Text(stringResource(if (restart) R.string.power_confirm_restart else R.string.power_confirm_shutdown, hostName)) },
+            text = { Text(stringResource(R.string.power_confirm_body)) },
+            confirmButton = {
+                TextButton(onClick = {
+                    confirm = null
+                    onPower(action)
+                }) { Text(stringResource(if (restart) R.string.power_restart else R.string.power_shutdown)) }
+            },
+            dismissButton = { TextButton(onClick = { confirm = null }) { Text(stringResource(R.string.cancel)) } },
+        )
     }
 }
 

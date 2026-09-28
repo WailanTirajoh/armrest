@@ -95,6 +95,14 @@ internal static partial class Win32
     [LibraryImport("user32.dll", EntryPoint = "MapVirtualKeyW")]
     public static partial uint MapVirtualKey(uint code, uint mapType);
 
+    // Daya
+
+    /// <summary>Tidur (bukan hibernasi kalau <paramref name="hibernate"/> false).</summary>
+    [LibraryImport("powrprof.dll")]
+    [return: MarshalAs(UnmanagedType.U1)]
+    public static partial bool SetSuspendState(
+        [MarshalAs(UnmanagedType.U1)] bool hibernate, [MarshalAs(UnmanagedType.U1)] bool force, [MarshalAs(UnmanagedType.U1)] bool disableWakeEvent);
+
     // Monitor dan DPI
 
     public const uint MonitorDefaultToNearest = 2;

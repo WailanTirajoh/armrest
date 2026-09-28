@@ -44,6 +44,9 @@ object AppIcons {
     val PlayPause = stroke("play-pause", "M4 6.5v11l7.5-5.5zM15.5 6.5v11M20 6.5v11")
     val SkipNext = stroke("skip-next", "M6 6.5v11l8.5-5.5zM18 6.5v11")
     val SkipPrevious = stroke("skip-previous", "M18 6.5v11l-8.5-5.5zM6 6.5v11")
+    val Power = stroke("power", "M12 3v8", "M7.5 6.2a7.5 7.5 0 1 0 9 0")
+    val Sleep = stroke("sleep", "M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z")
+    val Restart = stroke("restart", "M4 12a8 8 0 1 0 2.3-5.6", "M4 4v4h4")
     val Fullscreen = stroke("fullscreen", "M4 9V5h5M15 5h5v4M20 15v4h-5M9 19H4v-4")
     val FullscreenExit = stroke("fullscreen-exit", "M9 4v5H4M20 9h-5V4M15 20v-5h5M4 15h5v5")
     val Keyboard = stroke(

@@ -22,10 +22,12 @@ public final class AgentServer: SessionEnvironment {
         public var features: [String]
         /// Platform yang diumumkan di `auth_result` dan TXT Bonjour (lihat `AgentPlatform`).
         public var platform: String?
+        /// Alamat hardware yang diumumkan di `auth_result`, untuk Wake-on-LAN.
+        public var macAddress: String?
 
         public init(
             port: UInt16, hostId: String, hostName: String, tlsIdentity: SecIdentity?, advertise: Bool, features: [String] = [],
-            platform: String? = nil
+            platform: String? = nil, macAddress: String? = nil
         ) {
             self.port = port
             self.hostId = hostId
@@ -34,6 +36,7 @@ public final class AgentServer: SessionEnvironment {
             self.advertise = advertise
             self.features = features
             self.platform = platform
+            self.macAddress = macAddress
         }
     }
 
@@ -63,6 +66,8 @@ public final class AgentServer: SessionEnvironment {
     /// true saat mulai ada HP yang meminta status volume, false saat tidak ada lagi.
     /// App menyalakan atau mematikan pemantauan volume mengikuti ini.
     public var onVolumeInterestChanged: ((Bool) -> Void)?
+    /// Perintah daya dari HP (id perangkat, perintah).
+    public var onPower: ((String, PowerAction) -> Void)?
 
     public private(set) var state: ServerState = .starting
     private var listener: NWListener?
@@ -78,6 +83,7 @@ public final class AgentServer: SessionEnvironment {
     public var hostName: String { configuration.hostName }
     public var features: [String] { configuration.features }
     public var platform: String? { configuration.platform }
+    public var macAddress: String? { configuration.macAddress }
 
     public init(configuration: Configuration, devices: TrustedDeviceStore, tokens: PairingTokens, queue: DispatchQueue = .main) {
         self.configuration = configuration

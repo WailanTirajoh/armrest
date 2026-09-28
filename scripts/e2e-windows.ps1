@@ -55,7 +55,8 @@ try {
     $expected = @('input: move(dx: 120, dy: -40)', 'input: click(left, count: 1)', 'input: scroll(dx: 0, dy: -60)',
         'input: text("Halo dunia', 'input: key(return, modifiers: 0)', 'input: key(c, modifiers: 8)', 'focus: true', 'focus: false',
         'volume: step(1)', 'volume: muted(true)', 'volume: level(0.25)',
-        'input: key(playpause, modifiers: 0)', 'input: key(nexttrack, modifiers: 0)', 'input: key(previoustrack, modifiers: 0)')
+        'input: key(playpause, modifiers: 0)', 'input: key(nexttrack, modifiers: 0)', 'input: key(previoustrack, modifiers: 0)',
+        'power: sleep', 'power: restart', 'power: shutdown')
     if ($screen) { $expected += @('screen: start', 'screen: streaming', 'screen: stop') }
     foreach ($text in $expected) {
         if (-not ($lines | Where-Object { $_.Contains($text) })) { throw "log agent tidak berisi: $text" }

@@ -37,6 +37,8 @@
 	</array>
 	<key>NSHighResolutionCapable</key>
 	<true/>
+	<key>NSAppleEventsUsageDescription</key>
+	<string>Armrest meminta System Events memulai ulang atau mematikan komputer saat Anda memintanya dari HP.</string>
 	<key>NSLocalNetworkUsageDescription</key>
 	<string>Armrest menerima perintah kursor dari HP Android yang sudah dipasangkan, lewat jaringan lokal.</string>
 	<key>NSPrincipalClass</key>

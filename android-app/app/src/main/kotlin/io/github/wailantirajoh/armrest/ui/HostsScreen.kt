@@ -57,6 +57,7 @@ fun HostsScreen(
     onRequestManual: (SavedHost?) -> Unit,
     onConnectManually: (SavedHost, String) -> Unit,
     onRemove: (SavedHost) -> Unit,
+    onWake: (SavedHost) -> Unit,
 ) {
     val colors = MaterialTheme.colorScheme
     Box(Modifier.fillMaxSize()) {
@@ -89,7 +90,13 @@ fun HostsScreen(
                     contentPadding = androidx.compose.foundation.layout.PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 96.dp),
                 ) {
                     items(hosts, key = { it.host.hostId }) { item ->
-                        HostCard(item, onConnect = { onConnect(item.host) }, onManual = { onRequestManual(item.host) }, onRemove = { onRemove(item.host) })
+                        HostCard(
+                            item,
+                            onConnect = { onConnect(item.host) },
+                            onManual = { onRequestManual(item.host) },
+                            onRemove = { onRemove(item.host) },
+                            onWake = { onWake(item.host) },
+                        )
                     }
                     item {
                         Text(
@@ -120,7 +127,7 @@ fun HostsScreen(
 }
 
 @Composable
-private fun HostCard(item: HostUi, onConnect: () -> Unit, onManual: () -> Unit, onRemove: () -> Unit) {
+private fun HostCard(item: HostUi, onConnect: () -> Unit, onManual: () -> Unit, onRemove: () -> Unit, onWake: () -> Unit) {
     val colors = MaterialTheme.colorScheme
     var menu by remember { mutableStateOf(false) }
     Row(
@@ -159,6 +166,13 @@ private fun HostCard(item: HostUi, onConnect: () -> Unit, onManual: () -> Unit, 
                 fontSize = 13.sp,
                 color = colors.onSurfaceVariant,
             )
+        }
+        // Wake-on-LAN: hanya untuk komputer yang offline dan sudah mengirim alamat hardware-nya.
+        if (!item.online && item.host.mac != null) {
+            TextButton(onClick = onWake) {
+                Icon(AppIcons.Power, contentDescription = null, modifier = Modifier.size(18.dp))
+                Text(stringResource(R.string.wake), modifier = Modifier.padding(start = 6.dp))
+            }
         }
         Box {
             IconButton(onClick = { menu = true }) { Icon(AppIcons.More, contentDescription = stringResource(R.string.host_options, item.host.name)) }

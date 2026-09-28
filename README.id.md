@@ -35,6 +35,7 @@ WiFi rumah: tanpa akun, tanpa cloud.
 - 📺 **Layar di HP**: lihat layar komputer di belakang touchpad. Cubit untuk zoom (tampilan mengikuti kursor), atau pakai layar penuh.
 - ⏯️ **Kontrol media**: putar/jeda, berikutnya, dan sebelumnya untuk YouTube, Netflix, Spotify, dan apa pun yang merespons tombol media.
 - 🔊 **Volume**: tombol volume HP mengatur volume komputer.
+- ⏻ **Daya**: tidurkan, mulai ulang, atau matikan komputer, lalu nyalakan lagi lewat Wake-on-LAN (jaringan yang sama, Wake-on-LAN aktif di komputer).
 - 🔗 **Pairing sekali**: scan QR, izinkan di komputer, selesai. Tersambung ulang otomatis.
 - 🔒 **Privat sejak awal**: hanya jaringan lokal, dienkripsi dengan sertifikat yang di-pin, dan setiap HP harus diizinkan di komputer.
 - 💻 **macOS dan Windows**: macOS 13+, Windows 10/11 (x64 dan ARM64), satu HP untuk beberapa komputer. App berjalan di Android 8+; app iPhone sedang direncanakan.
@@ -192,7 +193,8 @@ terpercaya tetap tersimpan antar-update.
 - [ ] Peluncur app
 - [ ] Sinkronisasi clipboard
 - [ ] Kirim file
-- [ ] Sleep, kunci, dan matikan komputer
+- [x] Tidur, mulai ulang, matikan, dan Wake-on-LAN
+- [ ] Kunci komputer
 - [ ] Agent Linux
 - [ ] Streaming layar yang lebih mulus di Windows (encoder hardware)
 

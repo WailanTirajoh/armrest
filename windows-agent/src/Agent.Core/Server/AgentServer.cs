@@ -40,7 +40,8 @@ public sealed class AgentServer : ISessionEnvironment
         string HostName,
         X509Certificate2? TlsCertificate,
         IReadOnlyList<string>? Features = null,
-        string? Platform = null);
+        string? Platform = null,
+        string? MacAddress = null);
 
     private readonly Configuration configuration;
     private readonly IDispatcher dispatcher;
@@ -81,11 +82,14 @@ public sealed class AgentServer : ISessionEnvironment
     public Action<string, VolumeCommand>? OnVolume { get; set; }
     /// <summary>true saat mulai ada HP yang meminta status volume, false saat tidak ada lagi.</summary>
     public Action<bool>? OnVolumeInterestChanged { get; set; }
+    /// <summary>Perintah daya dari HP (id perangkat, perintah).</summary>
+    public Action<string, PowerAction>? OnPower { get; set; }
 
     public string HostId => configuration.HostId;
     public string HostName => configuration.HostName;
     public IReadOnlyList<string> Features => configuration.Features ?? [];
     public string? Platform => configuration.Platform;
+    public string? MacAddress => configuration.MacAddress;
 
     /// <summary>Perangkat yang sesinya sedang aktif (sudah terautentikasi).</summary>
     public IReadOnlyList<TrustedDevice> ActiveDevices =>

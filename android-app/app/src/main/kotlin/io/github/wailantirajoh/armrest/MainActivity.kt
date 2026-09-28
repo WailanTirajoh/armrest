@@ -134,6 +134,7 @@ private fun App(viewModel: ControllerViewModel) {
                 onRequestManual = viewModel::requestManualAddress,
                 onConnectManually = viewModel::connectManually,
                 onRemove = viewModel::removeHost,
+                onWake = viewModel::wake,
             )
             Screen.Scan -> ScanScreen(onBack = { viewModel.backToHosts() }, onScanned = viewModel::onPairingText)
             is Screen.Pairing -> PairingWaitScreen(screen.hostName, onCancel = viewModel::cancelPairing)
@@ -148,6 +149,7 @@ private fun App(viewModel: ControllerViewModel) {
                 screenCursor = viewModel.screenCursor,
                 volume = state.volume,
                 media = state.media,
+                power = state.power,
                 volumeHud = state.volumeHud,
                 settings = state.settings,
                 showGestureHints = state.showGestureHints,
@@ -161,6 +163,7 @@ private fun App(viewModel: ControllerViewModel) {
                 onVolumeLevel = viewModel::setVolume,
                 onToggleMute = viewModel::toggleMute,
                 onMediaKey = viewModel::sendMediaKey,
+                onPower = viewModel::power,
                 onRetryScreen = viewModel::retryScreen,
                 onScreenSurface = viewModel::onScreenSurface,
                 onSettingsChange = viewModel::updateSettings,

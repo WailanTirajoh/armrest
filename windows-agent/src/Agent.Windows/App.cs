@@ -75,6 +75,7 @@ internal sealed class App : Application
             FocusProbe = UiaFocusProbe.TextInputFocused,
             Screen = screenAvailable ? new WindowsScreenBackend() : null,
             Volume = new CoreAudioVolume(),
+            Power = WindowsPower.Perform,
             Advertiser = new DnsSdAdvertiser(),
         });
         if (!profile.Headless) BuildUi(host);

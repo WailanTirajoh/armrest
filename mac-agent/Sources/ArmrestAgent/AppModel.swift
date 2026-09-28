@@ -78,7 +78,8 @@ final class AppModel: ObservableObject {
             let server = AgentServer(
                 configuration: .init(
                     port: profile.port, hostId: hostId, hostName: hostName, tlsIdentity: identity.identity, advertise: true,
-                    features: [AgentFeature.focus, AgentFeature.screen, AgentFeature.volume, AgentFeature.media], platform: AgentPlatform.macOS
+                    features: [AgentFeature.focus, AgentFeature.screen, AgentFeature.volume, AgentFeature.media, AgentFeature.power],
+                    platform: AgentPlatform.macOS, macAddress: LocalNetwork.primaryMACAddress()
                 ),
                 devices: store,
                 tokens: tokens
@@ -151,6 +152,13 @@ final class AppModel: ObservableObject {
             guard let self else { return }
             self.log("volume: \(command)")
             self.volumeMonitor.apply(command)
+        }
+        server.onPower = { [weak self] _, action in
+            guard let self else { return }
+            self.log("power: \(action.rawValue)")
+            // Profil uji hanya mencatat, tidak pernah mematikan komputer sungguhan.
+            guard !self.headless else { return }
+            PowerControl.perform(action)
         }
         server.onScreenRequest = { [weak self] connection, device, request in
             self?.screenRequested(connection: connection, device: device, request: request)

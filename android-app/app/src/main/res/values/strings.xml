@@ -115,4 +115,19 @@
     <string name="key_right">Right arrow</string>
     <string name="type_to_computer">Type to the computer</string>
     <string name="type_placeholder">Type here, it shows up on the computer</string>
+    <string name="power_title">Power</string>
+    <string name="power_sleep">Sleep</string>
+    <string name="power_restart">Restart</string>
+    <string name="power_shutdown">Shut down</string>
+    <string name="power_confirm_restart">Restart %1$s?</string>
+    <string name="power_confirm_shutdown">Shut down %1$s?</string>
+    <string name="power_confirm_body">Unsaved work on the computer may be lost.</string>
+    <string name="power_wake_hint_mac">To wake the Mac from your phone later, turn on Wake for network access in the Mac\'s Energy or Battery settings.</string>
+    <string name="power_wake_hint_windows">To turn the PC back on from your phone later, enable Wake-on-LAN in its BIOS and network adapter settings. A wired connection works best.</string>
+    <string name="power_sent_sleep">%1$s is going to sleep</string>
+    <string name="power_sent_restart">%1$s is restarting</string>
+    <string name="power_sent_shutdown">%1$s is shutting down</string>
+    <string name="wake">Wake</string>
+    <string name="wake_sent">Wake signal sent to %1$s. It can take a minute to come online.</string>
+    <string name="wake_failed">Couldn\'t send the wake signal. Connect to the same Wi-Fi as the computer.</string>
 </resources>

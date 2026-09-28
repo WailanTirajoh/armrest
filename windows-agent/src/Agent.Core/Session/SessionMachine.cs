@@ -16,6 +16,8 @@ public interface ISessionEnvironment
     IReadOnlyList<string> Features { get; }
     /// <summary>Platform yang diumumkan di <c>auth_result</c>.</summary>
     string? Platform { get; }
+    /// <summary>Alamat hardware komputer yang diumumkan di <c>auth_result</c>, untuk Wake-on-LAN.</summary>
+    string? MacAddress => null;
 }
 
 public sealed record PendingDevice(string Id, string Name, byte[] PublicKey);
@@ -38,6 +40,8 @@ public abstract record SessionAction
     public sealed record Screen(ScreenRequest? Request) : SessionAction;
 
     public sealed record Volume(VolumeCommand Command) : SessionAction;
+
+    public sealed record Power(PowerAction Action) : SessionAction;
 
     public sealed record ScreenAck(uint Seq) : SessionAction;
 
@@ -112,7 +116,7 @@ public sealed class SessionMachine(ISessionEnvironment environment, Func<DateTim
                     return Close(new ControlMessage.AuthResult(false, "bad_sig"), "bad_sig");
                 }
                 state = new State.Authenticated(device);
-                var result = new ControlMessage.AuthResult(true, null, environment.Features, environment.Platform);
+                var result = new ControlMessage.AuthResult(true, null, environment.Features, environment.Platform, environment.MacAddress);
                 return [new SessionAction.Send(result), new SessionAction.Authenticated(device)];
 
             case (State.Authenticated, ControlMessage.Settings settings):
@@ -121,6 +125,9 @@ public sealed class SessionMachine(ISessionEnvironment environment, Func<DateTim
 
             case (State.Authenticated, ControlMessage.VolumeMessage volume):
                 return [new SessionAction.Volume(volume.Command)];
+
+            case (State.Authenticated, ControlMessage.Power power):
+                return [new SessionAction.Power(power.Action)];
 
             case (State.Authenticated, ControlMessage.Screen screen):
                 return [new SessionAction.Screen(screen.Request)];

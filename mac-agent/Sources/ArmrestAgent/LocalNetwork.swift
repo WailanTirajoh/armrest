@@ -11,6 +11,28 @@ enum LocalNetwork {
 
     /// IPv4 LAN utama: en0/en1 (WiFi/Ethernet) didahulukan daripada VPN atau bridge.
     static func primaryIPv4() -> String? {
+        primaryInterface()?.address
+    }
+
+    /// Alamat hardware antarmuka LAN utama, untuk Wake-on-LAN. nil untuk antarmuka tanpa alamat hardware (VPN).
+    static func primaryMACAddress() -> String? {
+        guard let name = primaryInterface()?.name else { return nil }
+        var list: UnsafeMutablePointer<ifaddrs>?
+        guard getifaddrs(&list) == 0, let first = list else { return nil }
+        defer { freeifaddrs(list) }
+        for entry in sequence(first: first, next: { $0.pointee.ifa_next }) {
+            guard let address = entry.pointee.ifa_addr, address.pointee.sa_family == UInt8(AF_LINK),
+                  String(cString: entry.pointee.ifa_name) == name else { continue }
+            let link = address.withMemoryRebound(to: sockaddr_dl.self, capacity: 1) { $0.pointee }
+            guard link.sdl_alen == 6, let dataOffset = MemoryLayout<sockaddr_dl>.offset(of: \.sdl_data) else { return nil }
+            // Alamat hardware ada di sdl_data, setelah nama antarmuka (sdl_nlen byte).
+            let bytes = UnsafeRawPointer(address) + dataOffset + Int(link.sdl_nlen)
+            return MacAddress.format((0 ..< 6).map { bytes.load(fromByteOffset: $0, as: UInt8.self) })
+        }
+        return nil
+    }
+
+    private static func primaryInterface() -> (name: String, address: String)? {
         var list: UnsafeMutablePointer<ifaddrs>?
         guard getifaddrs(&list) == 0, let first = list else { return nil }
         defer { freeifaddrs(list) }
@@ -28,7 +50,7 @@ enum LocalNetwork {
             if text.hasPrefix("169.254.") { continue }
             candidates.append((String(cString: entry.pointee.ifa_name), text))
         }
-        return candidates.min { rank($0.name) < rank($1.name) }?.address
+        return candidates.min { rank($0.name) < rank($1.name) }
     }
 
     private static func rank(_ interface: String) -> Int {

@@ -35,6 +35,7 @@ your home Wi-Fi: no account, no cloud.
 - 📺 **Screen on your phone**: see your computer's screen behind the touchpad. Pinch to zoom (the view follows your cursor), or go full screen.
 - ⏯️ **Media controls**: play/pause, next, and previous for YouTube, Netflix, Spotify, and anything else that responds to media keys.
 - 🔊 **Volume**: your phone's volume buttons control your computer's volume.
+- ⏻ **Power**: put the computer to sleep, restart it, or shut it down, and wake it again with Wake-on-LAN (same network, Wake-on-LAN enabled on the computer).
 - 🔗 **Pair once**: scan a QR code, approve on the computer, done. Reconnects automatically.
 - 🔒 **Private by design**: local network only, encrypted with a pinned certificate, and every phone must be approved on the computer.
 - 💻 **macOS and Windows**: macOS 13+, Windows 10/11 (x64 and ARM64), one phone for several computers. The app runs on Android 8+; an iPhone app is planned.
@@ -190,7 +191,8 @@ survive updates.
 - [ ] App launcher
 - [ ] Clipboard sync
 - [ ] File transfer
-- [ ] Sleep, lock, and shutdown
+- [x] Sleep, restart, shutdown, and Wake-on-LAN
+- [ ] Lock
 - [ ] Linux agent
 - [ ] Smoother screen streaming on Windows (hardware encoder)
 

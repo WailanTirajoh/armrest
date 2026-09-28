@@ -114,4 +114,19 @@
     <string name="key_right">Panah kanan</string>
     <string name="type_to_computer">Ketik ke komputer</string>
     <string name="type_placeholder">Ketik di sini, langsung muncul di komputer</string>
+    <string name="power_title">Daya</string>
+    <string name="power_sleep">Tidur</string>
+    <string name="power_restart">Mulai ulang</string>
+    <string name="power_shutdown">Matikan</string>
+    <string name="power_confirm_restart">Mulai ulang %1$s?</string>
+    <string name="power_confirm_shutdown">Matikan %1$s?</string>
+    <string name="power_confirm_body">Pekerjaan yang belum disimpan di komputer bisa hilang.</string>
+    <string name="power_wake_hint_mac">Supaya Mac bisa dibangunkan dari HP nanti, nyalakan Wake for network access di pengaturan Energy atau Battery Mac.</string>
+    <string name="power_wake_hint_windows">Supaya PC bisa dinyalakan lagi dari HP nanti, aktifkan Wake-on-LAN di BIOS dan pengaturan kartu jaringannya. Paling andal lewat kabel LAN.</string>
+    <string name="power_sent_sleep">%1$s sedang tidur</string>
+    <string name="power_sent_restart">%1$s sedang dimulai ulang</string>
+    <string name="power_sent_shutdown">%1$s sedang dimatikan</string>
+    <string name="wake">Nyalakan</string>
+    <string name="wake_sent">Sinyal bangun terkirim ke %1$s. Mungkin butuh semenit sampai online.</string>
+    <string name="wake_failed">Sinyal bangun gagal dikirim. Sambungkan HP ke Wi-Fi yang sama dengan komputer.</string>
 </resources>

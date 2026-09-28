@@ -93,6 +93,11 @@ class AgentConnection(
     var features: Set<String> = emptySet()
         private set
 
+    /** Alamat hardware komputer dari `auth_result`, untuk Wake-on-LAN. null untuk agent lama. */
+    @Volatile
+    var macAddress: String? = null
+        private set
+
     private val trustManager = PinnedTrustManager(target.fingerprint)
     private val webSocket: WebSocket
     // Callback onOpen bisa datang sebelum `webSocket` selesai di-assign di init, jadi simpan dari callback.
@@ -145,6 +150,14 @@ class AgentConnection(
         if (isAuthenticated && ProtocolConstants.FEATURE_VOLUME in features) send(message)
     }
 
+    /**
+     * Tidurkan, mulai ulang, atau matikan komputer ([ControlMessage.POWER_SHUTDOWN] dst.). Diabaikan kalau agent
+     * tidak mendukung fitur power. Konfirmasi ke user dilakukan UI sebelum memanggil ini.
+     */
+    fun power(action: String) {
+        if (isAuthenticated && ProtocolConstants.FEATURE_POWER in features) send(ControlMessage.Power(action))
+    }
+
     fun stopScreen() {
         if (isAuthenticated) send(ControlMessage.Screen(false))
     }
@@ -182,6 +195,7 @@ class AgentConnection(
                 if (!message.ok) return fail(ClientFailure.AuthRejected(message.error ?: "unknown"))
                 features = message.features.toSet()
                 platform = message.platform ?: ProtocolConstants.PLATFORM_MACOS
+                macAddress = message.mac?.let(WakeOnLan::normalize)
                 isAuthenticated = true
                 listener.onAuthenticated()
             }

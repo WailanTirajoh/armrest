@@ -129,6 +129,9 @@ internal sealed class AgentConnection
                 case SessionAction.Volume volume:
                     if (Device is not null) server.OnVolume?.Invoke(Device.Id, volume.Command);
                     break;
+                case SessionAction.Power power:
+                    if (Device is not null) server.OnPower?.Invoke(Device.Id, power.Action);
+                    break;
                 case SessionAction.Screen screen:
                     if (Device is null) break;
                     ScreenRequested = screen.Request is not null;
