@@ -45,6 +45,8 @@ public sealed class AgentHostOptions
     public IScreenBackend? Screen { get; init; }
     /// <summary>Volume output; null = fitur volume tidak diumumkan. Profil uji selalu memakai volume tiruan.</summary>
     public IVolumeControl? Volume { get; init; }
+    /// <summary>Tidur, mulai ulang, dan matikan; null = fitur power tidak diumumkan (kecuali profil uji, yang hanya mencatat).</summary>
+    public Action<PowerAction>? Power { get; init; }
     public IServiceAdvertiser? Advertiser { get; init; }
 }
 
@@ -112,9 +114,10 @@ public sealed class AgentHost
         if (volumeMonitor is not null) features.Add(AgentFeature.Volume);
         // Tombol media lewat jalur input biasa; profil uji hanya mencatatnya.
         features.Add(AgentFeature.Media);
+        if (options.Power is not null || profile.Headless) features.Add(AgentFeature.Power);
         log.Write($"features: {string.Join(", ", features)}");
         var server = new AgentServer(
-            new AgentServer.Configuration(profile.Port, HostId, HostName, options.Certificate, features, options.Platform),
+            new AgentServer.Configuration(profile.Port, HostId, HostName, options.Certificate, features, options.Platform, LocalNetwork.PrimaryMacAddress()),
             store,
             tokens,
             options.Dispatcher);
@@ -231,6 +234,12 @@ public sealed class AgentHost
         {
             log.Write($"volume: {command}");
             volumeMonitor?.Apply(command);
+        };
+        server.OnPower = (_, action) =>
+        {
+            log.Write($"power: {action.WireName()}");
+            // Profil uji hanya mencatat, tidak pernah mematikan komputer sungguhan.
+            if (!profile.Headless) options.Power?.Invoke(action);
         };
         server.OnScreenRequest = ScreenRequested;
         server.OnScreenAck = (connection, seq) =>

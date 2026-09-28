@@ -3,6 +3,7 @@ using System.Net.NetworkInformation;
 using System.Net.Sockets;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
+using Armrest.Agent.Protocol;
 
 namespace Armrest.Agent.Hosting;
 
@@ -12,20 +13,35 @@ public static class LocalNetwork
     /// Alamat IPv4 LAN untuk QR: kartu jaringan aktif yang punya gateway lebih dulu, supaya adapter virtual
     /// (Hyper-V, VPN) tidak terpilih.
     /// </summary>
-    public static string? PrimaryIPv4()
+    public static string? PrimaryIPv4() => PrimaryInterface()?.Address.ToString();
+
+    /// <summary>Alamat hardware kartu jaringan yang sama dengan <see cref="PrimaryIPv4"/>, untuk Wake-on-LAN.</summary>
+    public static string? PrimaryMacAddress()
+    {
+        try
+        {
+            return PrimaryInterface() is { } primary ? MacAddress.Format(primary.Interface.GetPhysicalAddress().GetAddressBytes()) : null;
+        }
+        catch (NetworkInformationException)
+        {
+            return null;
+        }
+    }
+
+    private static (NetworkInterface Interface, IPAddress Address)? PrimaryInterface()
     {
         try
         {
             return NetworkInterface.GetAllNetworkInterfaces()
                 .Where(n => n.OperationalStatus == OperationalStatus.Up
                     && n.NetworkInterfaceType is not (NetworkInterfaceType.Loopback or NetworkInterfaceType.Tunnel))
-                .Select(n => n.GetIPProperties())
-                .OrderByDescending(p => p.GatewayAddresses.Any(g =>
+                .Select(n => (Interface: n, Properties: n.GetIPProperties()))
+                .OrderByDescending(n => n.Properties.GatewayAddresses.Any(g =>
                     g.Address.AddressFamily == AddressFamily.InterNetwork && !g.Address.Equals(IPAddress.Any)))
-                .SelectMany(p => p.UnicastAddresses)
-                .Where(a => a.Address.AddressFamily == AddressFamily.InterNetwork && !IPAddress.IsLoopback(a.Address)
-                    && !a.Address.ToString().StartsWith("169.254.", StringComparison.Ordinal))
-                .Select(a => a.Address.ToString())
+                .SelectMany(n => n.Properties.UnicastAddresses.Select(a => (n.Interface, a.Address)))
+                .Where(n => n.Address.AddressFamily == AddressFamily.InterNetwork && !IPAddress.IsLoopback(n.Address)
+                    && !n.Address.ToString().StartsWith("169.254.", StringComparison.Ordinal))
+                .Select(n => ((NetworkInterface, IPAddress)?)n)
                 .FirstOrDefault();
         }
         catch (NetworkInformationException)

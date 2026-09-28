@@ -207,5 +207,35 @@ class ProtocolVectorTest {
         // Tanpa permintaan kursor, field-nya tidak dikirim sama sekali.
         assertFalse(JSONObject(ControlMessage.Screen(true, 2712, 1220).toJson()).has("cursor"))
     }
+
+    @Test
+    fun powerMessagesAndMacAddress() {
+        listOf(ControlMessage.POWER_SLEEP, ControlMessage.POWER_RESTART, ControlMessage.POWER_SHUTDOWN).forEach {
+            assertEquals(ControlMessage.Power(it), ControlMessage.parse(ControlMessage.Power(it).toJson()))
+        }
+        assertEquals(ControlMessage.Power("shutdown"), ControlMessage.parse("""{"action":"shutdown","t":"power"}"""))
+        assertNull(ControlMessage.parse("""{"action":"hibernate","t":"power"}"""))
+        assertNull(ControlMessage.parse("""{"t":"power"}"""))
+        // Bentuk dari agent; agent lama tidak mengirim `mac`.
+        assertEquals(
+            ControlMessage.AuthResult(true, null, listOf("power"), "windows", "a4:83:e7:12:34:56"),
+            ControlMessage.parse("""{"t":"auth_result","ok":true,"features":["power"],"platform":"windows","mac":"a4:83:e7:12:34:56"}"""),
+        )
+        assertNull((ControlMessage.parse("""{"t":"auth_result","ok":true}""") as ControlMessage.AuthResult).mac)
+    }
+
+    @Test
+    fun wakeOnLanMagicPacket() {
+        assertEquals("a4:83:e7:12:34:56", WakeOnLan.normalize("A4-83-E7-12-34-56"))
+        assertNull(WakeOnLan.normalize("00:00:00:00:00:00"))
+        assertNull(WakeOnLan.normalize("a4:83:e7:12:34"))
+        assertNull(WakeOnLan.normalize("a4:83:e7:12:34:5g"))
+        val packet = WakeOnLan.magicPacket("a4:83:e7:12:34:56")
+        assertEquals(102, packet.size)
+        assertEquals("ffffffffffff", packet.copyOfRange(0, 6).joinToString("") { "%02x".format(it) })
+        for (i in 0 until 16) {
+            assertEquals("a483e7123456", packet.copyOfRange(6 + i * 6, 12 + i * 6).joinToString("") { "%02x".format(it) })
+        }
+    }
 }
 

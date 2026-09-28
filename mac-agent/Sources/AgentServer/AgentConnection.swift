@@ -118,6 +118,8 @@ final class AgentConnection {
                 }
             case let .volume(command):
                 if let device { server.onVolume?(device.id, command) }
+            case let .power(action):
+                if let device { server.onPower?(device.id, action) }
             case let .screen(request):
                 guard let device else { continue }
                 screenRequested = request != nil

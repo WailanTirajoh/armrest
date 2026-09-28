@@ -31,7 +31,7 @@ Protocol version: **1** (field `v` in the `hello` message). The agent rejects an
 | Agent → phone | `pair_result` | `ok: true`, `hostId`, `hostName`, or `ok: false`, `error` | After the user clicks Allow or Deny, or when the token is rejected |
 | Agent → phone | `challenge` | `nonce` | Auth mode, or right after a successful `pair_result` |
 | Phone → agent | `auth` | `sig` | Reply to the challenge |
-| Agent → phone | `auth_result` | `ok: true` with `features` and `platform` (optional), or `ok: false`, `error` | After verification |
+| Agent → phone | `auth_result` | `ok: true` with `features`, `platform`, and `mac` (optional), or `ok: false`, `error` | After verification |
 | Phone → agent | `settings` | `sensitivity`, `scrollSpeed`, `focusUpdates`, `volumeUpdates` | After a successful `auth_result`, and whenever they change |
 | Agent → phone | `focus` | `text` (bool) | Once the phone asks with `focusUpdates`, then on every change |
 | Phone → agent | `screen` | `on: true`, `maxWidth`, `maxHeight`, `cursor` (optional), or `on: false` | Start or stop viewing the screen; repeating it asks for a keyframe |
@@ -40,13 +40,15 @@ Protocol version: **1** (field `v` in the `hello` message). The agent rejects an
 | Agent → phone | `screen_cursor` | `x`, `y` (0–1) | While the screen is shown and the phone asked for `cursor`, whenever the cursor moves |
 | Phone → agent | `volume` | Exactly one of `step`, `level`, `muted` | Change the computer's output volume |
 | Agent → phone | `volume_status` | `level` (0–1, optional), `muted` | Once the phone asks with `volumeUpdates`, then on every change |
+| Phone → agent | `power` | `action`: `sleep`, `restart`, `shutdown` | Put the computer to sleep, restart it, or shut it down |
 | Both | `ping` / `pong` | `ts` (ms) | Every 5 seconds; the connection is closed after 15 seconds without incoming messages |
 | Agent → phone | `error` | `error` | Invalid message or unsupported version, then the connection is closed |
 
 Optional fields in `auth_result`:
 
-- `features`: the agent's optional features: `focus`, `screen`, `volume`, and `media` (media keys `0x60`–`0x62`; the phone only shows its media buttons when this is present).
+- `features`: the agent's optional features: `focus`, `screen`, `volume`, `media` (media keys `0x60`–`0x62`; the phone only shows its media buttons when this is present), and `power` (see [Power](#power)).
 - `platform`: `macos` or `windows`. The phone uses it for modifier labels (⌘ ⌃ ⌥ ⇧ or Ctrl Win Alt Shift), icons, and text. When missing (agents before v0.6), it is `macos`.
+- `mac`: the hardware address of the computer's main network interface, lowercase and colon separated (`a4:83:e7:12:34:56`), so the phone can wake it later with Wake-on-LAN. Missing when the agent can't find one.
 
 `error` codes:
 
@@ -146,6 +148,24 @@ Lets the phone control the computer's volume, for example with the phone's volum
 - Without `level`, the computer's output has no adjustable volume (for example an HDMI monitor on a Mac). `step` and `level` commands are then ignored.
 - The agent checks the volume every 250 ms, only while a phone is asking. It controls the default output device: through CoreAudio on macOS (no extra permission), and Core Audio (`IAudioEndpointVolume`) on Windows.
 - Phones before v0.7 don't send `volumeUpdates`, so they never receive `volume_status`.
+
+## Power
+
+Lets the phone put the computer to sleep, restart it, or shut it down, and wake it again.
+
+- **Feature**: agents that support it send `"power"` in `features`. The phone only sends `power` when it is present, because older agents close the connection on unknown messages.
+- **Command**: `{"t":"power","action":"shutdown"}`. `action` is `sleep`, `restart`, or `shutdown`; any other value is a `bad_message`. The agent doesn't reply: the connection simply drops as the computer goes down. The phone asks the user to confirm before sending `restart` or `shutdown`.
+- **macOS**: sleep with `pmset sleepnow`; restart and shut down through System Events, like the Apple menu, so apps can still ask to save documents. The first time, macOS asks to allow Armrest to control System Events.
+- **Windows**: sleep with `SetSuspendState`; restart and shut down with `shutdown.exe` (`/r` or `/s`, no delay).
+- The test profile only logs the command, for example `power: shutdown`.
+
+### Wake-on-LAN
+
+A computer that is off or asleep can't run the agent, so the phone wakes it directly:
+
+- The phone stores `mac` from `auth_result` with the host.
+- To wake it, the phone sends a magic packet over UDP to port 9 of the broadcast address `255.255.255.255`, and of the host's last known address: 6 bytes `0xFF`, then the 6-byte hardware address repeated 16 times (102 bytes).
+- The packet only reaches computers on the same local network. Wake-on-LAN must be enabled on the computer: in the BIOS/UEFI and the network adapter's settings on Windows (Fast Startup can block it after a shutdown), and **Wake for network access** on a Mac (Macs generally wake from sleep, not from shut down). Wi-Fi adapters rarely support waking from shut down; Ethernet is the reliable choice.
 
 ## Pairing QR code
 

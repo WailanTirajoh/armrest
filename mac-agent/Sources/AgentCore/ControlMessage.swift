@@ -17,8 +17,9 @@ public enum ControlMessage: Equatable, Sendable {
     case pairResult(PairResult)
     case challenge(nonce: String)
     case auth(sig: String)
-    /// Hanya saat ok: `features` = fitur opsional agent (lihat `AgentFeature`), `platform` = `macos` atau `windows`.
-    case authResult(ok: Bool, error: String?, features: [String] = [], platform: String? = nil)
+    /// Hanya saat ok: `features` = fitur opsional agent (lihat `AgentFeature`), `platform` = `macos` atau `windows`,
+    /// `mac` = alamat hardware komputer untuk Wake-on-LAN.
+    case authResult(ok: Bool, error: String?, features: [String] = [], platform: String? = nil, mac: String? = nil)
     /// `focusUpdates`: HP ingin menerima pesan `focus`. `volumeUpdates`: HP ingin menerima pesan `volume_status`.
     case settings(sensitivity: Double, scrollSpeed: Double, focusUpdates: Bool, volumeUpdates: Bool = false)
     /// Apakah kolom teks sedang fokus di Mac, supaya HP bisa membuka keyboard sendiri.
@@ -34,6 +35,8 @@ public enum ControlMessage: Equatable, Sendable {
     case volume(VolumeCommand)
     /// Volume output komputer, untuk HP yang meminta `volumeUpdates`.
     case volumeStatus(VolumeState)
+    /// Tidurkan, mulai ulang, atau matikan komputer.
+    case power(PowerAction)
     case ping(ts: Int64)
     case pong(ts: Int64)
     case error(String)
@@ -53,11 +56,12 @@ public enum ControlMessage: Equatable, Sendable {
             object = ["t": "challenge", "nonce": nonce]
         case let .auth(sig):
             object = ["t": "auth", "sig": sig]
-        case let .authResult(ok, error, features, platform):
+        case let .authResult(ok, error, features, platform, mac):
             object = ["t": "auth_result", "ok": ok]
             if let error { object["error"] = error }
             if !features.isEmpty { object["features"] = features }
             if let platform { object["platform"] = platform }
+            if let mac { object["mac"] = mac }
         case let .settings(sensitivity, scrollSpeed, focusUpdates, volumeUpdates):
             object = [
                 "t": "settings", "sensitivity": sensitivity, "scrollSpeed": scrollSpeed, "focusUpdates": focusUpdates,
@@ -87,6 +91,8 @@ public enum ControlMessage: Equatable, Sendable {
         case let .volumeStatus(state):
             object = ["t": "volume_status", "muted": state.muted]
             if let level = state.level { object["level"] = Self.decimal(level) }
+        case let .power(action):
+            object = ["t": "power", "action": action.rawValue]
         case let .ping(ts):
             object = ["t": "ping", "ts": ts]
         case let .pong(ts):
@@ -133,7 +139,9 @@ public enum ControlMessage: Equatable, Sendable {
             return string("sig").map { .auth(sig: $0) }
         case "auth_result":
             guard let ok = o["ok"] as? Bool else { return nil }
-            return .authResult(ok: ok, error: string("error"), features: o["features"] as? [String] ?? [], platform: string("platform"))
+            return .authResult(
+                ok: ok, error: string("error"), features: o["features"] as? [String] ?? [], platform: string("platform"), mac: string("mac")
+            )
         case "settings":
             guard let sensitivity = number("sensitivity")?.doubleValue,
                   let scrollSpeed = number("scrollSpeed")?.doubleValue else { return nil }
@@ -170,6 +178,8 @@ public enum ControlMessage: Equatable, Sendable {
         case "volume_status":
             guard let muted = o["muted"] as? Bool else { return nil }
             return .volumeStatus(VolumeState(level: number("level")?.doubleValue, muted: muted))
+        case "power":
+            return string("action").flatMap(PowerAction.init(rawValue:)).map { .power($0) }
         case "ping":
             return number("ts").map { .ping(ts: $0.int64Value) }
         case "pong":

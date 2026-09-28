@@ -11,6 +11,7 @@ final class FakeEnvironment: SessionEnvironment {
     let nonce = Data(repeating: 7, count: 32)
     var features: [String] = []
     var platform: String?
+    var macAddress: String?
 
     func checkPairingToken(_ token: String) -> PairingTokenCheck { tokens.check(token) }
     func trustedDevice(id: String) -> TrustedDevice? { devices[id] }
@@ -130,6 +131,26 @@ private func sign(_ key: P256.Signing.PrivateKey, nonce: Data, env: FakeEnvironm
             == [.settings(sensitivity: 5, scrollSpeed: 0.3, focusUpdates: true, volumeUpdates: true)]
     )
     #expect(machine.handleText(text(.volume(.step(-1)))) == [.volume(.step(-1))])
+}
+
+@Test func powerCommandsOnlyAfterAuthenticationAndMacAddressIsAnnounced() throws {
+    let env = FakeEnvironment()
+    env.features = ["power"]
+    env.macAddress = "a4:83:e7:12:34:56"
+    let key = P256.Signing.PrivateKey()
+    env.devices[deviceId] = TrustedDevice(id: deviceId, name: "Pixel", publicKey: key.publicKey.derRepresentation, pairedAt: Date())
+
+    let early = SessionMachine(environment: env)
+    _ = early.handleText(text(.hello(version: 1, deviceId: deviceId, mode: .auth)))
+    #expect(early.handleText(text(.power(.shutdown))) == [.send(.error("bad_message")), .close(reason: "bad_message")])
+
+    let machine = SessionMachine(environment: env)
+    _ = machine.handleText(text(.hello(version: 1, deviceId: deviceId, mode: .auth)))
+    let auth = machine.handleText(text(.auth(sig: try sign(key, nonce: env.nonce, env: env))))
+    #expect(sentMessages(auth) == [.authResult(ok: true, error: nil, features: ["power"], mac: "a4:83:e7:12:34:56")])
+    for action in PowerAction.allCases {
+        #expect(machine.handleText(text(.power(action))) == [.power(action)])
+    }
 }
 
 @Test func screenRequestsOnlyAfterAuthenticationAndFeaturesAreAnnounced() throws {

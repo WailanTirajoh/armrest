@@ -24,12 +24,15 @@ import io.github.wailantirajoh.armrest.data.SavedHost
 import io.github.wailantirajoh.armrest.data.ScreenDecoder
 import io.github.wailantirajoh.armrest.data.SettingsStore
 import io.github.wailantirajoh.armrest.data.TouchSettings
+import io.github.wailantirajoh.armrest.data.WakeSender
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 enum class PairingError { FINGERPRINT, EXPIRED, INVALID, DENIED, TOO_MANY, NETWORK }
 
@@ -74,6 +77,8 @@ data class UiState(
     val volume: VolumeUi = VolumeUi(),
     /** Agent bisa menekan tombol media (putar/jeda, berikutnya, sebelumnya). */
     val media: Boolean = false,
+    /** Agent bisa menidurkan, memulai ulang, atau mematikan komputer. */
+    val power: Boolean = false,
     /** Naik setiap tombol volume HP ditekan, untuk menampilkan indikator volume sebentar. */
     val volumeHud: Int = 0,
     val settings: TouchSettings = TouchSettings(),
@@ -237,7 +242,12 @@ class ControllerViewModel(application: Application) : AndroidViewModel(applicati
     private fun authenticated(hostId: String, address: String) {
         attempt = 0
         val saved = hostStore.find(hostId) ?: return
-        val host = saved.copy(lastAddress = address, lastUsed = System.currentTimeMillis(), platform = connection?.platform ?: saved.platform)
+        val host = saved.copy(
+            lastAddress = address,
+            lastUsed = System.currentTimeMillis(),
+            platform = connection?.platform ?: saved.platform,
+            mac = connection?.macAddress ?: saved.mac,
+        )
         hostStore.upsert(host)
         refreshHosts()
         _state.update {
@@ -247,6 +257,7 @@ class ControllerViewModel(application: Application) : AndroidViewModel(applicati
                 showGestureHints = !settingsStore.gestureHintsSeen,
                 volume = VolumeUi(supported = ProtocolConstants.FEATURE_VOLUME in (connection?.features ?: emptySet())),
                 media = ProtocolConstants.FEATURE_MEDIA in (connection?.features ?: emptySet()),
+                power = ProtocolConstants.FEATURE_POWER in (connection?.features ?: emptySet()),
             )
         }
         sendSettings()
@@ -304,7 +315,7 @@ class ControllerViewModel(application: Application) : AndroidViewModel(applicati
         _screenCursor.value = null
         pendingVolume = null
         volumeJob?.cancel()
-        _state.update { it.copy(volume = VolumeUi(), media = false) }
+        _state.update { it.copy(volume = VolumeUi(), media = false, power = false) }
     }
 
     private fun pairingError(failure: ClientFailure?): PairingError = when (failure) {
@@ -399,6 +410,37 @@ class ControllerViewModel(application: Application) : AndroidViewModel(applicati
             _state.update { it.copy(volumeHud = it.volumeHud + 1) }
         }
         return true
+    }
+
+    // endregion
+
+    // region Daya
+
+    /**
+     * Tidurkan, mulai ulang, atau matikan komputer, lalu kembali ke daftar komputer: koneksinya akan putus, dan
+     * menyambung ulang terus-menerus ke komputer yang mati tidak ada gunanya. UI sudah meminta konfirmasi.
+     */
+    fun power(action: String) {
+        val screen = _state.value.screen as? Screen.Touchpad ?: return
+        val active = connection?.takeIf { it.isAuthenticated && _state.value.power } ?: return
+        active.power(action)
+        val message = when (action) {
+            ControlMessage.POWER_SLEEP -> R.string.power_sent_sleep
+            ControlMessage.POWER_RESTART -> R.string.power_sent_restart
+            else -> R.string.power_sent_shutdown
+        }
+        closeConnection()
+        backToHosts(getApplication<Application>().getString(message, screen.hostName))
+    }
+
+    /** Bangunkan komputer yang mati atau tidur lewat Wake-on-LAN. Hanya bisa dari jaringan lokal yang sama. */
+    fun wake(host: SavedHost) {
+        val mac = host.mac ?: return
+        viewModelScope.launch {
+            val sent = withContext(Dispatchers.IO) { WakeSender.send(mac, host.lastAddress) }
+            val app = getApplication<Application>()
+            _state.update { it.copy(message = if (sent) app.getString(R.string.wake_sent, host.name) else app.getString(R.string.wake_failed)) }
+        }
     }
 
     // endregion

@@ -22,4 +22,5 @@ public static class AgentFeature
     public const string Screen = "screen";
     public const string Volume = "volume";
     public const string Media = "media";
+    public const string Power = "power";
 }

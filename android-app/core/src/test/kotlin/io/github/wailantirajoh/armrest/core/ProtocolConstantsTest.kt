@@ -10,5 +10,6 @@ class ProtocolConstantsTest {
         assertEquals(47810, ProtocolConstants.DEFAULT_PORT)
         assertEquals("_armrest._tcp", ProtocolConstants.SERVICE_TYPE)
         assertEquals("screen", ProtocolConstants.FEATURE_SCREEN)
+        assertEquals("power", ProtocolConstants.FEATURE_POWER)
     }
 }

@@ -11,6 +11,8 @@ object ProtocolConstants {
     const val FEATURE_VOLUME = "volume"
     /** Fitur opsional di `auth_result`: agent bisa menekan tombol media (putar/jeda, berikutnya, sebelumnya). */
     const val FEATURE_MEDIA = "media"
+    /** Fitur opsional di `auth_result`: agent bisa menidurkan, memulai ulang, atau mematikan komputer. */
+    const val FEATURE_POWER = "power"
     /** Platform komputer di `auth_result`. Agent lama tidak mengirimnya dan selalu macOS. */
     const val PLATFORM_MACOS = "macos"
     const val PLATFORM_WINDOWS = "windows"

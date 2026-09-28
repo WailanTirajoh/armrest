@@ -102,6 +102,7 @@ extension Data {
         .authResult(ok: false, error: "bad_sig"),
         .authResult(ok: true, error: nil, features: ["focus", "screen"]),
         .authResult(ok: true, error: nil, features: ["focus", "screen"], platform: "windows"),
+        .authResult(ok: true, error: nil, features: ["power"], platform: "macos", mac: "a4:83:e7:12:34:56"),
         .settings(sensitivity: 1.5, scrollSpeed: 2, focusUpdates: true),
         .settings(sensitivity: 1.5, scrollSpeed: 2, focusUpdates: false),
         .settings(sensitivity: 1.5, scrollSpeed: 2, focusUpdates: true, volumeUpdates: true),
@@ -121,6 +122,9 @@ extension Data {
         .volume(.muted(true)),
         .volumeStatus(VolumeState(level: 0.5625, muted: false)),
         .volumeStatus(VolumeState(level: nil, muted: true)),
+        .power(.sleep),
+        .power(.restart),
+        .power(.shutdown),
         .ping(ts: 1_790_000_000_000),
         .pong(ts: 42),
         .error("bad_message"),
@@ -150,6 +154,8 @@ extension Data {
     )
     // Agent lama tidak mengirim features; HP lama mengabaikannya.
     #expect(ControlMessage.decode(Data(#"{"ok":true,"t":"auth_result"}"#.utf8)) == .authResult(ok: true, error: nil))
+    #expect(ControlMessage.decode(Data(#"{"action":"shutdown","t":"power"}"#.utf8)) == .power(.shutdown))
+    #expect(ControlMessage.decode(Data(#"{"action":"hibernate","t":"power"}"#.utf8)) == nil)
     #expect(ControlMessage.decode(Data(#"{"t":"nope"}"#.utf8)) == nil)
     #expect(ControlMessage.decode(Data("bukan json".utf8)) == nil)
 }
@@ -176,4 +182,10 @@ extension Data {
     #expect(decode(#"{"muted":false,"t":"volume_status"}"#) == .volumeStatus(VolumeState(level: nil, muted: false)))
     // Empat desimal, bukan 17 digit dari JSONSerialization.
     #expect(String(decoding: ControlMessage.screenCursor(x: 0.42131234, y: 0.1).encoded(), as: UTF8.self) == #"{"t":"screen_cursor","x":0.4213,"y":0.1}"#)
+}
+
+@Test func macAddressFormat() {
+    #expect(MacAddress.format([0xA4, 0x83, 0xE7, 0x12, 0x34, 0x56]) == "a4:83:e7:12:34:56")
+    #expect(MacAddress.format([0, 0, 0, 0, 0, 0]) == nil)
+    #expect(MacAddress.format([0xA4, 0x83, 0xE7]) == nil)
 }

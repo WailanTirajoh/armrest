@@ -11,11 +11,14 @@ public protocol SessionEnvironment: AnyObject {
     var features: [String] { get }
     /// Platform yang diumumkan di `auth_result` (lihat `AgentPlatform`).
     var platform: String? { get }
+    /// Alamat hardware komputer yang diumumkan di `auth_result`, untuk Wake-on-LAN.
+    var macAddress: String? { get }
 }
 
 public extension SessionEnvironment {
     var features: [String] { [] }
     var platform: String? { nil }
+    var macAddress: String? { nil }
 }
 
 public struct PendingDevice: Equatable, Sendable {
@@ -34,6 +37,7 @@ public enum SessionAction: Equatable, Sendable {
     case settings(sensitivity: Double, scrollSpeed: Double, focusUpdates: Bool, volumeUpdates: Bool)
     case screen(ScreenRequest?)
     case volume(VolumeCommand)
+    case power(PowerAction)
     case screenAck(UInt32)
     case close(reason: String)
 }
@@ -111,7 +115,9 @@ public final class SessionMachine {
                 return close(.authResult(ok: false, error: "bad_sig"), reason: "bad_sig")
             }
             state = .authenticated(device)
-            let result = ControlMessage.authResult(ok: true, error: nil, features: environment.features, platform: environment.platform)
+            let result = ControlMessage.authResult(
+                ok: true, error: nil, features: environment.features, platform: environment.platform, mac: environment.macAddress
+            )
             return [.send(result), .authenticated(device)]
 
         case let (.authenticated, .settings(sensitivity, scrollSpeed, focusUpdates, volumeUpdates)):
@@ -122,6 +128,9 @@ public final class SessionMachine {
 
         case let (.authenticated, .volume(command)):
             return [.volume(command)]
+
+        case let (.authenticated, .power(action)):
+            return [.power(action)]
 
         case let (.authenticated, .screen(request)):
             return [.screen(request)]

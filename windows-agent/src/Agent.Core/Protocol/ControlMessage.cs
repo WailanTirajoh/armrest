@@ -20,17 +20,18 @@ public abstract record ControlMessage
 
     public sealed record Auth(string Sig) : ControlMessage;
 
-    /// <summary>Hanya saat ok: fitur opsional agent dan platformnya.</summary>
-    public sealed record AuthResult(bool Ok, string? Error, IReadOnlyList<string> Features, string? Platform) : ControlMessage
+    /// <summary>Hanya saat ok: fitur opsional agent, platformnya, dan alamat hardware untuk Wake-on-LAN.</summary>
+    public sealed record AuthResult(bool Ok, string? Error, IReadOnlyList<string> Features, string? Platform, string? Mac = null) : ControlMessage
     {
         public AuthResult(bool ok, string? error) : this(ok, error, [], null)
         {
         }
 
         public bool Equals(AuthResult? other) =>
-            other is not null && Ok == other.Ok && Error == other.Error && Platform == other.Platform && Features.SequenceEqual(other.Features);
+            other is not null && Ok == other.Ok && Error == other.Error && Platform == other.Platform && Mac == other.Mac &&
+            Features.SequenceEqual(other.Features);
 
-        public override int GetHashCode() => HashCode.Combine(Ok, Error, Platform, Features.Count);
+        public override int GetHashCode() => HashCode.Combine(Ok, Error, Platform, Mac, Features.Count);
     }
 
     /// <summary><c>FocusUpdates</c>: HP ingin menerima pesan <c>focus</c>. <c>VolumeUpdates</c>: pesan <c>volume_status</c>.</summary>
@@ -54,6 +55,9 @@ public abstract record ControlMessage
 
     /// <summary>Volume output komputer, untuk HP yang meminta <c>volumeUpdates</c>.</summary>
     public sealed record VolumeStatus(VolumeState State) : ControlMessage;
+
+    /// <summary>Tidurkan, mulai ulang, atau matikan komputer.</summary>
+    public sealed record Power(PowerAction Action) : ControlMessage;
 
     public sealed record Ping(long Ts) : ControlMessage;
 
@@ -113,6 +117,7 @@ public abstract record ControlMessage
                         w.WriteEndArray();
                     }
                     if (m.Platform is not null) w.WriteString("platform", m.Platform);
+                    if (m.Mac is not null) w.WriteString("mac", m.Mac);
                     break;
                 case Settings m:
                     w.WriteString("t", "settings");
@@ -168,6 +173,10 @@ public abstract record ControlMessage
                     if (m.State.Level is { } stateLevel) w.WriteNumber("level", Math.Round(stateLevel, 4));
                     w.WriteBoolean("muted", m.State.Muted);
                     break;
+                case Power m:
+                    w.WriteString("t", "power");
+                    w.WriteString("action", m.Action.WireName());
+                    break;
                 case Ping m:
                     w.WriteString("t", "ping");
                     w.WriteNumber("ts", m.Ts);
@@ -220,7 +229,7 @@ public abstract record ControlMessage
                     var features = o.TryGetProperty("features", out var list) && list.ValueKind == JsonValueKind.Array
                         ? list.EnumerateArray().Where(e => e.ValueKind == JsonValueKind.String).Select(e => e.GetString()!).ToList()
                         : [];
-                    return new AuthResult(authOk, Str("error"), features, Str("platform"));
+                    return new AuthResult(authOk, Str("error"), features, Str("platform"), Str("mac"));
                 case "settings":
                     if (Num("sensitivity") is not { } sensitivity || Num("scrollSpeed") is not { } scrollSpeed) return null;
                     // HP v0.3 belum mengirim focusUpdates, dan HP sebelum v0.7 belum mengirim volumeUpdates.
@@ -252,6 +261,8 @@ public abstract record ControlMessage
                     return Bool("muted") is { } muted ? new VolumeMessage(new VolumeCommand.Muted(muted)) : null;
                 case "volume_status":
                     return Bool("muted") is { } statusMuted ? new VolumeStatus(new VolumeState(Num("level")?.GetDouble(), statusMuted)) : null;
+                case "power":
+                    return PowerActionExtensions.FromWireName(Str("action")) is { } powerAction ? new Power(powerAction) : null;
                 case "ping":
                     return Num("ts") is { } ping && ping.TryGetInt64(out var pingTs) ? new Ping(pingTs) : null;
                 case "pong":

@@ -14,6 +14,8 @@ data class SavedHost(
     val lastUsed: Long,
     /** [ProtocolConstants.PLATFORM_MACOS] atau [ProtocolConstants.PLATFORM_WINDOWS], dari auth_result. */
     val platform: String = ProtocolConstants.PLATFORM_MACOS,
+    /** Alamat hardware dari auth_result, untuk Wake-on-LAN. null untuk agent lama. */
+    val mac: String? = null,
 )
 
 class HostStore(context: Context) {
@@ -26,6 +28,7 @@ class HostStore(context: Context) {
             SavedHost(
                 o.getString("hostId"), o.getString("name"), o.getString("fingerprint"), o.getString("lastAddress"), o.optLong("lastUsed"),
                 o.optString("platform", ProtocolConstants.PLATFORM_MACOS),
+                if (o.has("mac")) o.getString("mac") else null,
             )
         }.sortedByDescending { it.lastUsed }
     }
@@ -46,7 +49,8 @@ class HostStore(context: Context) {
                     .put("fingerprint", it.fingerprint)
                     .put("lastAddress", it.lastAddress)
                     .put("lastUsed", it.lastUsed)
-                    .put("platform", it.platform),
+                    .put("platform", it.platform)
+                    .putOpt("mac", it.mac),
             )
         }
         prefs.edit().putString(KEY, array.toString()).apply()

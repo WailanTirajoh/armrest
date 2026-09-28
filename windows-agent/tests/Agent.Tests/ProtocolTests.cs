@@ -106,6 +106,7 @@ public class ProtocolTests
             new ControlMessage.AuthResult(true, null),
             new ControlMessage.AuthResult(false, "bad_sig"),
             new ControlMessage.AuthResult(true, null, ["focus", "screen"], AgentPlatform.Windows),
+            new ControlMessage.AuthResult(true, null, ["power"], AgentPlatform.Windows, "a4:83:e7:12:34:56"),
             new ControlMessage.Settings(1.5, 2, true),
             new ControlMessage.Settings(1.5, 2, true, true),
             new ControlMessage.Focus(true),
@@ -121,6 +122,9 @@ public class ProtocolTests
             new ControlMessage.VolumeMessage(new VolumeCommand.Muted(true)),
             new ControlMessage.VolumeStatus(new VolumeState(0.5625, false)),
             new ControlMessage.VolumeStatus(new VolumeState(null, true)),
+            new ControlMessage.Power(PowerAction.Sleep),
+            new ControlMessage.Power(PowerAction.Restart),
+            new ControlMessage.Power(PowerAction.Shutdown),
             new ControlMessage.Ping(1_790_000_000_000),
             new ControlMessage.Pong(42),
             new ControlMessage.ErrorMessage("bad_message"),
@@ -146,6 +150,8 @@ public class ProtocolTests
         Assert.Equal(
             new ControlMessage.Settings(1.5, 2, false, true),
             Decode("""{"t":"settings","sensitivity":1.5,"scrollSpeed":2.0,"focusUpdates":false,"volumeUpdates":true}"""));
+        Assert.Equal(new ControlMessage.Power(PowerAction.Shutdown), Decode("""{"t":"power","action":"shutdown"}"""));
+        Assert.Null(Decode("""{"t":"power","action":"hibernate"}"""));
         Assert.Null(Decode("""{"t":"nope"}"""));
         Assert.Null(Decode("bukan json"));
         Assert.Null(Decode("""{"t":"hello","v":1,"deviceId":"x","mode":"lain"}"""));
@@ -181,5 +187,13 @@ public class ProtocolTests
         Assert.Equal(new ControlMessage.VolumeStatus(new VolumeState(null, false)), Decode("""{"t":"volume_status","muted":false}"""));
         // Empat desimal, sama dengan agent Mac.
         Assert.Equal("""{"t":"screen_cursor","x":0.4213,"y":0.1}""", Encoding.UTF8.GetString(new ControlMessage.ScreenCursor(0.42131234, 0.1).Encode()));
+    }
+
+    [Fact]
+    public void MacAddressFormat()
+    {
+        Assert.Equal("a4:83:e7:12:34:56", MacAddress.Format([0xA4, 0x83, 0xE7, 0x12, 0x34, 0x56]));
+        Assert.Null(MacAddress.Format([0, 0, 0, 0, 0, 0]));
+        Assert.Null(MacAddress.Format([0xA4, 0x83, 0xE7]));
     }
 }

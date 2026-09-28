@@ -16,6 +16,7 @@ internal sealed class FakeEnvironment : ISessionEnvironment
     public byte[] Nonce { get; } = Enumerable.Repeat((byte)7, 32).ToArray();
     public IReadOnlyList<string> Features { get; set; } = [];
     public string? Platform { get; set; }
+    public string? MacAddress { get; set; }
 
     public PairingTokenCheck CheckPairingToken(string token) => Tokens.Check(token);
 
@@ -151,6 +152,27 @@ public class SessionTests
         var request = new ScreenRequest(1920, 1080);
         Assert.Equal(new SessionAction[] { new SessionAction.Screen(request) }, machine.HandleText(Text(new ControlMessage.Screen(request))));
         Assert.Equal(new SessionAction[] { new SessionAction.ScreenAck(7) }, machine.HandleText(Text(new ControlMessage.ScreenAck(7))));
+    }
+
+    [Fact]
+    public void PowerCommandsOnlyAfterAuthenticationAndMacAddressIsAnnounced()
+    {
+        var env = new FakeEnvironment { Features = ["power"], MacAddress = "a4:83:e7:12:34:56" };
+        using var key = new PhoneKey();
+        env.Devices[DeviceId] = new TrustedDevice(DeviceId, "Pixel", key.PublicKeyDer, DateTimeOffset.UtcNow);
+
+        var early = new SessionMachine(env);
+        early.HandleText(Text(new ControlMessage.Hello(1, DeviceId, "auth")));
+        Assert.Equal(new SessionAction.Close("bad_message"), early.HandleText(Text(new ControlMessage.Power(PowerAction.Shutdown)))[^1]);
+
+        var machine = new SessionMachine(env);
+        machine.HandleText(Text(new ControlMessage.Hello(1, DeviceId, "auth")));
+        var auth = machine.HandleText(Text(new ControlMessage.Auth(Sign(key, env))));
+        Assert.Equal(new ControlMessage[] { new ControlMessage.AuthResult(true, null, ["power"], null, "a4:83:e7:12:34:56") }, Sent(auth));
+        foreach (var action in Enum.GetValues<PowerAction>())
+        {
+            Assert.Equal(new SessionAction[] { new SessionAction.Power(action) }, machine.HandleText(Text(new ControlMessage.Power(action))));
+        }
     }
 
     [Fact]

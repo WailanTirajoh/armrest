@@ -12,13 +12,15 @@ sealed interface ControlMessage {
     data class Auth(val sig: String) : ControlMessage
     /**
      * `features`: fitur opsional agent, mis. [ProtocolConstants.FEATURE_SCREEN]. `platform`: mis.
-     * [ProtocolConstants.PLATFORM_WINDOWS]. Agent lama tidak mengirim keduanya.
+     * [ProtocolConstants.PLATFORM_WINDOWS]. Agent lama tidak mengirim keduanya. `mac`: alamat hardware komputer
+     * untuk Wake-on-LAN, mis. `a4:83:e7:12:34:56`.
      */
     data class AuthResult(
         val ok: Boolean,
         val error: String?,
         val features: List<String> = emptyList(),
         val platform: String? = null,
+        val mac: String? = null,
     ) : ControlMessage
     /**
      * `focusUpdates`: minta Mac mengirim [Focus] setiap kali fokus kolom teks berubah. `volumeUpdates`: minta
@@ -47,6 +49,8 @@ sealed interface ControlMessage {
     data class Volume(val step: Int? = null, val level: Double? = null, val muted: Boolean? = null) : ControlMessage
     /** Volume output komputer. `level` null = perangkat output tidak bisa diatur volumenya. */
     data class VolumeStatus(val level: Double?, val muted: Boolean) : ControlMessage
+    /** Tidurkan, mulai ulang, atau matikan komputer: [POWER_SLEEP], [POWER_RESTART], atau [POWER_SHUTDOWN]. */
+    data class Power(val action: String) : ControlMessage
     data class Ping(val ts: Long) : ControlMessage
     data class Pong(val ts: Long) : ControlMessage
     data class Error(val error: String) : ControlMessage
@@ -59,7 +63,7 @@ sealed interface ControlMessage {
             is PairResult -> o.put("t", "pair_result").put("ok", ok).putOpt("hostId", hostId).putOpt("hostName", hostName).putOpt("error", error)
             is Challenge -> o.put("t", "challenge").put("nonce", nonce)
             is Auth -> o.put("t", "auth").put("sig", sig)
-            is AuthResult -> o.put("t", "auth_result").put("ok", ok).putOpt("error", error).putOpt("platform", platform)
+            is AuthResult -> o.put("t", "auth_result").put("ok", ok).putOpt("error", error).putOpt("platform", platform).putOpt("mac", mac)
                 .apply { if (features.isNotEmpty()) put("features", JSONArray(features)) }
             is Settings -> o.put("t", "settings").put("sensitivity", sensitivity).put("scrollSpeed", scrollSpeed)
                 .put("focusUpdates", focusUpdates).put("volumeUpdates", volumeUpdates)
@@ -72,6 +76,7 @@ sealed interface ControlMessage {
             is ScreenCursor -> o.put("t", "screen_cursor").put("x", x).put("y", y)
             is Volume -> o.put("t", "volume").putOpt("step", step).putOpt("level", level).putOpt("muted", muted)
             is VolumeStatus -> o.put("t", "volume_status").putOpt("level", level).put("muted", muted)
+            is Power -> o.put("t", "power").put("action", action)
             is Ping -> o.put("t", "ping").put("ts", ts)
             is Pong -> o.put("t", "pong").put("ts", ts)
             is Error -> o.put("t", "error").put("error", error)
@@ -85,6 +90,10 @@ sealed interface ControlMessage {
         const val SCREEN_STREAMING = "streaming"
         const val SCREEN_DENIED = "denied"
         const val SCREEN_FAILED = "failed"
+        const val POWER_SLEEP = "sleep"
+        const val POWER_RESTART = "restart"
+        const val POWER_SHUTDOWN = "shutdown"
+        private val POWER_ACTIONS = setOf(POWER_SLEEP, POWER_RESTART, POWER_SHUTDOWN)
 
         fun parse(text: String): ControlMessage? = try {
             val o = JSONObject(text)
@@ -98,6 +107,7 @@ sealed interface ControlMessage {
                 "auth" -> Auth(o.getString("sig"))
                 "auth_result" -> AuthResult(
                     o.getBoolean("ok"), o.optStringOrNull("error"), o.optStrings("features"), o.optStringOrNull("platform"),
+                    o.optStringOrNull("mac"),
                 )
                 "settings" -> Settings(
                     o.getDouble("sensitivity"), o.getDouble("scrollSpeed"), o.optBoolean("focusUpdates", false),
@@ -111,6 +121,7 @@ sealed interface ControlMessage {
                 "screen_cursor" -> ScreenCursor(o.getDouble("x"), o.getDouble("y"))
                 "volume" -> Volume(o.optIntOrNull("step"), o.optDoubleOrNull("level"), if (o.has("muted")) o.getBoolean("muted") else null)
                 "volume_status" -> VolumeStatus(o.optDoubleOrNull("level"), o.getBoolean("muted"))
+                "power" -> o.getString("action").takeIf { it in POWER_ACTIONS }?.let(::Power)
                 "ping" -> Ping(o.getLong("ts"))
                 "pong" -> Pong(o.getLong("ts"))
                 "error" -> Error(o.optString("error", "unknown"))
