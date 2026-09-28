@@ -1,3 +1,4 @@
+import AgentCore
 import AppKit
 import CoreImage.CIFilterBuiltins
 import Foundation
