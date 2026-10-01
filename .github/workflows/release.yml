@@ -1,40 +1,94 @@
 name: Release
 
+# Alur rilis (Conventional Commits, lihat README):
+# 1. Tiap push ke main, release-please membuka/memperbarui PR rilis berisi kenaikan VERSION dan CHANGELOG.md.
+# 2. PR rilis di-merge → tag vX.Y.Z dan GitHub Release dibuat, lalu APK, DMG, dan installer Windows
+#    dibangun dan dilampirkan. Release disimpan sebagai draft sampai semua file terlampir.
+# Jalankan manual (Run workflow) dari sebuah tag untuk membangun ulang dan menimpa file rilis tag itu.
+
 on:
   push:
-    tags: ["v*"]
+    branches: [main]
+  workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
+
+# Satu rilis dalam satu waktu; run berikutnya menunggu, bukan membatalkan.
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
+  release-please:
+    if: github.event_name == 'push'
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
+    outputs:
+      created: ${{ steps.rp.outputs.release_created }}
+      tag: ${{ steps.rp.outputs.tag_name }}
+    steps:
+      - uses: googleapis/release-please-action@v5
+        id: rp
+        with:
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json
+
+      # Tag sudah dibuat; release disembunyikan dulu supaya /releases/latest tidak menunjuk rilis tanpa file.
+      - name: Jadikan draft sampai artifact terlampir
+        if: steps.rp.outputs.release_created == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.rp.outputs.tag_name }}
+        run: gh release edit "$TAG" --repo "$GITHUB_REPOSITORY" --draft=true
+
+  target:
+    needs: release-please
+    if: ${{ !cancelled() && (needs.release-please.outputs.created == 'true' || (github.event_name == 'workflow_dispatch' && startsWith(github.ref, 'refs/tags/v'))) }}
+    runs-on: ubuntu-24.04
+    outputs:
+      tag: ${{ steps.tag.outputs.tag }}
+    steps:
+      - name: Tentukan tag
+        id: tag
+        env:
+          RP_TAG: ${{ needs.release-please.outputs.tag }}
+        run: echo "tag=${RP_TAG:-$GITHUB_REF_NAME}" >> "$GITHUB_OUTPUT"
+
   android:
+    needs: target
     uses: ./.github/workflows/android.yml
     secrets: inherit
 
   mac:
+    needs: target
     uses: ./.github/workflows/mac.yml
     secrets: inherit
 
   windows:
+    needs: target
     uses: ./.github/workflows/windows.yml
     secrets: inherit
 
-  release:
-    needs: [android, mac, windows]
+  upload:
+    needs: [target, android, mac, windows]
     runs-on: ubuntu-24.04
+    permissions:
+      contents: write
     steps:
       - uses: actions/download-artifact@v8
         with:
           path: dist
           merge-multiple: true
 
-      - name: Buat GitHub Release
+      - name: Lampirkan ke GitHub Release dan terbitkan
         env:
           GH_TOKEN: ${{ github.token }}
+          TAG: ${{ needs.target.outputs.tag }}
         run: |
           ls -la dist
-          gh release create "$GITHUB_REF_NAME" dist/* \
-            --repo "$GITHUB_REPOSITORY" \
-            --title "$GITHUB_REF_NAME" \
-            --generate-notes
+          gh release upload "$TAG" dist/* --repo "$GITHUB_REPOSITORY" --clobber
+          gh release edit "$TAG" --repo "$GITHUB_REPOSITORY" --draft=false

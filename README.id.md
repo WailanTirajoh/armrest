@@ -171,7 +171,18 @@ lalu buka URI dari file itu di emulator: `adb shell am start -a android.intent.a
 ### Rilis dan signing
 
 Setiap push ke `main` membangun APK, DMG, dan installer Windows (x64 dan arm64) sebagai artifact
-workflow. Push tag `v*` menerbitkan semuanya ke [Releases](https://github.com/WailanTirajoh/armrest/releases).
+workflow. Rilis berjalan otomatis lewat [release-please](https://github.com/googleapis/release-please)
+berdasarkan [Conventional Commits](https://www.conventionalcommits.org/):
+
+- Beri nama commit, atau judul PR kalau squash merge, seperti `feat: tombol scroll`, `fix: sambung ulang setelah sleep`,
+  atau `feat!: protokol pairing baru`. Pengecekan di setiap PR memastikan judulnya sesuai format ini.
+- Setiap push ke `main`, PR rilis mengumpulkannya, menaikkan `VERSION`, dan memperbarui `CHANGELOG.md`.
+  `feat` menaikkan versi minor, `fix` dan `perf` versi patch; `chore`, `ci`, `docs`, `refactor`,
+  dan `test` tidak memicu rilis.
+- Merge PR rilis membuat tag `vX.Y.Z`, membangun semuanya, dan menerbitkannya ke
+  [Releases](https://github.com/WailanTirajoh/armrest/releases) dengan changelog sebagai catatan rilis.
+  Release tetap draft sampai semua file terlampir.
+- Untuk membangun ulang file sebuah rilis, jalankan workflow Release secara manual dari tag-nya.
 
 CI tetap jalan tanpa secret: APK ditandatangani debug key dan app Mac ditandatangani ad-hoc.
 Akibatnya APK baru tidak bisa menimpa yang sudah terpasang, dan macOS meminta izin Accessibility

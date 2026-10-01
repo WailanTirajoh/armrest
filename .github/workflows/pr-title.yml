@@ -1,0 +1,18 @@
+name: PR title
+
+# Judul PR menjadi pesan commit saat squash merge, dan release-please membaca pesan itu untuk
+# menentukan versi dan CHANGELOG. Jadi judulnya harus Conventional Commits, mis. "feat: tombol scroll".
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened]
+
+permissions:
+  pull-requests: read
+
+jobs:
+  conventional:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: amannn/action-semantic-pull-request@v6
+        env:
+          GITHUB_TOKEN: ${{ github.token }}

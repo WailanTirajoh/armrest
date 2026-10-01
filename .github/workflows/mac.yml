@@ -23,9 +23,10 @@ permissions:
 jobs:
   build:
     runs-on: macos-26
-    # Prefix literal: saat dipanggil release.yml, github.workflow berisi nama pemanggil.
+    # Prefix literal: saat dipanggil release.yml, github.workflow berisi nama pemanggil ("Release"),
+    # jadi build rilis tidak membatalkan build biasa di main yang jalan bersamaan.
     concurrency:
-      group: mac-${{ github.ref }}
+      group: mac-${{ github.workflow }}-${{ github.ref }}
       cancel-in-progress: true
     steps:
       - uses: actions/checkout@v7
