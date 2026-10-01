@@ -169,7 +169,18 @@ then open the URI from that file in the emulator: `adb shell am start -a android
 ### Releases and signing
 
 Every push to `main` builds the APK, the DMG, and the Windows installers (x64 and arm64) as
-workflow artifacts. Pushing a `v*` tag publishes them all to [Releases](https://github.com/WailanTirajoh/armrest/releases).
+workflow artifacts. Releases are automated with [release-please](https://github.com/googleapis/release-please)
+from [Conventional Commits](https://www.conventionalcommits.org/):
+
+- Name commits, or PR titles when squash merging, like `feat: scroll button`, `fix: reconnect after sleep`,
+  or `feat!: new pairing protocol`. A check on every PR enforces this for the title.
+- On each push to `main`, a release PR collects them, bumps `VERSION`, and updates `CHANGELOG.md`.
+  `feat` raises the minor version, `fix` and `perf` the patch; `chore`, `ci`, `docs`, `refactor`,
+  and `test` don't trigger a release.
+- Merging the release PR tags `vX.Y.Z`, builds everything, and publishes it to
+  [Releases](https://github.com/WailanTirajoh/armrest/releases) with the changelog as notes.
+  The release stays a draft until all files are attached.
+- To rebuild a release's files, run the Release workflow manually from its tag.
 
 CI works without any secrets: the APK is signed with a debug key and the Mac app ad hoc. The catch
 is that a new APK can't replace an installed one, and macOS asks for Accessibility and Screen
